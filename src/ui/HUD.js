@@ -1,37 +1,69 @@
 // src/ui/HUD.js
-// Bottom HUD (HP, MP display)
+// Bottom-center HUD (HP, MP display) - responsive to screen resize
 
-import { UI, GAME_WIDTH, GAME_HEIGHT, DEPTH } from '../utils/constants.js';
+import { UI, DEPTH } from '../utils/constants.js';
+
+const HUD_WIDTH = 340;
+const HUD_HEIGHT = 60;
+const HUD_PADDING = 12;
+const BAR_WIDTH = 200;
+const HP_BAR_HEIGHT = 16;
+const MP_BAR_HEIGHT = 12;
+const BOTTOM_MARGIN = 20;
 
 export default class HUD {
   constructor(scene) {
     this.scene = scene;
     this.container = scene.add.container(0, 0);
     this.container.setDepth(DEPTH.UI);
-    this.container.setScrollFactor(0); // Not affected by camera movement
+    this.container.setScrollFactor(0);
 
-    this.createBackground();
+    this.createHUDBox();
     this.createHPBar();
     this.createMPBar();
     this.createMapName();
+
+    // Position on create
+    this.repositionHUD();
+
+    // Listen for resize events
+    this.scene.scale.on('resize', () => this.repositionHUD());
   }
 
-  createBackground() {
-    const bgY = GAME_HEIGHT - UI.HUD_HEIGHT;
-    const bg = this.scene.add.graphics();
-    bg.fillStyle(0x000000, 0.7);
-    bg.fillRect(0, bgY, GAME_WIDTH, UI.HUD_HEIGHT);
-    bg.lineStyle(1, 0x555555, 0.8);
-    bg.lineBetween(0, bgY, GAME_WIDTH, bgY);
-    this.container.add(bg);
+  repositionHUD() {
+    const w = this.scene.scale.width;
+    const h = this.scene.scale.height;
+
+    // Center horizontally, anchor to bottom
+    const hudX = (w - HUD_WIDTH) / 2;
+    const hudY = h - HUD_HEIGHT - BOTTOM_MARGIN;
+
+    this.container.setPosition(hudX, hudY);
+
+    // Map name: top-right corner of screen
+    if (this.mapNameText) {
+      this.mapNameText.setPosition(w - hudX - 10, -hudY + 16);
+    }
+  }
+
+  createHUDBox() {
+    this.bg = this.scene.add.graphics();
+    // Dark rounded background
+    this.bg.fillStyle(0x000000, 0.75);
+    this.bg.fillRoundedRect(0, 0, HUD_WIDTH, HUD_HEIGHT, 8);
+    // Border
+    this.bg.lineStyle(1, 0x555555, 0.6);
+    this.bg.strokeRoundedRect(0, 0, HUD_WIDTH, HUD_HEIGHT, 8);
+    this.container.add(this.bg);
   }
 
   createHPBar() {
-    const barX = 80;
-    const barY = GAME_HEIGHT - UI.HUD_HEIGHT + 16;
+    const labelX = HUD_PADDING;
+    const barX = HUD_PADDING + 30;
+    const barY = 12;
 
     // HP label
-    this.hpLabel = this.scene.add.text(barX - 30, barY, 'HP', {
+    this.hpLabel = this.scene.add.text(labelX, barY, 'HP', {
       fontSize: '13px',
       fontFamily: UI.FONT_FAMILY,
       color: '#E74C3C',
@@ -42,28 +74,33 @@ export default class HUD {
     // Background bar
     this.hpBg = this.scene.add.graphics();
     this.hpBg.fillStyle(UI.HP_BG_COLOR, 1);
-    this.hpBg.fillRect(barX, barY, UI.HP_BAR_WIDTH, UI.HP_BAR_HEIGHT);
+    this.hpBg.fillRoundedRect(barX, barY, BAR_WIDTH, HP_BAR_HEIGHT, 4);
     this.container.add(this.hpBg);
 
-    // HP bar
+    // HP bar (filled)
     this.hpBar = this.scene.add.graphics();
     this.container.add(this.hpBar);
 
     // HP value text
-    this.hpText = this.scene.add.text(barX + UI.HP_BAR_WIDTH + 8, barY, '', {
+    this.hpText = this.scene.add.text(barX + BAR_WIDTH + 8, barY + 1, '', {
       fontSize: '12px',
       fontFamily: UI.FONT_FAMILY,
       color: UI.FONT_COLOR,
     });
     this.container.add(this.hpText);
+
+    // Store positions for update
+    this.hpBarX = barX;
+    this.hpBarY = barY;
   }
 
   createMPBar() {
-    const barX = 80;
-    const barY = GAME_HEIGHT - UI.HUD_HEIGHT + 38;
+    const labelX = HUD_PADDING;
+    const barX = HUD_PADDING + 30;
+    const barY = 34;
 
     // MP label
-    this.mpLabel = this.scene.add.text(barX - 30, barY, 'MP', {
+    this.mpLabel = this.scene.add.text(labelX, barY, 'MP', {
       fontSize: '13px',
       fontFamily: UI.FONT_FAMILY,
       color: '#3498DB',
@@ -74,24 +111,28 @@ export default class HUD {
     // Background bar
     this.mpBg = this.scene.add.graphics();
     this.mpBg.fillStyle(UI.MP_BG_COLOR, 1);
-    this.mpBg.fillRect(barX, barY, UI.MP_BAR_WIDTH, UI.MP_BAR_HEIGHT);
+    this.mpBg.fillRoundedRect(barX, barY, BAR_WIDTH, MP_BAR_HEIGHT, 4);
     this.container.add(this.mpBg);
 
-    // MP bar
+    // MP bar (filled)
     this.mpBar = this.scene.add.graphics();
     this.container.add(this.mpBar);
 
     // MP value text
-    this.mpText = this.scene.add.text(barX + UI.MP_BAR_WIDTH + 8, barY, '', {
+    this.mpText = this.scene.add.text(barX + BAR_WIDTH + 8, barY, '', {
       fontSize: '11px',
       fontFamily: UI.FONT_FAMILY,
       color: UI.FONT_COLOR,
     });
     this.container.add(this.mpText);
+
+    // Store positions for update
+    this.mpBarX = barX;
+    this.mpBarY = barY;
   }
 
   createMapName() {
-    this.mapNameText = this.scene.add.text(GAME_WIDTH - 20, 16, '', {
+    this.mapNameText = this.scene.add.text(0, 0, '', {
       fontSize: '16px',
       fontFamily: UI.FONT_FAMILY,
       color: '#FFFFFF',
@@ -107,15 +148,14 @@ export default class HUD {
 
     // HP bar update
     const hpRatio = player.hp / player.maxHp;
-    const barX = 80;
-
     this.hpBar.clear();
     this.hpBar.fillStyle(UI.HP_COLOR, 1);
-    this.hpBar.fillRect(
-      barX,
-      GAME_HEIGHT - UI.HUD_HEIGHT + 16,
-      UI.HP_BAR_WIDTH * hpRatio,
-      UI.HP_BAR_HEIGHT
+    this.hpBar.fillRoundedRect(
+      this.hpBarX,
+      this.hpBarY,
+      BAR_WIDTH * hpRatio,
+      HP_BAR_HEIGHT,
+      4
     );
     this.hpText.setText(`${player.hp}/${player.maxHp}`);
 
@@ -123,11 +163,12 @@ export default class HUD {
     const mpRatio = player.mp / player.maxMp;
     this.mpBar.clear();
     this.mpBar.fillStyle(UI.MP_COLOR, 1);
-    this.mpBar.fillRect(
-      barX,
-      GAME_HEIGHT - UI.HUD_HEIGHT + 38,
-      UI.MP_BAR_WIDTH * mpRatio,
-      UI.MP_BAR_HEIGHT
+    this.mpBar.fillRoundedRect(
+      this.mpBarX,
+      this.mpBarY,
+      BAR_WIDTH * mpRatio,
+      MP_BAR_HEIGHT,
+      4
     );
     this.mpText.setText(`${player.mp}/${player.maxMp}`);
   }
