@@ -45,6 +45,15 @@ export const PORTAL = {
   ACTIVATE_DISTANCE: 50,
 };
 
+// ===== Rope settings =====
+export const ROPE = {
+  WIDTH: 8,
+  COLOR: 0xC4A265,
+  HIGHLIGHT_COLOR: 0xD4B878,
+  CLIMB_SPEED: 150,
+  GRAB_RANGE: 20,
+};
+
 // ===== NPC settings =====
 export const NPC = {
   WIDTH: 36,
@@ -92,6 +101,7 @@ export const CAMERA = {
 export const SCENES = {
   BOOT: 'BootScene',
   MENU: 'MenuScene',
+  CHARACTER_SELECT: 'CharacterSelectScene',
   GAME: 'GameScene',
   ENDING: 'EndingScene',
 };
@@ -100,6 +110,7 @@ export const SCENES = {
 export const DEPTH = {
   BACKGROUND: 0,
   PLATFORMS: 10,
+  ROPES: 12,
   PORTALS: 15,
   NPCS: 20,
   MONSTERS: 25,

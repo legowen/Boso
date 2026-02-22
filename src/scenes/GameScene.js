@@ -1,6 +1,6 @@
 // src/scenes/GameScene.js
-// Main game scene - Phase 1 prototype
-// MapleStory-style: large map, platforms, portals, basic combat
+// Main game scene - supports multiple maps via portal transitions
+// MapleStory-style: large maps, platforms, portals, ropes, combat
 
 import Phaser from 'phaser';
 import {
@@ -16,58 +16,49 @@ import {
   DAMAGE_TEXT,
   UI,
   SCENES,
+  ROPE,
 } from '../utils/constants.js';
 import Player from '../entities/Player.js';
 import HUD from '../ui/HUD.js';
+import MAP_HAVEN from '../data/map_haven.js';
+import MAP_OUTSKIRTS from '../data/map_outskirts.js';
 
-// ===== Map data (to be separated into JSON later) =====
-const MAP_DATA = {
-  name: 'Haven Village',
-  width: 3200,
-  height: 800,
-  // 바닥 + 플랫폼들
-  platforms: [
-    // Main ground
-    { x: 0, y: 740, w: 3200, h: 60, isGround: true },
-    // Floating platforms (pass-through)
-    { x: 300, y: 580, w: 200, h: 16, isGround: false },
-    { x: 600, y: 480, w: 250, h: 16, isGround: false },
-    { x: 950, y: 560, w: 180, h: 16, isGround: false },
-    { x: 1200, y: 440, w: 220, h: 16, isGround: false },
-    { x: 1500, y: 520, w: 160, h: 16, isGround: false },
-    { x: 1750, y: 600, w: 280, h: 16, isGround: false },
-    { x: 2100, y: 480, w: 200, h: 16, isGround: false },
-    { x: 2400, y: 380, w: 240, h: 16, isGround: false },
-    { x: 2700, y: 540, w: 200, h: 16, isGround: false },
-    { x: 2900, y: 420, w: 180, h: 16, isGround: false },
-  ],
-  // Portals (prototype: visual only, no transition yet)
-  portals: [
-    { x: 3100, y: 690, label: '→ Field 1' },
-  ],
-  // NPCs (prototype: visual only)
-  npcs: [
-    { x: 500, y: 700, name: 'Village Elder' },
-  ],
-  // Monsters (prototype: basic combat test)
-  monsters: [
-    { x: 1000, y: 700, hp: 40 },
-    { x: 1600, y: 700, hp: 40 },
-    { x: 2200, y: 700, hp: 60 },
-    { x: 2800, y: 700, hp: 60 },
-  ],
+// Map registry - add new maps here
+const MAPS = {
+  haven: MAP_HAVEN,
+  outskirts: MAP_OUTSKIRTS,
 };
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super(SCENES.GAME);
+    this.currentMapKey = 'haven';
+    this.spawnX = null;
+    this.spawnY = null;
+  }
+
+  init(data) {
+    if (data && data.mapKey) {
+      this.currentMapKey = data.mapKey;
+    }
+    if (data && data.spawnX !== undefined) {
+      this.spawnX = data.spawnX;
+    }
+    if (data && data.spawnY !== undefined) {
+      this.spawnY = data.spawnY;
+    }
+    if (data && data.characterData) {
+      this.characterData = data.characterData;
+    }
   }
 
   create() {
-    this.mapData = MAP_DATA;
+    this.mapData = MAPS[this.currentMapKey] || MAP_HAVEN;
+    this.isTransitioning = false;
 
     this.initBackground();
     this.initPlatforms();
+    this.initRopes();
     this.initPlayer();
     this.initMonsters();
     this.initPortals();
@@ -75,22 +66,48 @@ export default class GameScene extends Phaser.Scene {
     this.initCamera();
     this.initControls();
     this.initHUD();
+    this.initMinimap();
     this.initInteractionHint();
 
     // Event listeners
     this.events.on('player-died', () => this.handlePlayerDeath());
+
+    // Fade in when entering map
+    this.cameras.main.fadeIn(400, 0, 0, 0);
   }
 
   update() {
-    if (this.player) {
+    if (this.player && !this.isTransitioning && !this.isPaused) {
       this.player.update(this.cursors, this.keys);
       this.hud.update(this.player);
       this.updateMonsters();
+      this.updateMinimap();
       this.checkInteractions();
     }
   }
 
   // ===== Custom methods (alphabetical order) =====
+
+  changeMap(targetMapKey, spawnX, spawnY) {
+    if (this.isTransitioning) return;
+    if (!MAPS[targetMapKey]) {
+      console.log(`Map "${targetMapKey}" not found yet!`);
+      return;
+    }
+
+    this.isTransitioning = true;
+
+    // Fade out then restart scene with new map data
+    this.cameras.main.fadeOut(500, 0, 0, 0);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.restart({
+        mapKey: targetMapKey,
+        spawnX: spawnX,
+        spawnY: spawnY,
+        characterData: this.characterData,
+      });
+    });
+  }
 
   checkInteractions() {
     // Portal interaction check
@@ -107,6 +124,11 @@ export default class GameScene extends Phaser.Scene {
         this.interactionHint.setText('↑ Enter Portal');
         this.interactionHint.setPosition(zone.x, zone.y - 80);
         this.interactionHint.setVisible(true);
+
+        // Enter portal with UP arrow
+        if (this.cursors.up.isDown && zone.portalData) {
+          this.changeMap(zone.portalData.targetMap, zone.portalData.spawnX, zone.portalData.spawnY);
+        }
       }
     });
 
@@ -159,11 +181,18 @@ export default class GameScene extends Phaser.Scene {
   }
 
   handlePlayerDeath() {
+    this.isTransitioning = true;
+
+    // Grayscale effect on the entire camera
+    const pipeline = this.cameras.main.postFX.addColorMatrix();
+    pipeline.grayscale(1);
+
+    // Dark overlay
     const centerX = this.cameras.main.scrollX + GAME_WIDTH / 2;
     const centerY = this.cameras.main.scrollY + GAME_HEIGHT / 2;
 
     const overlay = this.add.graphics().setDepth(DEPTH.UI + 10);
-    overlay.fillStyle(0x000000, 0.6);
+    overlay.fillStyle(0x000000, 0);
     overlay.fillRect(
       this.cameras.main.scrollX,
       this.cameras.main.scrollY,
@@ -171,31 +200,50 @@ export default class GameScene extends Phaser.Scene {
       GAME_HEIGHT
     );
 
-    this.add.text(centerX, centerY - 30, 'You Died', {
-      fontSize: '36px',
-      fontFamily: UI.FONT_FAMILY,
-      color: '#E74C3C',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 4,
-    }).setOrigin(0.5).setDepth(DEPTH.UI + 11);
-
-    const restartText = this.add.text(centerX, centerY + 30, 'Press R to Restart', {
-      fontSize: '18px',
-      fontFamily: UI.FONT_FAMILY,
-      color: '#95A5A6',
-    }).setOrigin(0.5).setDepth(DEPTH.UI + 11);
-
+    // Fade in dark overlay
     this.tweens.add({
-      targets: restartText,
-      alpha: 0.3,
-      duration: 600,
-      yoyo: true,
-      repeat: -1,
+      targets: overlay,
+      alpha: 0.5,
+      duration: 1000,
     });
 
-    this.input.keyboard.once('keydown-R', () => {
-      this.scene.restart();
+    // Death text (delayed for dramatic effect)
+    this.time.delayedCall(500, () => {
+      this.add.text(centerX, centerY - 30, 'You Died', {
+        fontSize: '36px',
+        fontFamily: UI.FONT_FAMILY,
+        color: '#E74C3C',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 4,
+      }).setOrigin(0.5).setDepth(DEPTH.UI + 11);
+
+      const restartText = this.add.text(centerX, centerY + 30, 'Press Space to return to village', {
+        fontSize: '16px',
+        fontFamily: UI.FONT_FAMILY,
+        color: '#95A5A6',
+      }).setOrigin(0.5).setDepth(DEPTH.UI + 11);
+
+      this.tweens.add({
+        targets: restartText,
+        alpha: 0.3,
+        duration: 600,
+        yoyo: true,
+        repeat: -1,
+      });
+
+      // Space to respawn at Haven Village
+      this.input.keyboard.once('keydown-SPACE', () => {
+        this.cameras.main.fadeOut(500, 0, 0, 0);
+        this.cameras.main.once('camerafadeoutcomplete', () => {
+          this.scene.restart({
+            mapKey: 'haven',
+            spawnX: MAP_HAVEN.spawnX,
+            spawnY: MAP_HAVEN.spawnY,
+            characterData: this.characterData,
+          });
+        });
+      });
     });
   }
 
@@ -203,20 +251,22 @@ export default class GameScene extends Phaser.Scene {
     // Set world bounds to map size
     this.physics.world.setBounds(0, 0, this.mapData.width, this.mapData.height);
 
+    const colors = this.mapData.bgColors;
+
     // Sky background (gradient)
     const bg = this.add.graphics().setDepth(DEPTH.BACKGROUND);
 
-    // Upper: dark blue
-    bg.fillGradientStyle(0x0D1B2A, 0x0D1B2A, 0x1B2838, 0x1B2838, 1);
+    // Upper gradient
+    bg.fillGradientStyle(colors.top[0], colors.top[0], colors.top[1], colors.top[1], 1);
     bg.fillRect(0, 0, this.mapData.width, this.mapData.height / 2);
 
-    // Lower: slightly brighter blue
-    bg.fillGradientStyle(0x1B2838, 0x1B2838, 0x2C3E50, 0x2C3E50, 1);
+    // Lower gradient
+    bg.fillGradientStyle(colors.bottom[0], colors.bottom[0], colors.bottom[1], colors.bottom[1], 1);
     bg.fillRect(0, this.mapData.height / 2, this.mapData.width, this.mapData.height / 2);
 
     // Distant mountain silhouettes (parallax feel)
     const mountains = this.add.graphics().setDepth(DEPTH.BACKGROUND + 1);
-    mountains.fillStyle(0x1A2530, 0.6);
+    mountains.fillStyle(colors.mountain, 0.6);
     for (let i = 0; i < 8; i++) {
       const mx = i * 450 + 100;
       const mw = Phaser.Math.Between(200, 400);
@@ -252,11 +302,264 @@ export default class GameScene extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.ALT,
       Phaser.Input.Keyboard.KeyCodes.CTRL,
     ]);
+
+    // ESC key for pause menu
+    this.isPaused = false;
+    this.pauseMenu = null;
+    this.input.keyboard.on('keydown-ESC', () => {
+      if (this.isTransitioning) return;
+      if (this.isPaused) {
+        this.closePauseMenu();
+      } else {
+        this.openPauseMenu();
+      }
+    });
+  }
+
+  openPauseMenu() {
+    this.isPaused = true;
+    this.physics.pause();
+
+    const cam = this.cameras.main;
+    const cx = cam.scrollX + cam.width / 2;
+    const cy = cam.scrollY + cam.height / 2;
+
+    this.pauseMenu = this.add.container(cx, cy).setDepth(DEPTH.UI + 20);
+
+    // Dark overlay (full screen)
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.6);
+    overlay.fillRect(-cam.width / 2, -cam.height / 2, cam.width, cam.height);
+    this.pauseMenu.add(overlay);
+
+    // Menu box
+    const boxW = 260;
+    const boxH = 240;
+    const box = this.add.graphics();
+    box.fillStyle(0x1A1A2E, 0.95);
+    box.fillRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 12);
+    box.lineStyle(2, 0xF39C12, 0.8);
+    box.strokeRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 12);
+    this.pauseMenu.add(box);
+
+    // Title
+    const title = this.add.text(0, -boxH / 2 + 28, 'PAUSED', {
+      fontSize: '22px',
+      fontFamily: 'Arial Black, Arial',
+      color: '#F39C12',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+    this.pauseMenu.add(title);
+
+    // Divider
+    const divider = this.add.graphics();
+    divider.lineStyle(1, 0x555555, 0.6);
+    divider.lineBetween(-boxW / 2 + 20, -boxH / 2 + 52, boxW / 2 - 20, -boxH / 2 + 52);
+    this.pauseMenu.add(divider);
+
+    // Menu buttons
+    const buttons = [
+      { text: 'Continue', action: () => this.closePauseMenu() },
+      { text: 'Character Select', action: () => this.goToCharacterSelect() },
+      { text: 'Main Menu', action: () => this.goToMainMenu() },
+    ];
+
+    buttons.forEach((btn, i) => {
+      const btnY = -boxH / 2 + 80 + i * 52;
+      const btnW = 200;
+      const btnH = 40;
+
+      // Button background
+      const btnBg = this.add.graphics();
+      btnBg.fillStyle(0x2C3E50, 1);
+      btnBg.fillRoundedRect(-btnW / 2, btnY, btnW, btnH, 6);
+      this.pauseMenu.add(btnBg);
+
+      // Button text
+      const btnText = this.add.text(0, btnY + btnH / 2, btn.text, {
+        fontSize: '15px',
+        fontFamily: 'Arial',
+        color: '#ECF0F1',
+        fontStyle: 'bold',
+      }).setOrigin(0.5);
+      this.pauseMenu.add(btnText);
+
+      // Interactive zone
+      const zone = this.add.zone(0, btnY + btnH / 2, btnW, btnH).setInteractive();
+      this.pauseMenu.add(zone);
+
+      zone.on('pointerover', () => {
+        btnBg.clear();
+        btnBg.fillStyle(0xF39C12, 1);
+        btnBg.fillRoundedRect(-btnW / 2, btnY, btnW, btnH, 6);
+        btnText.setColor('#000000');
+      });
+      zone.on('pointerout', () => {
+        btnBg.clear();
+        btnBg.fillStyle(0x2C3E50, 1);
+        btnBg.fillRoundedRect(-btnW / 2, btnY, btnW, btnH, 6);
+        btnText.setColor('#ECF0F1');
+      });
+      zone.on('pointerdown', btn.action);
+    });
+  }
+
+  closePauseMenu() {
+    this.isPaused = false;
+    this.physics.resume();
+    if (this.pauseMenu) {
+      this.pauseMenu.destroy();
+      this.pauseMenu = null;
+    }
+  }
+
+  goToCharacterSelect() {
+    this.closePauseMenu();
+    this.cameras.main.fadeOut(400, 0, 0, 0);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.start(SCENES.CHARACTER_SELECT);
+    });
+  }
+
+  goToMainMenu() {
+    this.closePauseMenu();
+    this.cameras.main.fadeOut(400, 0, 0, 0);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.start(SCENES.MENU);
+    });
   }
 
   initHUD() {
     this.hud = new HUD(this);
     this.hud.setMapName(this.mapData.name);
+  }
+
+  initMinimap() {
+    // Minimap settings
+    this.minimap = {};
+    this.minimap.width = 180;
+    this.minimap.height = 100;
+    this.minimap.x = 10;
+    this.minimap.y = 10;
+    this.minimap.scaleX = this.minimap.width / this.mapData.width;
+    this.minimap.scaleY = this.minimap.height / this.mapData.height;
+
+    // Container (fixed to camera)
+    this.minimap.container = this.add.container(this.minimap.x, this.minimap.y);
+    this.minimap.container.setDepth(DEPTH.UI + 5);
+    this.minimap.container.setScrollFactor(0);
+
+    // Background
+    const bg = this.add.graphics();
+    bg.fillStyle(0x000000, 0.7);
+    bg.fillRoundedRect(0, 0, this.minimap.width, this.minimap.height, 6);
+    bg.lineStyle(1, 0x555555, 0.8);
+    bg.strokeRoundedRect(0, 0, this.minimap.width, this.minimap.height, 6);
+    this.minimap.container.add(bg);
+
+    // Map name label
+    const mapLabel = this.add.text(this.minimap.width / 2, -2, this.mapData.name, {
+      fontSize: '10px',
+      fontFamily: UI.FONT_FAMILY,
+      color: '#AAAAAA',
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5, 1);
+    this.minimap.container.add(mapLabel);
+
+    // Draw platforms
+    const platGraphics = this.add.graphics();
+    this.mapData.platforms.forEach((p) => {
+      if (p.isGround) {
+        platGraphics.fillStyle(0x2ECC71, 0.8);
+      } else {
+        platGraphics.fillStyle(0x85929E, 0.7);
+      }
+      platGraphics.fillRect(
+        p.x * this.minimap.scaleX,
+        p.y * this.minimap.scaleY,
+        Math.max(p.w * this.minimap.scaleX, 2),
+        Math.max(2, 2)
+      );
+    });
+    this.minimap.container.add(platGraphics);
+
+    // Draw ropes
+    const ropeGraphics = this.add.graphics();
+    ropeGraphics.lineStyle(1, 0xC4A265, 0.5);
+    this.mapData.ropes.forEach((r) => {
+      ropeGraphics.lineBetween(
+        r.x * this.minimap.scaleX,
+        r.topY * this.minimap.scaleY,
+        r.x * this.minimap.scaleX,
+        r.bottomY * this.minimap.scaleY
+      );
+    });
+    this.minimap.container.add(ropeGraphics);
+
+    // Draw portals
+    const portalGraphics = this.add.graphics();
+    portalGraphics.fillStyle(0x8E44AD, 0.9);
+    this.mapData.portals.forEach((p) => {
+      portalGraphics.fillRect(
+        p.x * this.minimap.scaleX - 2,
+        p.y * this.minimap.scaleY - 3,
+        4, 6
+      );
+    });
+    this.minimap.container.add(portalGraphics);
+
+    // Monster dots (will update positions)
+    this.minimap.monsterGraphics = this.add.graphics();
+    this.minimap.container.add(this.minimap.monsterGraphics);
+
+    // Player dot (will update position)
+    this.minimap.playerDot = this.add.graphics();
+    this.minimap.container.add(this.minimap.playerDot);
+
+    // Camera view rectangle
+    this.minimap.cameraRect = this.add.graphics();
+    this.minimap.container.add(this.minimap.cameraRect);
+  }
+
+  updateMinimap() {
+    if (!this.minimap) return;
+
+    const sx = this.minimap.scaleX;
+    const sy = this.minimap.scaleY;
+
+    // Update player dot (yellow)
+    this.minimap.playerDot.clear();
+    this.minimap.playerDot.fillStyle(0xF39C12, 1);
+    this.minimap.playerDot.fillCircle(
+      this.player.sprite.x * sx,
+      this.player.sprite.y * sy,
+      3
+    );
+
+    // Update monster dots (red)
+    this.minimap.monsterGraphics.clear();
+    this.minimap.monsterGraphics.fillStyle(0xE74C3C, 0.8);
+    this.monsters.forEach((m) => {
+      if (m.sprite.active) {
+        this.minimap.monsterGraphics.fillCircle(
+          m.sprite.x * sx,
+          m.sprite.y * sy,
+          2
+        );
+      }
+    });
+
+    // Update camera view rectangle (white outline, clamped to minimap bounds)
+    this.minimap.cameraRect.clear();
+    this.minimap.cameraRect.lineStyle(1, 0xFFFFFF, 0.4);
+    const cam = this.cameras.main;
+    const rx = Math.max(0, cam.scrollX * sx);
+    const ry = Math.max(0, cam.scrollY * sy);
+    const rw = Math.min(cam.width * sx, this.minimap.width - rx);
+    const rh = Math.min(cam.height * sy, this.minimap.height - ry);
+    this.minimap.cameraRect.strokeRect(rx, ry, rw, rh);
   }
 
   initInteractionHint() {
@@ -307,6 +610,8 @@ export default class GameScene extends Phaser.Scene {
   initNPCs() {
     this.npcSprites = [];
 
+    if (this.mapData.npcs.length === 0) return;
+
     if (!this.textures.exists('npc')) {
       const graphics = this.add.graphics();
       graphics.fillStyle(NPC.COLOR, 1);
@@ -345,14 +650,61 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
+  initRopes() {
+    this.ropes = [];
+
+    this.mapData.ropes.forEach((ropeData) => {
+      const ropeHeight = ropeData.bottomY - ropeData.topY;
+      const ropeCenterY = ropeData.topY + ropeHeight / 2;
+
+      // Draw rope visual
+      const graphics = this.add.graphics().setDepth(DEPTH.ROPES);
+
+      // Main rope line
+      graphics.lineStyle(ROPE.WIDTH, ROPE.COLOR, 0.9);
+      graphics.lineBetween(ropeData.x, ropeData.topY, ropeData.x, ropeData.bottomY);
+
+      // Highlight line (thinner, brighter, offset left)
+      graphics.lineStyle(2, ROPE.HIGHLIGHT_COLOR, 0.6);
+      graphics.lineBetween(ropeData.x - 2, ropeData.topY, ropeData.x - 2, ropeData.bottomY);
+
+      // Knot marks every 40px
+      const knotSpacing = 40;
+      graphics.lineStyle(ROPE.WIDTH + 2, ROPE.COLOR, 1);
+      for (let y = ropeData.topY + knotSpacing; y < ropeData.bottomY; y += knotSpacing) {
+        graphics.lineBetween(ropeData.x - 5, y, ropeData.x + 5, y);
+      }
+
+      // Top anchor point
+      graphics.fillStyle(0x8B7355, 1);
+      graphics.fillCircle(ropeData.x, ropeData.topY, 6);
+
+      // Store rope data for player interaction
+      this.ropes.push({
+        x: ropeData.x,
+        topY: ropeData.topY,
+        bottomY: ropeData.bottomY,
+        graphics: graphics,
+      });
+    });
+  }
+
   initPlayer() {
-    // Spawn player on the left side of the map
-    this.player = new Player(this, 150, 680);
+    const sx = this.spawnX !== null ? this.spawnX : this.mapData.spawnX;
+    const sy = this.spawnY !== null ? this.spawnY : this.mapData.spawnY;
+    this.player = new Player(this, sx, sy, this.characterData);
 
     // Player-platform collision
     this.platforms.forEach((platform) => {
       this.physics.add.collider(this.player.sprite, platform);
     });
+
+    // Store ground platform reference (first platform, isGround: true)
+    this.groundPlatform = this.platforms[0];
+
+    // Reset spawn data
+    this.spawnX = null;
+    this.spawnY = null;
   }
 
   initPlatforms() {
@@ -411,6 +763,9 @@ export default class GameScene extends Phaser.Scene {
     this.mapData.portals.forEach((portalData) => {
       const sprite = this.add.sprite(portalData.x, portalData.y, 'portal');
       sprite.setDepth(DEPTH.PORTALS);
+
+      // Store portal transition data on the sprite
+      sprite.portalData = portalData;
 
       // Portal pulse animation
       this.tweens.add({
