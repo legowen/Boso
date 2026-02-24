@@ -43,12 +43,7 @@ const MAP_HAVEN = {
   npcs: [
     { x: 500, y: 714, name: 'Village Elder' },
   ],
-  monsters: [
-    { x: 1000, y: 700, hp: 40 },
-    { x: 1600, y: 700, hp: 40 },
-    { x: 2200, y: 700, hp: 60 },
-    { x: 2800, y: 700, hp: 60 },
-  ],
+  monsters: [],
 };
 
 export default MAP_HAVEN;

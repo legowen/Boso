@@ -29,6 +29,10 @@ import MAP_CAVE from '../data/map_cave.js';
 import MAP_MOUNTAIN from '../data/map_mountain.js';
 import MAP_RUINS from '../data/map_ruins.js';
 import MAP_SHADOW from '../data/map_shadow.js';
+import MAP_FOREST2 from '../data/map_forest2.js';
+import MAP_PLAINS from '../data/map_plains.js';
+import MAP_OUTSKIRTS2 from '../data/map_outskirts2.js';
+import MAP_SANCTUARY from '../data/map_sanctuary.js';
 
 // Map registry - add new maps here
 const MAPS = {
@@ -39,6 +43,10 @@ const MAPS = {
   mountain: MAP_MOUNTAIN,
   ruins: MAP_RUINS,
   shadow: MAP_SHADOW,
+  forest2: MAP_FOREST2,
+  plains: MAP_PLAINS,
+  outskirts2: MAP_OUTSKIRTS2,
+  sanctuary: MAP_SANCTUARY,
 };
 
 // Persistent map state across portal transitions
@@ -519,7 +527,7 @@ export default class GameScene extends Phaser.Scene {
 
   initHUD() {
     this.hud = new HUD(this);
-    this.hud.setMapName(this.mapData.name);
+    this.hud.setMapName(this.mapData.name, this.currentMapKey);
   }
 
   initMinimap() {
