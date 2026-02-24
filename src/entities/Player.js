@@ -25,6 +25,7 @@ export default class Player {
     this.maxMp = stats ? stats.mp : PLAYER.MAX_MP;
     this.attackPower = stats ? stats.atk : PLAYER.BASE_ATTACK;
     this.moveSpeed = stats ? stats.spd : PLAYER.SPEED;
+    this.jumpPower = (stats && stats.jumpPower) ? stats.jumpPower : PLAYER.JUMP_VELOCITY;
 
     // State
     this.isAttacking = false;
@@ -114,7 +115,7 @@ export default class Player {
 
     // Jump (ALT key, but not when pressing DOWN)
     if (keys.alt.isDown && !cursors.down.isDown && onGround && !this.isDroppingThrough) {
-      this.sprite.setVelocityY(PLAYER.JUMP_VELOCITY);
+      this.sprite.setVelocityY(this.jumpPower);
     }
 
     // Grab rope (UP arrow when near a rope)
@@ -189,7 +190,7 @@ export default class Player {
         this.facingRight = true;
         this.sprite.setFlipX(false);
       }
-      this.sprite.setVelocityY(PLAYER.JUMP_VELOCITY * 0.7);
+      this.sprite.setVelocityY(this.jumpPower * 0.7);
       return;
     }
 

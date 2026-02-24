@@ -11,6 +11,8 @@ import {
   PORTAL,
   NPC,
   MONSTER,
+  MONSTER_ELITE,
+  MONSTER_CHAMPION,
   CAMERA,
   DEPTH,
   DAMAGE_TEXT,
@@ -198,6 +200,70 @@ export default class GameScene extends Phaser.Scene {
     graphics.fillTriangle(26, 8, 22, 0, 30, 8);
 
     graphics.generateTexture('monster', MONSTER.WIDTH, MONSTER.HEIGHT);
+    graphics.destroy();
+  }
+
+  createEliteMonsterTexture() {
+    if (this.textures.exists('monster_elite')) return;
+
+    const W = MONSTER_ELITE.WIDTH;
+    const H = MONSTER_ELITE.HEIGHT;
+    const graphics = this.add.graphics();
+
+    // Body (purple)
+    graphics.fillStyle(MONSTER_ELITE.COLOR, 1);
+    graphics.fillRect(2, 10, W - 4, H - 10);
+
+    // Eyes (red, angry)
+    graphics.fillStyle(0xFFFFFF, 1);
+    graphics.fillRect(10, 18, 10, 8);
+    graphics.fillRect(24, 18, 10, 8);
+    graphics.fillStyle(0xFF0000, 1);
+    graphics.fillRect(13, 20, 5, 5);
+    graphics.fillRect(27, 20, 5, 5);
+
+    // 3 horns
+    graphics.fillStyle(0x6C3483, 1);
+    graphics.fillTriangle(8, 10, 4, 0, 12, 10);
+    graphics.fillTriangle(W / 2, 10, W / 2 - 4, -2, W / 2 + 4, 10);
+    graphics.fillTriangle(W - 8, 10, W - 12, 0, W - 4, 10);
+
+    graphics.generateTexture('monster_elite', W, H);
+    graphics.destroy();
+  }
+
+  createChampionMonsterTexture() {
+    if (this.textures.exists('monster_champion')) return;
+
+    const W = MONSTER_CHAMPION.WIDTH;
+    const H = MONSTER_CHAMPION.HEIGHT;
+    const graphics = this.add.graphics();
+
+    // Body (dark orange)
+    graphics.fillStyle(MONSTER_CHAMPION.COLOR, 1);
+    graphics.fillRect(2, 12, W - 4, H - 12);
+
+    // Body stripes
+    graphics.fillStyle(0xE67E22, 0.6);
+    for (let sy = 24; sy < H - 4; sy += 8) {
+      graphics.fillRect(6, sy, W - 12, 3);
+    }
+
+    // Eyes (yellow, fierce)
+    graphics.fillStyle(0xFFFFFF, 1);
+    graphics.fillRect(12, 20, 10, 8);
+    graphics.fillRect(28, 20, 10, 8);
+    graphics.fillStyle(0xF1C40F, 1);
+    graphics.fillRect(15, 22, 5, 5);
+    graphics.fillRect(31, 22, 5, 5);
+
+    // 3 large horns
+    graphics.fillStyle(0xA04000, 1);
+    graphics.fillTriangle(8, 12, 2, -2, 14, 12);
+    graphics.fillTriangle(W / 2, 12, W / 2 - 5, -4, W / 2 + 5, 12);
+    graphics.fillTriangle(W - 8, 12, W - 14, -2, W - 2, 12);
+
+    graphics.generateTexture('monster_champion', W, H);
     graphics.destroy();
   }
 
@@ -595,12 +661,38 @@ export default class GameScene extends Phaser.Scene {
 
   initMonsters() {
     this.createMonsterTexture();
+    this.createEliteMonsterTexture();
+    this.createChampionMonsterTexture();
     this.monsters = [];
 
     this.mapData.monsters.forEach((monsterData) => {
-      const sprite = this.physics.add.sprite(monsterData.x, monsterData.y, 'monster');
+      const type = monsterData.type || 'normal';
+
+      // Determine texture, size, speed, and patrol range based on type
+      let textureKey, monsterWidth, monsterHeight, speed, patrolRange;
+      if (type === 'champion') {
+        textureKey = 'monster_champion';
+        monsterWidth = MONSTER_CHAMPION.WIDTH;
+        monsterHeight = MONSTER_CHAMPION.HEIGHT;
+        speed = 30;
+        patrolRange = 100;
+      } else if (type === 'elite') {
+        textureKey = 'monster_elite';
+        monsterWidth = MONSTER_ELITE.WIDTH;
+        monsterHeight = MONSTER_ELITE.HEIGHT;
+        speed = 40;
+        patrolRange = 120;
+      } else {
+        textureKey = 'monster';
+        monsterWidth = MONSTER.WIDTH;
+        monsterHeight = MONSTER.HEIGHT;
+        speed = 40;
+        patrolRange = 150;
+      }
+
+      const sprite = this.physics.add.sprite(monsterData.x, monsterData.y, textureKey);
       sprite.setDepth(DEPTH.MONSTERS);
-      sprite.body.setSize(MONSTER.WIDTH - 8, MONSTER.HEIGHT);
+      sprite.body.setSize(monsterWidth - 8, monsterHeight);
       sprite.setBounce(0);
       sprite.setCollideWorldBounds(true);
 
@@ -608,11 +700,15 @@ export default class GameScene extends Phaser.Scene {
         sprite: sprite,
         hp: monsterData.hp,
         maxHp: monsterData.hp,
-        speed: 40,
+        type: type,
+        speed: speed,
         direction: 1,
-        patrolRange: 100,
+        patrolRange: patrolRange,
+        patrolLeft: monsterData.x - patrolRange,
+        patrolRight: monsterData.x + patrolRange,
         startX: monsterData.x,
         startY: monsterData.y,
+        monsterHeight: monsterHeight,
         isHit: false,
       };
 
@@ -850,18 +946,21 @@ export default class GameScene extends Phaser.Scene {
     this.monsters.forEach((monsterObj) => {
       if (!monsterObj.sprite.active) return;
 
-      // Simple left-right patrol AI
-      monsterObj.sprite.setVelocityX(monsterObj.speed * monsterObj.direction);
-      if (Math.abs(monsterObj.sprite.x - monsterObj.startX) > monsterObj.patrolRange) {
-        monsterObj.direction *= -1;
-        monsterObj.sprite.setFlipX(monsterObj.direction < 0);
+      // Patrol AI using left/right boundary
+      if (monsterObj.sprite.x <= monsterObj.patrolLeft) {
+        monsterObj.direction = 1;
+        monsterObj.sprite.setFlipX(false);
+      } else if (monsterObj.sprite.x >= monsterObj.patrolRight) {
+        monsterObj.direction = -1;
+        monsterObj.sprite.setFlipX(true);
       }
+      monsterObj.sprite.setVelocityX(monsterObj.speed * monsterObj.direction);
 
       // Update monster HP bar
       const barWidth = 36;
       const barHeight = 4;
       const barX = monsterObj.sprite.x - barWidth / 2;
-      const barY = monsterObj.sprite.y - MONSTER.HEIGHT / 2 - 10;
+      const barY = monsterObj.sprite.y - monsterObj.monsterHeight / 2 - 10;
 
       monsterObj.hpBarBg.clear();
       monsterObj.hpBarBg.fillStyle(0x333333, 0.8);

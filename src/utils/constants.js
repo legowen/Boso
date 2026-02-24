@@ -37,6 +37,18 @@ export const MONSTER = {
   RESPAWN_TIME: 10000,
 };
 
+export const MONSTER_ELITE = {
+  COLOR: 0x8E44AD,
+  WIDTH: 44,
+  HEIGHT: 52,
+};
+
+export const MONSTER_CHAMPION = {
+  COLOR: 0xD35400,
+  WIDTH: 50,
+  HEIGHT: 58,
+};
+
 // ===== Portal settings =====
 export const PORTAL = {
   WIDTH: 48,

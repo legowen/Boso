@@ -83,28 +83,28 @@ const MAP_FOREST = {
   ],
   npcs: [],
   monsters: [
-    // Ground monsters (5)
+    // Ground monsters (5) - 1 elite
     { x: 350, y: 700, hp: 70 },
-    { x: 800, y: 700, hp: 70 },
+    { x: 800, y: 700, hp: 140, type: 'elite' },
     { x: 1300, y: 700, hp: 70 },
     { x: 1800, y: 700, hp: 70 },
     { x: 2400, y: 700, hp: 70 },
 
-    // Layer 1 monsters (5)
+    // Layer 1 monsters (5) - 2 elite
     { x: 500, y: 560, hp: 85 },
-    { x: 950, y: 550, hp: 85 },
+    { x: 950, y: 550, hp: 170, type: 'elite' },
     { x: 1550, y: 540, hp: 85 },
     { x: 2000, y: 560, hp: 85 },
-    { x: 2600, y: 550, hp: 85 },
+    { x: 2600, y: 550, hp: 170, type: 'elite' },
 
-    // Layer 2 monsters (3)
+    // Layer 2 monsters (3) - 1 elite
     { x: 700, y: 400, hp: 100 },
-    { x: 1400, y: 390, hp: 100 },
+    { x: 1400, y: 390, hp: 200, type: 'elite' },
     { x: 2150, y: 380, hp: 100 },
 
-    // Layer 3 monsters (2) - strongest
+    // Layer 3 monsters (2) - 1 elite
     { x: 900, y: 260, hp: 120 },
-    { x: 2050, y: 250, hp: 120 },
+    { x: 2050, y: 250, hp: 240, type: 'elite' },
   ],
 };
 

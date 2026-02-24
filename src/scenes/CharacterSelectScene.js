@@ -20,7 +20,7 @@ const CHARACTERS = [
     className: 'Mage',
     color: 0x9B59B6,
     desc: 'Ranged magic attacker.\nFast but lower damage.',
-    stats: { hp: 80, mp: 100, atk: 10, spd: 220 },
+    stats: { hp: 80, mp: 100, atk: 10, spd: 220, jumpPower: -550 },
   },
 ];
 

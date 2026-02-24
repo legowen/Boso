@@ -113,37 +113,37 @@ const MAP_MOUNTAIN = {
   ],
   npcs: [],
   monsters: [
-    // Ground monsters (4)
+    // Ground monsters (4) - 1 elite
     { x: 350, y: 700, hp: 120 },
     { x: 1000, y: 700, hp: 120 },
-    { x: 1700, y: 700, hp: 120 },
+    { x: 1700, y: 700, hp: 240, type: 'elite' },
     { x: 2400, y: 700, hp: 120 },
 
-    // Layer 1 monsters (4)
+    // Layer 1 monsters (4) - 1 elite
     { x: 530, y: 605, hp: 140 },
     { x: 1300, y: 600, hp: 140 },
-    { x: 1670, y: 610, hp: 140 },
+    { x: 1670, y: 610, hp: 280, type: 'elite' },
     { x: 2430, y: 615, hp: 140 },
 
-    // Layer 2 monsters (4)
+    // Layer 2 monsters (4) - 1 elite
     { x: 640, y: 495, hp: 160 },
-    { x: 1010, y: 510, hp: 160 },
+    { x: 1010, y: 510, hp: 320, type: 'elite' },
     { x: 1800, y: 500, hp: 160 },
     { x: 2600, y: 495, hp: 160 },
 
-    // Layer 3 monsters (3)
+    // Layer 3 monsters (3) - 1 elite
     { x: 560, y: 385, hp: 180 },
-    { x: 1350, y: 380, hp: 180 },
+    { x: 1350, y: 380, hp: 360, type: 'elite' },
     { x: 2150, y: 390, hp: 180 },
 
-    // Layer 4 monsters (3)
+    // Layer 4 monsters (3) - 1 elite
     { x: 750, y: 275, hp: 200 },
-    { x: 1500, y: 270, hp: 200 },
+    { x: 1500, y: 270, hp: 400, type: 'elite' },
     { x: 2350, y: 280, hp: 200 },
 
-    // Layer 5 monsters (2) - strongest
+    // Layer 5 monsters (2) - 1 elite
     { x: 950, y: 165, hp: 230 },
-    { x: 2250, y: 180, hp: 230 },
+    { x: 2250, y: 180, hp: 460, type: 'elite' },
   ],
 };
 

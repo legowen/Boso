@@ -79,32 +79,32 @@ const MAP_OUTSKIRTS = {
   ],
   npcs: [],
   monsters: [
-    // Ground monsters (6)
+    // Ground monsters (6) - 2 elite
     { x: 300, y: 700, hp: 50 },
-    { x: 700, y: 700, hp: 50 },
+    { x: 700, y: 700, hp: 100, type: 'elite' },
     { x: 1100, y: 700, hp: 50 },
     { x: 1500, y: 700, hp: 50 },
-    { x: 2000, y: 700, hp: 50 },
+    { x: 2000, y: 700, hp: 100, type: 'elite' },
     { x: 2500, y: 700, hp: 50 },
 
-    // Layer 1 monsters (6)
+    // Layer 1 monsters (6) - 2 elite
     { x: 550, y: 560, hp: 60 },
-    { x: 900, y: 540, hp: 60 },
+    { x: 900, y: 540, hp: 120, type: 'elite' },
     { x: 1300, y: 570, hp: 60 },
     { x: 1600, y: 550, hp: 60 },
-    { x: 1950, y: 580, hp: 60 },
+    { x: 1950, y: 580, hp: 120, type: 'elite' },
     { x: 2650, y: 560, hp: 60 },
 
-    // Layer 2 monsters (5)
+    // Layer 2 monsters (5) - 1 elite
     { x: 400, y: 420, hp: 80 },
-    { x: 800, y: 400, hp: 80 },
+    { x: 800, y: 400, hp: 160, type: 'elite' },
     { x: 1500, y: 390, hp: 80 },
     { x: 2200, y: 380, hp: 80 },
     { x: 2600, y: 410, hp: 80 },
 
-    // Layer 3 monsters (3) - strongest
+    // Layer 3 monsters (3) - 1 elite
     { x: 550, y: 280, hp: 100 },
-    { x: 1400, y: 240, hp: 100 },
+    { x: 1400, y: 240, hp: 200, type: 'elite' },
     { x: 2200, y: 250, hp: 100 },
   ],
 };
