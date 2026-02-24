@@ -60,6 +60,9 @@ export default class GameScene extends Phaser.Scene {
     if (data && data.characterData) {
       this.characterData = data.characterData;
     }
+    // Preserve HP/MP across map transitions
+    this.savedPlayerHp = (data && data.playerHp !== undefined) ? data.playerHp : null;
+    this.savedPlayerMp = (data && data.playerMp !== undefined) ? data.playerMp : null;
   }
 
   create() {
@@ -115,6 +118,8 @@ export default class GameScene extends Phaser.Scene {
         spawnX: spawnX,
         spawnY: spawnY,
         characterData: this.characterData,
+        playerHp: this.player.hp,
+        playerMp: this.player.mp,
       });
     });
   }
@@ -703,6 +708,14 @@ export default class GameScene extends Phaser.Scene {
     const sx = this.spawnX !== null ? this.spawnX : this.mapData.spawnX;
     const sy = this.spawnY !== null ? this.spawnY : this.mapData.spawnY;
     this.player = new Player(this, sx, sy, this.characterData);
+
+    // Apply saved HP/MP from map transition (not set on death → full HP respawn)
+    if (this.savedPlayerHp !== null) {
+      this.player.hp = this.savedPlayerHp;
+    }
+    if (this.savedPlayerMp !== null) {
+      this.player.mp = this.savedPlayerMp;
+    }
 
     // Player-platform collision
     this.platforms.forEach((platform) => {
