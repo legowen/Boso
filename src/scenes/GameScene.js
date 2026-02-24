@@ -606,6 +606,7 @@ export default class GameScene extends Phaser.Scene {
         direction: 1,
         patrolRange: 100,
         startX: monsterData.x,
+        startY: monsterData.y,
         isHit: false,
       };
 
@@ -922,7 +923,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   killMonster(monsterObj) {
-    // Death animation
+    // Death animation then deactivate for respawn
     this.tweens.add({
       targets: monsterObj.sprite,
       alpha: 0,
@@ -930,10 +931,44 @@ export default class GameScene extends Phaser.Scene {
       scaleY: 0,
       duration: 300,
       onComplete: () => {
-        monsterObj.sprite.destroy();
-        monsterObj.hpBar.destroy();
-        monsterObj.hpBarBg.destroy();
+        monsterObj.sprite.setActive(false);
+        monsterObj.sprite.setVisible(false);
+        monsterObj.sprite.body.enable = false;
+        monsterObj.hpBar.clear();
+        monsterObj.hpBarBg.clear();
+
+        // Schedule respawn
+        this.time.delayedCall(MONSTER.RESPAWN_TIME, () => {
+          this.respawnMonster(monsterObj);
+        });
       },
+    });
+  }
+
+  respawnMonster(monsterObj) {
+    // Reset position and HP
+    monsterObj.sprite.setPosition(monsterObj.startX, monsterObj.startY);
+    monsterObj.hp = monsterObj.maxHp;
+    monsterObj.direction = 1;
+    monsterObj.isHit = false;
+    monsterObj.hasContactDamage = false;
+
+    // Re-activate sprite
+    monsterObj.sprite.setActive(true);
+    monsterObj.sprite.setVisible(true);
+    monsterObj.sprite.body.enable = true;
+    monsterObj.sprite.setAlpha(1);
+    monsterObj.sprite.setScale(1);
+    monsterObj.sprite.setVelocity(0, 0);
+    monsterObj.sprite.clearTint();
+
+    // Respawn blink effect
+    this.tweens.add({
+      targets: monsterObj.sprite,
+      alpha: { from: 0.3, to: 1 },
+      duration: 150,
+      yoyo: true,
+      repeat: 2,
     });
   }
 }
