@@ -22,11 +22,21 @@ import Player from '../entities/Player.js';
 import HUD from '../ui/HUD.js';
 import MAP_HAVEN from '../data/map_haven.js';
 import MAP_OUTSKIRTS from '../data/map_outskirts.js';
+import MAP_FOREST from '../data/map_forest.js';
+import MAP_CAVE from '../data/map_cave.js';
+import MAP_MOUNTAIN from '../data/map_mountain.js';
+import MAP_RUINS from '../data/map_ruins.js';
+import MAP_SHADOW from '../data/map_shadow.js';
 
 // Map registry - add new maps here
 const MAPS = {
   haven: MAP_HAVEN,
   outskirts: MAP_OUTSKIRTS,
+  forest: MAP_FOREST,
+  cave: MAP_CAVE,
+  mountain: MAP_MOUNTAIN,
+  ruins: MAP_RUINS,
+  shadow: MAP_SHADOW,
 };
 
 export default class GameScene extends Phaser.Scene {
