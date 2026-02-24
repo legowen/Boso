@@ -62,7 +62,7 @@ const MAP_RUINS = {
     { x: 2580, y: 220, w: 220, h: 16, isGround: false },
   ],
   portals: [
-    { x: 50, y: 690, label: '← Mountain Peak', targetMap: 'mountain', spawnX: 3100, spawnY: 680 },
+    { x: 50, y: 690, label: '← Mountain Peak', targetMap: 'mountain', spawnX: 1300, spawnY: 160 },
     { x: 3150, y: 690, label: '→ Shadow Realm', targetMap: 'shadow', spawnX: 80, spawnY: 680 },
   ],
   ropes: [

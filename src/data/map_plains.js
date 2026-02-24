@@ -77,32 +77,32 @@ const MAP_PLAINS = {
   ],
   npcs: [],
   monsters: [
-    // Ground monsters (5)
+    // Ground monsters (5) - 1 elite
     { x: 300, y: 700, hp: 70 },
     { x: 750, y: 700, hp: 70 },
-    { x: 1200, y: 700, hp: 70 },
+    { x: 1200, y: 700, hp: 140, type: 'elite' },
     { x: 1700, y: 700, hp: 70 },
     { x: 2300, y: 700, hp: 70 },
 
-    // Layer 1 monsters (6)
+    // Layer 1 monsters (6) - 2 elite
     { x: 550, y: 560, hp: 85 },
     { x: 950, y: 570, hp: 85 },
-    { x: 1350, y: 550, hp: 85 },
+    { x: 1350, y: 550, hp: 170, type: 'elite' },
     { x: 1720, y: 570, hp: 85 },
-    { x: 2100, y: 560, hp: 85 },
+    { x: 2100, y: 560, hp: 170, type: 'elite' },
     { x: 2800, y: 570, hp: 85 },
 
-    // Layer 2 monsters (5)
+    // Layer 2 monsters (5) - 1 elite
     { x: 300, y: 420, hp: 100 },
     { x: 700, y: 400, hp: 100 },
-    { x: 1100, y: 430, hp: 100 },
+    { x: 1100, y: 430, hp: 200, type: 'elite' },
     { x: 1850, y: 410, hp: 100 },
     { x: 2650, y: 420, hp: 100 },
 
-    // Layer 3 monsters (4)
+    // Layer 3 monsters (4) - 1 elite
     { x: 450, y: 280, hp: 120 },
     { x: 900, y: 260, hp: 120 },
-    { x: 1750, y: 270, hp: 120 },
+    { x: 1750, y: 270, hp: 240, type: 'elite' },
     { x: 2550, y: 280, hp: 120 },
   ],
 };
