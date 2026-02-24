@@ -704,6 +704,36 @@ export default class GameScene extends Phaser.Scene {
       sprite.setBounce(0);
       sprite.setCollideWorldBounds(true);
 
+      // Determine if monster is on the ground platform
+      const groundPlatform = this.mapData.platforms.find(p => p.isGround);
+      const isOnGround = groundPlatform && Math.abs(monsterData.y - groundPlatform.y) < 80;
+
+      // Find the closest platform this monster is standing on
+      let boundPlatform = null;
+      if (!isOnGround) {
+        let closestDist = Infinity;
+        this.mapData.platforms.forEach((p) => {
+          if (p.isGround) return;
+          // Platform top surface is at p.y
+          const distY = Math.abs(monsterData.y - p.y);
+          const withinX = monsterData.x >= p.x - 20 && monsterData.x <= p.x + p.w + 20;
+          if (withinX && distY < closestDist && distY < 80) {
+            closestDist = distY;
+            boundPlatform = p;
+          }
+        });
+      }
+
+      // 60% of platform monsters are platformBound, ground monsters are never bound
+      const platformBound = !isOnGround && boundPlatform && Math.random() < 0.6;
+
+      let finalPatrolLeft = monsterData.x - patrolRange;
+      let finalPatrolRight = monsterData.x + patrolRange;
+      if (platformBound && boundPlatform) {
+        finalPatrolLeft = boundPlatform.x + 10;
+        finalPatrolRight = boundPlatform.x + boundPlatform.w - 10;
+      }
+
       const monsterObj = {
         sprite: sprite,
         hp: monsterData.hp,
@@ -712,12 +742,18 @@ export default class GameScene extends Phaser.Scene {
         speed: speed,
         direction: 1,
         patrolRange: patrolRange,
-        patrolLeft: monsterData.x - patrolRange,
-        patrolRight: monsterData.x + patrolRange,
+        patrolLeft: finalPatrolLeft,
+        patrolRight: finalPatrolRight,
         startX: monsterData.x,
         startY: monsterData.y,
         monsterHeight: monsterHeight,
         isHit: false,
+        platformBound: platformBound,
+        nextJumpTime: type === 'elite'
+          ? Date.now() + Phaser.Math.Between(3000, 5000)
+          : type === 'champion'
+            ? Date.now() + Phaser.Math.Between(2000, 4000)
+            : 0,
       };
 
       this.monsters.push(monsterObj);
@@ -962,7 +998,35 @@ export default class GameScene extends Phaser.Scene {
         monsterObj.direction = -1;
         monsterObj.sprite.setFlipX(true);
       }
+
+      // Platform-bound monsters clamp position to stay on platform
+      if (monsterObj.platformBound) {
+        if (monsterObj.sprite.x < monsterObj.patrolLeft) {
+          monsterObj.sprite.x = monsterObj.patrolLeft;
+          monsterObj.direction = 1;
+          monsterObj.sprite.setFlipX(false);
+        } else if (monsterObj.sprite.x > monsterObj.patrolRight) {
+          monsterObj.sprite.x = monsterObj.patrolRight;
+          monsterObj.direction = -1;
+          monsterObj.sprite.setFlipX(true);
+        }
+      }
+
       monsterObj.sprite.setVelocityX(monsterObj.speed * monsterObj.direction);
+
+      // Elite/champion jump ability
+      if (monsterObj.type !== 'normal' && monsterObj.nextJumpTime > 0) {
+        const now = Date.now();
+        if (now > monsterObj.nextJumpTime && monsterObj.sprite.body.blocked.down) {
+          if (monsterObj.type === 'champion') {
+            monsterObj.sprite.setVelocityY(-350);
+            monsterObj.nextJumpTime = now + Phaser.Math.Between(2000, 4000);
+          } else if (monsterObj.type === 'elite') {
+            monsterObj.sprite.setVelocityY(-250);
+            monsterObj.nextJumpTime = now + Phaser.Math.Between(3000, 5000);
+          }
+        }
+      }
 
       // Update monster HP bar
       const barWidth = 36;
@@ -1007,7 +1071,8 @@ export default class GameScene extends Phaser.Scene {
 
           // Knockback
           const knockDir = this.player.facingRight ? 1 : -1;
-          monsterObj.sprite.setVelocityX(150 * knockDir);
+          monsterObj.sprite.setVelocityX(200 * knockDir);
+          monsterObj.sprite.setVelocityY(-100);
 
           // Hit cooldown
           this.time.delayedCall(PLAYER.ATTACK_DURATION + 50, () => {
@@ -1028,7 +1093,8 @@ export default class GameScene extends Phaser.Scene {
         if (Phaser.Geom.Intersects.RectangleToRectangle(playerBounds, monsterBounds)) {
           if (!monsterObj.hasContactDamage) {
             monsterObj.hasContactDamage = true;
-            this.player.takeDamage(10);
+            const dir = this.player.sprite.x < monsterObj.sprite.x ? -1 : 1;
+            this.player.takeDamage(10, dir);
             this.time.delayedCall(1000, () => {
               monsterObj.hasContactDamage = false;
             });

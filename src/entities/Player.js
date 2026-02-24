@@ -34,6 +34,7 @@ export default class Player {
     this.isDroppingThrough = false;
     this.isClimbing = false;
     this.currentRope = null;
+    this.isKnockedBack = false;
 
     // Attack hitbox
     this.attackHitbox = null;
@@ -92,6 +93,9 @@ export default class Player {
   }
 
   handleMovement(cursors, keys) {
+    // === Knockback state ===
+    if (this.isKnockedBack) return;
+
     // === Climbing state ===
     if (this.isClimbing) {
       this.handleClimbing(cursors, keys);
@@ -319,8 +323,18 @@ export default class Player {
     });
   }
 
-  takeDamage(amount) {
+  takeDamage(amount, knockbackDirection) {
     this.hp = Math.max(0, this.hp - amount);
+
+    // Knockback: push player away from damage source
+    if (knockbackDirection) {
+      this.isKnockedBack = true;
+      this.sprite.setVelocityX(200 * knockbackDirection);
+      this.sprite.setVelocityY(-150);
+      this.scene.time.delayedCall(300, () => {
+        this.isKnockedBack = false;
+      });
+    }
 
     // Hit flash effect (blinking)
     this.scene.tweens.add({
