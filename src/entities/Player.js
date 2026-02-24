@@ -13,7 +13,7 @@ export default class Player {
     this.createTexture();
     this.sprite = scene.physics.add.sprite(x, y, this.textureKey);
     this.sprite.setDepth(DEPTH.PLAYER);
-    this.sprite.setCollideWorldBounds(false);
+    this.sprite.setCollideWorldBounds(true);
     this.sprite.setBounce(0);
     this.sprite.body.setSize(PLAYER.WIDTH - 8, PLAYER.HEIGHT);
 
