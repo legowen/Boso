@@ -63,7 +63,8 @@ const MAP_MOUNTAIN = {
   ],
   portals: [
     { x: 50, y: 690, label: '← Dark Cave', targetMap: 'cave', spawnX: 3100, spawnY: 680 },
-    { x: 3150, y: 690, label: '→ Ancient Ruins', targetMap: 'ruins', spawnX: 80, spawnY: 680 },
+    { x: 3150, y: 690, label: '→ Emerald Forest', targetMap: 'forest2', spawnX: 80, spawnY: 680 },
+    { x: 1300, y: 160, label: '↑ Ancient Ruins', targetMap: 'ruins', spawnX: 80, spawnY: 680 },
   ],
   ropes: [
     // Ground to Layer 1

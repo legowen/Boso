@@ -173,7 +173,13 @@ export default class HUD {
     this.mpText.setText(`${player.mp}/${player.maxMp}`);
   }
 
-  setMapName(name) {
-    this.mapNameText.setText(name);
+  setMapName(name, mapKey) {
+    if (mapKey === 'ruins') {
+      this.mapNameText.setText('5-1 Ancient Ruins');
+    } else if (mapKey === 'shadow') {
+      this.mapNameText.setText('5-2 Shadow Realm');
+    } else {
+      this.mapNameText.setText(name);
+    }
   }
 }
