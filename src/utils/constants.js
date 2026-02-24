@@ -34,6 +34,7 @@ export const MONSTER = {
   COLOR: 0xE74C3C,
   WIDTH: 36,
   HEIGHT: 44,
+  RESPAWN_TIME: 10000,
 };
 
 // ===== Portal settings =====
