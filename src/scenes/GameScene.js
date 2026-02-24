@@ -39,6 +39,9 @@ const MAPS = {
   shadow: MAP_SHADOW,
 };
 
+// Persistent map state across portal transitions
+const MAP_STATE = {};
+
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super(SCENES.GAME);
@@ -109,6 +112,9 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.isTransitioning = true;
+
+    // Save current map monster state before leaving
+    this.saveMapState();
 
     // Fade out then restart scene with new map data
     this.cameras.main.fadeOut(500, 0, 0, 0);
@@ -606,6 +612,7 @@ export default class GameScene extends Phaser.Scene {
         direction: 1,
         patrolRange: 100,
         startX: monsterData.x,
+        startY: monsterData.y,
         isHit: false,
       };
 
@@ -620,6 +627,9 @@ export default class GameScene extends Phaser.Scene {
       monsterObj.hpBarBg = this.add.graphics().setDepth(DEPTH.UI - 5);
       monsterObj.hpBar = this.add.graphics().setDepth(DEPTH.UI - 4);
     });
+
+    // Restore saved map state (monster HP, dead/alive status)
+    this.loadMapState();
   }
 
   initNPCs() {
@@ -922,7 +932,10 @@ export default class GameScene extends Phaser.Scene {
   }
 
   killMonster(monsterObj) {
-    // Death animation
+    monsterObj.isDead = true;
+    monsterObj.deathTime = Date.now();
+
+    // Death animation: shrink and fade, then deactivate
     this.tweens.add({
       targets: monsterObj.sprite,
       alpha: 0,
@@ -930,10 +943,89 @@ export default class GameScene extends Phaser.Scene {
       scaleY: 0,
       duration: 300,
       onComplete: () => {
-        monsterObj.sprite.destroy();
-        monsterObj.hpBar.destroy();
-        monsterObj.hpBarBg.destroy();
+        monsterObj.sprite.setActive(false);
+        monsterObj.sprite.setVisible(false);
+        monsterObj.sprite.body.enable = false;
+        monsterObj.hpBar.setVisible(false);
+        monsterObj.hpBarBg.setVisible(false);
       },
+    });
+
+    // Schedule respawn
+    this.time.delayedCall(MONSTER.RESPAWN_TIME, () => {
+      this.respawnMonster(monsterObj);
+    });
+  }
+
+  respawnMonster(monsterObj) {
+    // Reset position to original spawn
+    monsterObj.sprite.setPosition(monsterObj.startX, monsterObj.startY);
+
+    // Reset HP
+    monsterObj.hp = monsterObj.maxHp;
+    monsterObj.isDead = false;
+    monsterObj.deathTime = null;
+
+    // Reactivate sprite
+    monsterObj.sprite.setActive(true);
+    monsterObj.sprite.setVisible(true);
+    monsterObj.sprite.body.enable = true;
+    monsterObj.sprite.setAlpha(1);
+    monsterObj.sprite.setScale(1, 1);
+
+    // Show HP bars again
+    monsterObj.hpBar.setVisible(true);
+    monsterObj.hpBarBg.setVisible(true);
+
+    // Respawn blink effect
+    this.tweens.add({
+      targets: monsterObj.sprite,
+      alpha: { from: 0.2, to: 1 },
+      duration: 150,
+      yoyo: true,
+      repeat: 3,
+    });
+  }
+
+  saveMapState() {
+    MAP_STATE[this.currentMapKey] = this.monsters.map((m) => ({
+      isDead: !!m.isDead,
+      hp: m.hp,
+      deathTime: m.deathTime || null,
+    }));
+  }
+
+  loadMapState() {
+    const saved = MAP_STATE[this.currentMapKey];
+    if (!saved) return;
+
+    const now = Date.now();
+    saved.forEach((state, i) => {
+      if (i >= this.monsters.length) return;
+      const monsterObj = this.monsters[i];
+
+      if (state.isDead) {
+        const elapsed = now - state.deathTime;
+        if (elapsed < MONSTER.RESPAWN_TIME) {
+          // Still dead — deactivate and schedule respawn for remaining time
+          monsterObj.isDead = true;
+          monsterObj.deathTime = state.deathTime;
+          monsterObj.sprite.setActive(false);
+          monsterObj.sprite.setVisible(false);
+          monsterObj.sprite.body.enable = false;
+          monsterObj.hpBar.setVisible(false);
+          monsterObj.hpBarBg.setVisible(false);
+
+          const remaining = MONSTER.RESPAWN_TIME - elapsed;
+          this.time.delayedCall(remaining, () => {
+            this.respawnMonster(monsterObj);
+          });
+        }
+        // else: respawn time already passed, keep monster alive at full HP (default)
+      } else {
+        // Alive but with saved HP
+        monsterObj.hp = state.hp;
+      }
     });
   }
 }
