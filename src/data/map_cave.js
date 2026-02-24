@@ -113,31 +113,31 @@ const MAP_CAVE = {
   ],
   npcs: [],
   monsters: [
-    // Ground monsters (4)
+    // Ground monsters (4) - 1 elite
     { x: 400, y: 700, hp: 90 },
-    { x: 1000, y: 700, hp: 90 },
+    { x: 1000, y: 700, hp: 180, type: 'elite' },
     { x: 1600, y: 700, hp: 90 },
     { x: 2300, y: 700, hp: 90 },
 
-    // Layer 1 monsters (4)
+    // Layer 1 monsters (4) - 1 elite
     { x: 550, y: 610, hp: 100 },
     { x: 1350, y: 615, hp: 100 },
-    { x: 1730, y: 605, hp: 100 },
+    { x: 1730, y: 605, hp: 200, type: 'elite' },
     { x: 2470, y: 600, hp: 100 },
 
-    // Layer 2 monsters (3)
+    // Layer 2 monsters (3) - 1 elite
     { x: 700, y: 500, hp: 120 },
     { x: 1450, y: 510, hp: 120 },
-    { x: 2250, y: 505, hp: 120 },
+    { x: 2250, y: 505, hp: 240, type: 'elite' },
 
-    // Layer 3 monsters (3)
+    // Layer 3 monsters (3) - 1 elite
     { x: 600, y: 390, hp: 140 },
-    { x: 1400, y: 400, hp: 140 },
+    { x: 1400, y: 400, hp: 280, type: 'elite' },
     { x: 2200, y: 395, hp: 140 },
 
-    // Layer 4 monsters (2)
+    // Layer 4 monsters (2) - 1 elite
     { x: 800, y: 280, hp: 160 },
-    { x: 1950, y: 275, hp: 160 },
+    { x: 1950, y: 275, hp: 320, type: 'elite' },
 
     // Layer 5 monsters (2) - strongest
     { x: 1000, y: 170, hp: 180 },

@@ -113,39 +113,39 @@ const MAP_RUINS = {
   ],
   npcs: [],
   monsters: [
-    // Ground monsters (5)
+    // Ground monsters (5) - 1 elite, 1 champion
     { x: 300, y: 700, hp: 150 },
-    { x: 800, y: 700, hp: 150 },
-    { x: 1400, y: 700, hp: 150 },
+    { x: 800, y: 700, hp: 300, type: 'elite' },
+    { x: 1400, y: 700, hp: 450, type: 'champion' },
     { x: 2000, y: 700, hp: 150 },
     { x: 2600, y: 700, hp: 150 },
 
-    // Layer 1 monsters (4)
+    // Layer 1 monsters (4) - 1 elite
     { x: 510, y: 610, hp: 170 },
-    { x: 1250, y: 615, hp: 170 },
+    { x: 1250, y: 615, hp: 340, type: 'elite' },
     { x: 1650, y: 605, hp: 170 },
     { x: 2400, y: 600, hp: 170 },
 
-    // Layer 2 monsters (4)
+    // Layer 2 monsters (4) - 2 elite
     { x: 610, y: 495, hp: 190 },
-    { x: 1000, y: 505, hp: 190 },
+    { x: 1000, y: 505, hp: 380, type: 'elite' },
     { x: 1780, y: 510, hp: 190 },
-    { x: 2550, y: 490, hp: 190 },
+    { x: 2550, y: 490, hp: 380, type: 'elite' },
 
-    // Layer 3 monsters (4)
+    // Layer 3 monsters (4) - 1 elite, 1 champion
     { x: 580, y: 380, hp: 210 },
-    { x: 1330, y: 385, hp: 210 },
-    { x: 1710, y: 405, hp: 210 },
+    { x: 1330, y: 385, hp: 420, type: 'elite' },
+    { x: 1710, y: 405, hp: 630, type: 'champion' },
     { x: 2500, y: 395, hp: 210 },
 
-    // Layer 4 monsters (3)
+    // Layer 4 monsters (3) - 1 elite, 1 champion
     { x: 700, y: 270, hp: 240 },
-    { x: 1470, y: 275, hp: 240 },
-    { x: 2300, y: 280, hp: 240 },
+    { x: 1470, y: 275, hp: 480, type: 'elite' },
+    { x: 2300, y: 280, hp: 720, type: 'champion' },
 
-    // Layer 5 monsters (2) - strongest
+    // Layer 5 monsters (2) - 1 elite
     { x: 900, y: 170, hp: 270 },
-    { x: 2200, y: 165, hp: 270 },
+    { x: 2200, y: 165, hp: 540, type: 'elite' },
   ],
 };
 

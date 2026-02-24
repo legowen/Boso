@@ -82,37 +82,37 @@ const MAP_SHADOW = {
   ],
   npcs: [],
   monsters: [
-    // Ground monsters (7)
+    // Ground monsters (7) - 2 elite, 1 champion
     { x: 250, y: 700, hp: 200 },
-    { x: 600, y: 700, hp: 200 },
+    { x: 600, y: 700, hp: 400, type: 'elite' },
     { x: 1000, y: 700, hp: 200 },
-    { x: 1400, y: 700, hp: 200 },
+    { x: 1400, y: 700, hp: 600, type: 'champion' },
     { x: 1800, y: 700, hp: 200 },
-    { x: 2200, y: 700, hp: 200 },
+    { x: 2200, y: 700, hp: 400, type: 'elite' },
     { x: 2700, y: 700, hp: 200 },
 
-    // Layer 1 monsters (7)
+    // Layer 1 monsters (7) - 2 elite, 1 champion
     { x: 500, y: 560, hp: 230 },
-    { x: 860, y: 540, hp: 230 },
+    { x: 860, y: 540, hp: 460, type: 'elite' },
     { x: 1230, y: 570, hp: 230 },
-    { x: 1590, y: 550, hp: 230 },
+    { x: 1590, y: 550, hp: 690, type: 'champion' },
     { x: 1950, y: 560, hp: 230 },
-    { x: 2310, y: 540, hp: 230 },
+    { x: 2310, y: 540, hp: 460, type: 'elite' },
     { x: 2670, y: 570, hp: 230 },
 
-    // Layer 2 monsters (6)
+    // Layer 2 monsters (6) - 2 elite, 1 champion
     { x: 310, y: 420, hp: 260 },
-    { x: 700, y: 400, hp: 260 },
+    { x: 700, y: 400, hp: 520, type: 'elite' },
     { x: 1090, y: 430, hp: 260 },
-    { x: 1770, y: 410, hp: 260 },
-    { x: 2150, y: 380, hp: 260 },
+    { x: 1770, y: 410, hp: 780, type: 'champion' },
+    { x: 2150, y: 380, hp: 520, type: 'elite' },
     { x: 2530, y: 420, hp: 260 },
 
-    // Layer 3 monsters (5) - strongest
+    // Layer 3 monsters (5) - 2 elite
     { x: 450, y: 280, hp: 300 },
-    { x: 850, y: 260, hp: 300 },
+    { x: 850, y: 260, hp: 600, type: 'elite' },
     { x: 1250, y: 240, hp: 300 },
-    { x: 2000, y: 250, hp: 300 },
+    { x: 2000, y: 250, hp: 600, type: 'elite' },
     { x: 2750, y: 260, hp: 300 },
   ],
 };
