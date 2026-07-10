@@ -106,6 +106,8 @@ export default class Player {
 
   update(cursors, keys) {
     if (!this.sprite.active) return;
+    // Dead: no input or attacks during the death delay
+    if (this.hp <= 0) return;
 
     this.handleMovement(cursors, keys);
     this.handleAttack(keys);

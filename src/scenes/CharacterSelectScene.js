@@ -34,6 +34,9 @@ export default class CharacterSelectScene extends Phaser.Scene {
     const h = this.scale.height;
     this.selectedIndex = 0;
     this.isLaunching = false;
+    // Ignore launch input briefly - a held SPACE from the title screen
+    // auto-repeats into this scene and would skip it instantly
+    this.inputReadyAt = Date.now() + 400;
 
     // === Background - warm forest tone ===
     const bg = this.add.graphics();
@@ -456,8 +459,9 @@ export default class CharacterSelectScene extends Phaser.Scene {
   }
 
   launchGame() {
-    // Guard against repeated SPACE/clicks stacking fade listeners
-    if (this.isLaunching) return;
+    // Guard against repeated SPACE/clicks stacking fade listeners,
+    // and against key auto-repeat leaking in from the previous scene
+    if (this.isLaunching || Date.now() < this.inputReadyAt) return;
     this.isLaunching = true;
 
     const selectedChar = CHARACTERS[this.selectedIndex];

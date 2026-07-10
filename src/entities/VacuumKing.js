@@ -112,6 +112,8 @@ export default class VacuumKing {
 
     this.updateDusts();
     this.handleTakingDamage();
+    // The killing blow may have landed just now - stop acting immediately
+    if (this.defeated) return;
     this.handleContactDamage(player);
 
     // Hover drift + gentle bob (velocity steering, knockback-safe)
@@ -221,11 +223,16 @@ export default class VacuumKing {
 
     // Lifespan (dying flag guards double-destroy)
     this.scene.time.delayedCall(cfg.lifespanMs, () => {
-      if (dust.active && !dust.dying) {
-        dust.dying = true;
-        dust.destroy();
-      }
+      this.destroyDust(dust);
     });
+  }
+
+  destroyDust(dust) {
+    if (!dust.active || dust.dying) return;
+    dust.dying = true;
+    // Kill the infinite tumble tween - tweens don't stop on target destroy
+    this.scene.tweens.killTweensOf(dust);
+    dust.destroy();
   }
 
   updateDusts() {
@@ -239,8 +246,7 @@ export default class VacuumKing {
 
       // Out of bounds
       if (dust.x < -40 || dust.x > mapW + 40 || dust.y < -40 || dust.y > mapH + 40) {
-        dust.dying = true;
-        dust.destroy();
+        this.destroyDust(dust);
         return false;
       }
 
@@ -253,8 +259,7 @@ export default class VacuumKing {
           dust.hitPlayer = true;
           const dir = player.sprite.x < dust.x ? -1 : 1;
           player.takeDamage(cfg.damage, dir);
-          dust.dying = true;
-          dust.destroy();
+          this.destroyDust(dust);
           return false;
         }
       }
@@ -265,7 +270,8 @@ export default class VacuumKing {
   // Player attack collision (same idiom as regular monsters)
   handleTakingDamage() {
     const player = this.scene.player;
-    if (!player.attackHitbox || this.isHit) return;
+    // A dead player's lingering hitbox must not land the killing blow
+    if (!player.attackHitbox || this.isHit || player.hp <= 0) return;
 
     const hitbox = player.attackHitbox;
     const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
@@ -306,7 +312,7 @@ export default class VacuumKing {
   }
 
   handleContactDamage(player) {
-    if (this.contactCooldown || player.hp <= 0) return;
+    if (this.defeated || this.contactCooldown || player.hp <= 0) return;
     const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
       player.sprite.getBounds(),
       this.sprite.getBounds()
@@ -354,12 +360,16 @@ export default class VacuumKing {
     this.scene.onBossDefeated(this.id);
   }
 
+  // Shift wall-clock cycle timers after the pause menu closes
+  shiftTimers(ms) {
+    this.phaseEndAt += ms;
+    this.nextDustAt += ms;
+    this.nextStreakAt += ms;
+  }
+
   cleanupEffects() {
     this.dusts.forEach((dust) => {
-      if (dust.active && !dust.dying) {
-        dust.dying = true;
-        dust.destroy();
-      }
+      this.destroyDust(dust);
     });
     this.dusts = [];
 

@@ -44,11 +44,12 @@ const MAP_ATTIC = {
   ],
   npcs: [],
   monsters: [
-    // Flies swarm the lab edges (arena center belongs to the boss)
+    // Flies swarm the lab edges (arena center belongs to the boss;
+    // right-side spawns leashed clear of the hidden portal at x=2200)
     { x: 300, y: 350, type: 'pari' },
     { x: 700, y: 300, type: 'pari' },
-    { x: 2000, y: 320, type: 'pari' },
-    { x: 2200, y: 380, type: 'pari' },
+    { x: 1950, y: 320, type: 'pari' },
+    { x: 2020, y: 400, type: 'pari' },
   ],
   boss: { id: 'hugGuardian', x: 1400, y: 620 },
 };

@@ -19,7 +19,7 @@ import {
 import Player from '../entities/Player.js';
 import HUD from '../ui/HUD.js';
 import { MAPS_DATA, START_MAP } from '../data/maps.js';
-import { MONSTER_TYPES, BOSS_TYPES } from '../data/monsters.js';
+import { MONSTER_TYPES } from '../data/monsters.js';
 import { STORY } from '../data/story.js';
 import HugGuardian from '../entities/HugGuardian.js';
 import VacuumKing from '../entities/VacuumKing.js';
@@ -89,6 +89,10 @@ export default class GameScene extends Phaser.Scene {
     this.events.once('player-died', () => this.handlePlayerDeath());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off('player-died');
+      // Defensive: Clock/TweenManager persist across scene.restart -
+      // never carry a frozen clock into the next scene instance
+      this.time.paused = false;
+      this.tweens.resumeAll();
       if (this.boss) {
         this.boss.destroy();
         this.boss = null;
@@ -295,6 +299,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   handlePlayerDeath() {
+    // Already transitioning (map change or ending sequence) - skip death UI
+    if (this.isTransitioning) return;
     this.isTransitioning = true;
 
     // Grayscale effect on the entire camera
@@ -428,6 +434,7 @@ export default class GameScene extends Phaser.Scene {
 
   openPauseMenu() {
     this.isPaused = true;
+    this.pauseStartedAt = Date.now();
     this.physics.pause();
     // Freeze clocks and tweens too - boss telegraphs and respawn timers
     // must not resolve while the pause menu is open
@@ -527,6 +534,27 @@ export default class GameScene extends Phaser.Scene {
     if (this.pauseMenu) {
       this.pauseMenu.destroy();
       this.pauseMenu = null;
+    }
+
+    // AI timers are wall-clock (Date.now) - shift them by the paused
+    // duration so cooldowns don't all expire at once on resume
+    const pausedMs = this.pauseStartedAt ? Date.now() - this.pauseStartedAt : 0;
+    this.pauseStartedAt = null;
+    if (pausedMs > 0) {
+      this.portalLockUntil += pausedMs;
+      this.monsters.forEach((m) => {
+        m.stateUntil += pausedMs;
+        m.nextJumpAt += pausedMs;
+        m.dashReadyAt += pausedMs;
+        if (m.retargetAt) m.retargetAt += pausedMs;
+        if (m.knockedUntil) m.knockedUntil += pausedMs;
+        if (m.pausedUntil) m.pausedUntil += pausedMs;
+        if (m.dashingUntil) m.dashingUntil += pausedMs;
+        if (m.deathTime) m.deathTime += pausedMs;
+      });
+      if (this.boss && this.boss.shiftTimers) {
+        this.boss.shiftTimers(pausedMs);
+      }
     }
   }
 

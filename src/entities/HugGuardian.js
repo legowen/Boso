@@ -118,6 +118,8 @@ export default class HugGuardian {
 
     this.updateArms();
     this.handleTakingDamage();
+    // The killing blow may have landed just now - stop acting immediately
+    if (this.defeated) return;
     this.handleContactDamage(player);
 
     if (player.hp <= 0) {
@@ -142,6 +144,7 @@ export default class HugGuardian {
   }
 
   startPattern() {
+    if (this.defeated) return;
     const roll = Math.random();
     let pattern;
     if (roll < 0.4) pattern = 'armSweep';
@@ -290,7 +293,13 @@ export default class HugGuardian {
     const cfg = this.cfg.fieldHug;
     const surface = this.groundSurface();
     const mapW = this.scene.mapData.width;
-    const safeX = Phaser.Math.Between(200, mapW - 200);
+    // Safe zone spawns within sprint range of the player - tense but
+    // always dodgeable within the telegraph window
+    const safeX = Phaser.Math.Clamp(
+      this.scene.player.sprite.x + Phaser.Math.Between(-350, 350),
+      200,
+      mapW - 200
+    );
 
     // Safe zone marker
     const safe = this.scene.add.graphics().setDepth(DEPTH.EFFECTS);
@@ -358,13 +367,18 @@ export default class HugGuardian {
   removeTelegraph(obj) {
     const i = this.telegraphs.indexOf(obj);
     if (i !== -1) this.telegraphs.splice(i, 1);
-    if (obj && obj.destroy) obj.destroy();
+    if (obj && obj.destroy) {
+      // Kill infinite blink tweens - tweens don't stop on target destroy
+      this.scene.tweens.killTweensOf(obj);
+      obj.destroy();
+    }
   }
 
   // Player attack collision (same idiom as regular monsters)
   handleTakingDamage() {
     const player = this.scene.player;
-    if (!player.attackHitbox || this.isHit) return;
+    // A dead player's lingering hitbox must not land the killing blow
+    if (!player.attackHitbox || this.isHit || player.hp <= 0) return;
 
     const hitbox = player.attackHitbox;
     const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
@@ -403,7 +417,7 @@ export default class HugGuardian {
   }
 
   handleContactDamage(player) {
-    if (this.contactCooldown || player.hp <= 0) return;
+    if (this.defeated || this.contactCooldown || player.hp <= 0) return;
     const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
       player.sprite.getBounds(),
       this.sprite.getBounds()
@@ -416,6 +430,11 @@ export default class HugGuardian {
     this.scene.time.delayedCall(1000, () => {
       this.contactCooldown = false;
     });
+  }
+
+  // Shift wall-clock pattern timers after the pause menu closes
+  shiftTimers(ms) {
+    this.nextAttackAt += ms;
   }
 
   die() {
@@ -458,7 +477,10 @@ export default class HugGuardian {
     this.arms = [];
 
     this.telegraphs.forEach((t) => {
-      if (t && t.destroy) t.destroy();
+      if (t && t.destroy) {
+        this.scene.tweens.killTweensOf(t);
+        t.destroy();
+      }
     });
     this.telegraphs = [];
   }

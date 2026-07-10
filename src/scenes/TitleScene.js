@@ -188,6 +188,10 @@ export default class TitleScene extends Phaser.Scene {
   }
 
   startGame() {
+    // Guard against click + SPACE stacking fade listeners
+    if (this.isStarting) return;
+    this.isStarting = true;
+
     this.cameras.main.fadeOut(400, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
       this.scene.start(SCENES.CHARACTER_SELECT);

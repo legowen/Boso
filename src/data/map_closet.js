@@ -17,16 +17,16 @@ const MAP_CLOSET = {
     // === Ground ===
     { x: 0, y: 740, w: 1600, h: 60, isGround: true },
 
-    // === Storage boxes (suction cover) ===
+    // === Storage boxes (suction cover / attack perch) ===
     { x: 300, y: 600, w: 200, h: 16, isGround: false },
-    { x: 1100, y: 580, w: 220, h: 16, isGround: false },
+    { x: 1100, y: 560, w: 220, h: 16, isGround: false },
   ],
   portals: [
     { x: 60, y: 690, label: '← Attic Laboratory', targetMap: 'attic', spawnX: 2100, spawnY: 680 },
   ],
   ropes: [
     { x: 380, topY: 600, bottomY: 700 },
-    { x: 1180, topY: 580, bottomY: 700 },
+    { x: 1180, topY: 560, bottomY: 700 },
   ],
   npcs: [],
   monsters: [],

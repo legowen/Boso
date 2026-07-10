@@ -58,6 +58,8 @@ export default class StoryScene extends Phaser.Scene {
     });
 
     this.layout(w, h);
+    // Swallow auto-repeat leaking in from character select
+    this.nextAdvanceAt = Date.now() + 400;
     this.showLine(0);
 
     // === Input handlers (stored so they can be removed on shutdown) ===
@@ -119,6 +121,11 @@ export default class StoryScene extends Phaser.Scene {
 
   advance() {
     if (this.isFinishing) return;
+    // Debounce: key auto-repeat must not blast through the whole intro
+    const now = Date.now();
+    if (now < (this.nextAdvanceAt || 0)) return;
+    this.nextAdvanceAt = now + 300;
+
     this.lineIndex += 1;
     if (this.lineIndex >= STORY.intro.length) {
       this.finish();

@@ -1,5 +1,31 @@
 # 적대적 검증 보고서 (v0.4 리빌드)
 
+## 2차 검증 패스 (Fable 5 재검토)
+1차 수정 8건 전원 회귀 없음 확인 (Phaser 3.90 소스 레벨 검증:
+Clock/TweenManager pause 시맨틱, Canvas 렌더러에서 postFX 안전성,
+포탈 12쌍 도착 거리 전수 재계산). 추가 발견 및 수정:
+- **B1**: 처치 프레임에 보스가 계속 행동 (접촉 데미지/패턴 발동) →
+  handleTakingDamage 직후 defeated 재확인 + handleContactDamage/
+  startPattern 가드
+- **B2**: 벽시계(Date.now) AI 타이머가 일시정지를 무시 → 재개 시
+  일시정지 시간만큼 몬스터/보스 타이머 시프트 (버스트 방지)
+- **B3**: 사망 지연 1.5초 동안 죽은 플레이어가 공격 가능 →
+  Player.update hp 가드 + 보스 handleTakingDamage에 hp 가드
+  (엔딩과 사망 화면 동시 진행 경로 차단, handlePlayerDeath에
+  isTransitioning 가드 추가)
+- **B4**: repeat -1 트윈이 파괴된 대상에 계속 기록 →
+  killTweensOf를 텔레그래프/먼지 파괴 경로 전체에 적용
+- **B6**: 타이틀 화면 클릭+SPACE 중복 진입 → isStarting 가드
+- 셧다운 시 time.paused/tweens 방어적 복원 (Clock은 restart를
+  가로질러 유지되므로)
+- **밸런스**: closet 공격 발판 580→560 (Brave Paw 제자리 공격 도달),
+  fieldHug 안전지대를 플레이어 ±350px 내로 (항상 회피 가능),
+  attic 우측 파리 스폰을 히든 포탈 leash 범위 밖으로 이동
+- 홀드 SPACE 키 반복이 타이틀→캐릭터선택→스토리를 관통하는 문제 →
+  씬 진입 입력 유예 + 스토리 진행 디바운스
+
+
+
 ## 자동 검증 (scripts/validate.mjs) — PASSED (548 checks)
 - 7개 맵 전 필드/지면 규칙, 포탈 target 존재 & 대상 스폰 지지 플랫폼 확인
 - 스폰/포탈/NPC/지상몬스터 지지 규칙 (220px 이내 플랫폼)
