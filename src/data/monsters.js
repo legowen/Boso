@@ -9,6 +9,7 @@ export const MONSTER_TYPES = {
     name: 'Bangul',
     hp: 30,
     touchDamage: 5,
+    exp: 8,
     width: 34,
     height: 30,
     color: 0x85C1E9,
@@ -27,6 +28,7 @@ export const MONSTER_TYPES = {
     name: 'Gong',
     hp: 50,
     touchDamage: 8,
+    exp: 12,
     width: 34,
     height: 32,
     color: 0xE74C3C,
@@ -44,6 +46,7 @@ export const MONSTER_TYPES = {
     name: 'Laser',
     hp: 80,
     touchDamage: 12,
+    exp: 18,
     width: 26,
     height: 26,
     color: 0xFF3B3B,
@@ -63,6 +66,7 @@ export const MONSTER_TYPES = {
     name: 'Nabi',
     hp: 120,
     touchDamage: 15,
+    exp: 25,
     width: 38,
     height: 32,
     color: 0xF7DC6F,
@@ -78,6 +82,7 @@ export const MONSTER_TYPES = {
     name: 'Pari',
     hp: 140,
     touchDamage: 18,
+    exp: 30,
     width: 24,
     height: 22,
     color: 0x566573,
@@ -89,6 +94,27 @@ export const MONSTER_TYPES = {
     chaseBias: 0.5,
     leashRadius: 300,
   },
+
+  // Wind-up robot - a feral Gearist prototype from the basement.
+  // Patrols slowly; when the player lines up it winds up, then charges
+  // like a MapleStory wild boar (charges straight, even off ledges).
+  robo: {
+    name: 'Robo',
+    hp: 90,
+    touchDamage: 14,
+    exp: 22,
+    width: 32,
+    height: 38,
+    color: 0x95A5A6,
+    movement: 'charger',
+    speed: 30,
+    chargeSpeed: 240,
+    detectRangeX: 220,
+    detectRangeY: 60,
+    windupMs: 500,
+    chargeMs: 900,
+    cooldownMs: 2200,
+  },
 };
 
 export const BOSS_TYPES = {
@@ -97,6 +123,7 @@ export const BOSS_TYPES = {
     name: 'Hug Guardian',
     hp: 1500,
     touchDamage: 20,
+    exp: 300,
     width: 140,
     height: 160,
     color: 0xB08840,
@@ -114,6 +141,7 @@ export const BOSS_TYPES = {
     name: 'Vacuum King',
     hp: 2200,
     touchDamage: 25,
+    exp: 500,
     width: 120,
     height: 150,
     color: 0x5D6D7E,

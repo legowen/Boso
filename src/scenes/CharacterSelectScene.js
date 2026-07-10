@@ -3,6 +3,7 @@
 
 import Phaser from 'phaser';
 import { SCENES } from '../utils/constants.js';
+import SaveManager from '../systems/SaveManager.js';
 
 // Character definitions - two builds of Boso the dog
 const CHARACTERS = [
@@ -441,8 +442,11 @@ export default class CharacterSelectScene extends Phaser.Scene {
       }
     });
 
-    // Update info panel
-    this.infoName.setText(charData.name);
+    // Update info panel (show saved level if this pup has progress)
+    const progress = SaveManager.getCharacter(charData.id);
+    this.infoName.setText(
+      progress && progress.level > 1 ? `${charData.name} Lv.${progress.level}` : charData.name
+    );
     this.infoClass.setText(charData.className);
     this.infoDesc.setText(charData.desc);
 

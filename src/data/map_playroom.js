@@ -73,8 +73,26 @@ const MAP_PLAYROOM = {
     { x: 2620, topY: 330, bottomY: 455 },
   ],
   npcs: [
-    { x: 1000, y: 714, name: 'Gearist Tinkerer' },
-    { x: 1300, y: 714, name: 'Plushist Sewmaster' },
+    {
+      x: 1000,
+      y: 714,
+      name: 'Gearist Tinkerer',
+      dialogue: [
+        'Our gears gave those toys life! ...Too much life, perhaps.',
+        "The Plushists' softness is a lie. COGS are truth!",
+        'Our wind-up prototypes went feral in the basement. Sorry about that.',
+      ],
+    },
+    {
+      x: 1300,
+      y: 714,
+      name: 'Plushist Sewmaster',
+      dialogue: [
+        'Every stitch is love. The Gearists understand nothing.',
+        'The Hug Guardian... we made it to love. It just loves too hard now.',
+        'When it hugs the whole room, run to the green safe spot!',
+      ],
+    },
   ],
   monsters: [
     // Butterflies gliding in sine waves

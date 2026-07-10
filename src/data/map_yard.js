@@ -5,7 +5,7 @@ const MAP_YARD = {
   name: 'Sunny Backyard',
   width: 2400,
   height: 800,
-  spawnX: 120,
+  spawnX: 150,
   spawnY: 680,
   bgm: 'bgm_home',
   bgColors: {
@@ -24,6 +24,7 @@ const MAP_YARD = {
     { x: 1900, y: 590, w: 220, h: 16, isGround: false },
   ],
   portals: [
+    { x: 60, y: 690, label: '← Secret Garden', targetMap: 'garden', spawnX: 2260, spawnY: 680 },
     { x: 2340, y: 690, label: '→ Living Room', targetMap: 'livingroom', spawnX: 120, spawnY: 680 },
   ],
   ropes: [
@@ -33,8 +34,25 @@ const MAP_YARD = {
     { x: 1990, topY: 590, bottomY: 700 },
   ],
   npcs: [
-    { x: 400, y: 714, name: 'Miyo the Cat' },
-    { x: 700, y: 714, name: 'Old Bell' },
+    {
+      x: 400,
+      y: 714,
+      name: 'Miyo the Cat',
+      dialogue: [
+        "Meow... Boso? The Owner hasn't come down for days.",
+        'The toy creatures escaped from the attic lab. Be careful out there!',
+      ],
+    },
+    {
+      x: 700,
+      y: 714,
+      name: 'Old Bell',
+      dialogue: [
+        'Woof. In my day, this yard was quiet...',
+        'A strange garden lies to the west. Its bugs sting - level up a bit first!',
+        'Lost? Press M to open the house map.',
+      ],
+    },
   ],
   monsters: [
     // Gentle tutorial bubbles

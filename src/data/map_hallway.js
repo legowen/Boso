@@ -37,6 +37,8 @@ const MAP_HALLWAY = {
   ],
   portals: [
     { x: 60, y: 1290, label: '← Kitchen', targetMap: 'kitchen', spawnX: 3040, spawnY: 680 },
+    { x: 240, y: 1290, label: '↓ Basement', targetMap: 'basement', spawnX: 2640, spawnY: 680 },
+    { x: 1250, y: 570, label: '→ Bedroom', targetMap: 'bedroom', spawnX: 160, spawnY: 680 },
     { x: 1620, y: 210, label: '↑ Toy Workshop', targetMap: 'playroom', spawnX: 120, spawnY: 680 },
   ],
   ropes: [

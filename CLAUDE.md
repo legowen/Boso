@@ -69,13 +69,22 @@ PreloadScene → TitleScene (MENU) → CharacterSelectScene → StoryScene → G
 - Death → SPACE to respawn at Sunny Backyard
 - Vacuum King defeated → ending sequence → title (demoCleared flag)
 
-### World (7 maps, portal graph)
-yard ↔ livingroom ↔ kitchen ↔ hallway ↔ playroom ↔ attic ↔ (hidden) closet
-- hallway is VERTICAL (1800x1400), climbed via ropes
+### World (11 maps, OPEN graph with loops - MapleStory style)
+```
+garden ─┬─ yard ── livingroom ── kitchen ─┬─ hallway ─┬─ playroom ── attic ─┬─ (hidden) closet
+        └───────(back door)───────────────┘     │      ├─ bedroom ── rooftop ┘  (skylight loop)
+                                    basement ───┘──────┘  (cellar loop)
+```
+- Three loops: yard↔garden↔kitchen / kitchen↔basement↔hallway /
+  hallway↔bedroom↔rooftop↔attic (skylight = alternate boss route)
+- hallway is VERTICAL (1800x1400), climbed via ropes; it is the hub (4 portals)
 - attic has the Hug Guardian; defeating it sets flag `hugGuardianDefeated`
   which opens the hidden golden portal to closet (Vacuum King)
+- World map UI: M key overlays node/edge graph from src/data/worldmap.js
+  (closet node hidden until the flag is set)
 - Map data includes: platforms, ropes, portals (optional hidden/requiresFlag),
-  npcs, monsters ({x, y, type}), optional boss ({id, x, y}), bgm key, bgColors
+  npcs ({x, y, name, dialogue[]}), monsters ({x, y, type}),
+  optional boss ({id, x, y}), bgm key, bgColors
 
 ### Monster System (type-driven AI)
 Types defined in `src/data/monsters.js`; AI in GameScene.updateMonsterAI:
@@ -86,7 +95,8 @@ Types defined in `src/data/monsters.js`; AI in GameScene.updateMonsterAI:
 | laser | `flyerDash` — gravity-free waypoint wander, dashes at player <280px | Stitch |
 | nabi | `sineGlider` — horizontal patrol + sine-wave altitude | butterfly |
 | pari | `jitter` — fast erratic retargeting, 50% player bias, leashed | fly |
-HP/touch damage come from MONSTER_TYPES (map data holds only x, y, type).
+| robo | `charger` — patrol → windup rattle 0.5s → straight charge (off ledges) | wild boar |
+HP/touch damage/EXP come from MONSTER_TYPES (map data holds only x, y, type).
 
 ### Bosses
 - **HugGuardian** (attic): patrol + 3 patterns — armSweep (proj_arm crosses the
@@ -99,7 +109,14 @@ HP/touch damage come from MONSTER_TYPES (map data holds only x, y, type).
   respawns once defeated.
 
 ### Systems
-- **SaveManager**: localStorage key `boso_save_v1`, `{ flags: {} }`; Node-safe.
+- **EXP/Leveling**: MONSTER_TYPES/BOSS_TYPES carry `exp`; Player.gainExp →
+  levelUp (+12 HP, +6 MP, +2 ATK, full heal); expToNext = 30 + level*25.
+  Progress persists per character id (MapleStory-style: survives new games).
+  HUD shows Lv + EXP bar; CharacterSelect shows saved level.
+- **NPC dialogue**: SPACE near an NPC opens a dialogue box (lines from map
+  npc data); SPACE advances, auto-closes when walking away.
+- **SaveManager**: localStorage key `boso_save_v1`,
+  `{ flags: {}, characters: { <charId>: { level, exp } } }`; Node-safe.
   Flags: hugGuardianDefeated, vacuumKingDefeated, demoCleared.
 - **AudioManager**: `play(scene, key)` / `stop()`. Missing audio file = silent
   no-op. Same key keeps playing across map changes.
@@ -119,6 +136,8 @@ HP/touch damage come from MONSTER_TYPES (map data holds only x, y, type).
 | Climb rope | ↑ / ↓ while on rope |
 | Jump off rope | ALT (+ optional ← →) |
 | Enter portal | ↑ near portal |
+| Talk to NPC | SPACE near NPC |
+| World map | M |
 | Pause menu | ESC |
 | Respawn after death | SPACE |
 
@@ -160,8 +179,8 @@ HP/touch damage come from MONSTER_TYPES (map data holds only x, y, type).
 4. Add the texture key to `src/data/assets.js` for image override support
 
 ## Planned Features (next)
-- EXP and leveling, inventory
-- NPC dialogue system (currently name tags only)
+- Inventory & item drops (meso-style)
+- Quest system (NPC dialogue hooks are in place)
 - Swift Paw ranged attack
 - Real BGM files (keys ready — see docs/ASSETS.md)
 - Character/monster art replacement via texture overrides

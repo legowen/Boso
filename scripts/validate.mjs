@@ -23,7 +23,7 @@ const SRC_DIR = path.join(REPO_ROOT, 'src');
 const SUPPORT_RANGE = 220;
 
 // Monster movement styles that walk on the ground (need platform support).
-const GROUND_MOVEMENTS = new Set(['snail', 'bouncer']);
+const GROUND_MOVEMENTS = new Set(['snail', 'bouncer', 'charger']);
 
 const failures = [];
 let checkCount = 0;

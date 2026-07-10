@@ -12,14 +12,25 @@
 - 연구소에서 탈출한 실험체들이 필드 몬스터가 됨
 - Toy Workshop 맵에 두 결사의 NPC 등장 (Gearist Tinkerer / Plushist Sewmaster)
 
-## 월드 (집 = 7개 맵)
+## 월드 (집+주변 = 11개 맵, 오픈월드 그래프)
+루프 3개로 자유 탐험 (메이플 월드맵 스타일, M키로 하우스맵 열람):
+- 마당↔정원↔부엌 뒷문 / 부엌↔지하실↔복도 / 복도↔침실↔옥상↔다락 스카이라이트
+
 1. **Sunny Backyard** (yard) — 시작 마을. NPC: Miyo the Cat, Old Bell
-2. **Living Room** (livingroom) — 방울 사냥터
-3. **Kitchen** (kitchen) — 공 사냥터, 첫 레이저 등장
-4. **Hallway & Stairs** (hallway) — 세로맵 (1800x1400), 로프 등반
-5. **Toy Workshop** (playroom) — 나비/파리 비행 벌레 구역, 결사 NPC
-6. **Attic Laboratory** (attic) — Hug Guardian 보스전
-7. **Vacuum Closet** (closet) — 히든. Hug Guardian 처치 시 비밀 포탈 개방
+2. **Secret Garden** (garden) — 서쪽 분기. 정원 벌레들, NPC Haku
+3. **Living Room** (livingroom) — 방울 사냥터
+4. **Kitchen** (kitchen) — 공 사냥터. 뒷문(정원)/지하실 입구
+5. **Basement Workshop** (basement) — Gearist 소굴. 신규 몬스터 Robo, NPC Bolt
+6. **Hallway & Stairs** (hallway) — 세로맵 허브 (포탈 4개)
+7. **Owner's Bedroom** (bedroom) — 창문으로 옥상 연결, NPC Dozy
+8. **Rooftop** (rooftop) — 최상급 사냥터. 다락 스카이라이트로 보스 우회 진입
+9. **Toy Workshop** (playroom) — 나비/파리 구역, 결사 NPC (대화 가능)
+10. **Attic Laboratory** (attic) — Hug Guardian 보스전
+11. **Vacuum Closet** (closet) — 히든. Hug Guardian 처치 시 비밀 포탈 개방
+
+## 성장 시스템
+- 몬스터별 EXP → 레벨업 (+HP/MP/ATK, 풀힐). expToNext = 30 + 레벨*25
+- 캐릭터별 레벨 localStorage 영속 (메이플식 — 새 게임에도 유지)
 
 ## 몬스터 도감 (레벨 낮은 순)
 | 몬스터 | 컨셉 | 무브먼트 레퍼런스 | 구현 |
@@ -29,6 +40,7 @@
 | Laser (레이저) | 레이저 포인터 점 | 스티치 | 중력 무시 자유비행 + 웨이포인트 배회, 플레이어 근접 시 돌진 |
 | Nabi (나비) | 중간급 비행 벌레 | 나비 | 사인파 활공 |
 | Pari (파리) | 중간급 비행 벌레 | 파리 | 불규칙 고속 지터, 50% 플레이어 방향 편향 |
+| Robo (로보) | 폭주한 태엽 로봇 (Gearist 시제품) | 와일드보어 | 순찰 → 0.5초 덜덜 텔레그래프 → 직선 돌진 (낭떠러지 무시) |
 
 ## 보스
 - **Hug Guardian** (필드 보스, 자쿰 오마주): 안아주고 싶어서 만들어진 거대

@@ -77,4 +77,24 @@ export default class SaveManager {
     data.flags[name] = value;
     SaveManager.save(data);
   }
+
+  // Read persistent character progress ({ level, exp }) or null.
+  static getCharacter(charId) {
+    if (!charId) return null;
+    const data = SaveManager.load();
+    const progress = data.characters && data.characters[charId];
+    if (!progress || typeof progress.level !== 'number') return null;
+    return { level: progress.level, exp: progress.exp || 0 };
+  }
+
+  // Persist character progress (MapleStory-style: levels survive new games).
+  static setCharacter(charId, progress) {
+    if (!charId) return;
+    const data = SaveManager.load();
+    if (!data.characters || typeof data.characters !== 'object') {
+      data.characters = {};
+    }
+    data.characters[charId] = { level: progress.level, exp: progress.exp };
+    SaveManager.save(data);
+  }
 }

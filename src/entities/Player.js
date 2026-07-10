@@ -3,6 +3,10 @@
 
 import Phaser from 'phaser';
 import { PLAYER, DEPTH, DAMAGE_TEXT, ROPE } from '../utils/constants.js';
+import SaveManager from '../systems/SaveManager.js';
+
+// Stat growth per level (MapleStory-style persistent progression)
+const LEVEL_GROWTH = { hp: 12, mp: 6, atk: 2 };
 
 export default class Player {
   constructor(scene, x, y, characterData) {
@@ -17,13 +21,20 @@ export default class Player {
     this.sprite.setBounce(0);
     this.sprite.body.setSize(PLAYER.WIDTH - 8, PLAYER.HEIGHT);
 
-    // Stats (apply character data if available)
+    // Level & EXP (persisted per character id via SaveManager)
+    this.charId = this.characterData ? this.characterData.id : 'default';
+    const progress = SaveManager.getCharacter(this.charId) || { level: 1, exp: 0 };
+    this.level = progress.level;
+    this.exp = progress.exp;
+
+    // Stats = base character stats + per-level growth
     const stats = this.characterData ? this.characterData.stats : null;
-    this.hp = stats ? stats.hp : PLAYER.MAX_HP;
-    this.maxHp = stats ? stats.hp : PLAYER.MAX_HP;
-    this.mp = stats ? stats.mp : PLAYER.MAX_MP;
-    this.maxMp = stats ? stats.mp : PLAYER.MAX_MP;
-    this.attackPower = stats ? stats.atk : PLAYER.BASE_ATTACK;
+    const growth = this.level - 1;
+    this.maxHp = (stats ? stats.hp : PLAYER.MAX_HP) + growth * LEVEL_GROWTH.hp;
+    this.hp = this.maxHp;
+    this.maxMp = (stats ? stats.mp : PLAYER.MAX_MP) + growth * LEVEL_GROWTH.mp;
+    this.mp = this.maxMp;
+    this.attackPower = (stats ? stats.atk : PLAYER.BASE_ATTACK) + growth * LEVEL_GROWTH.atk;
     this.moveSpeed = stats ? stats.spd : PLAYER.SPEED;
     this.jumpPower = (stats && stats.jumpPower) ? stats.jumpPower : PLAYER.JUMP_VELOCITY;
 
@@ -341,6 +352,47 @@ export default class Player {
     // Attack cooldown
     this.scene.time.delayedCall(PLAYER.ATTACK_COOLDOWN, () => {
       this.canAttack = true;
+    });
+  }
+
+  // EXP needed to advance from the current level
+  expToNext() {
+    return 30 + this.level * 25;
+  }
+
+  gainExp(amount) {
+    if (!amount || amount <= 0) return;
+    this.exp += amount;
+    while (this.exp >= this.expToNext()) {
+      this.exp -= this.expToNext();
+      this.levelUp();
+    }
+    SaveManager.setCharacter(this.charId, { level: this.level, exp: this.exp });
+  }
+
+  levelUp() {
+    this.level += 1;
+    this.maxHp += LEVEL_GROWTH.hp;
+    this.maxMp += LEVEL_GROWTH.mp;
+    this.attackPower += LEVEL_GROWTH.atk;
+    // Full heal on level up (MapleStory tradition)
+    this.hp = this.maxHp;
+    this.mp = this.maxMp;
+
+    this.showFloatingText('LEVEL UP!', '#F1C40F');
+
+    // Golden burst effect
+    const burst = this.scene.add.graphics({ x: this.sprite.x, y: this.sprite.y });
+    burst.setDepth(DEPTH.EFFECTS);
+    burst.lineStyle(4, 0xF1C40F, 0.9);
+    burst.strokeCircle(0, 0, 20);
+    this.scene.tweens.add({
+      targets: burst,
+      scaleX: 4,
+      scaleY: 4,
+      alpha: 0,
+      duration: 500,
+      onComplete: () => burst.destroy(),
     });
   }
 

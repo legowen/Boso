@@ -25,6 +25,7 @@ const MAP_ATTIC = {
   ],
   portals: [
     { x: 60, y: 690, label: '← Toy Workshop', targetMap: 'playroom', spawnX: 3040, spawnY: 680 },
+    { x: 1830, y: 510, label: '↑ Rooftop Skylight', targetMap: 'rooftop', spawnX: 2640, spawnY: 680 },
     {
       x: 2200,
       y: 690,

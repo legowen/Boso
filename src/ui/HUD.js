@@ -3,12 +3,13 @@
 
 import { UI, DEPTH } from '../utils/constants.js';
 
-const HUD_WIDTH = 340;
-const HUD_HEIGHT = 60;
+const HUD_WIDTH = 380;
+const HUD_HEIGHT = 78;
 const HUD_PADDING = 12;
 const BAR_WIDTH = 200;
 const HP_BAR_HEIGHT = 16;
 const MP_BAR_HEIGHT = 12;
+const EXP_BAR_HEIGHT = 8;
 const BOTTOM_MARGIN = 20;
 
 export default class HUD {
@@ -21,6 +22,8 @@ export default class HUD {
     this.createHUDBox();
     this.createHPBar();
     this.createMPBar();
+    this.createEXPBar();
+    this.createLevelText();
     this.createMapName();
 
     // Position on create
@@ -136,6 +139,49 @@ export default class HUD {
     this.mpBarY = barY;
   }
 
+  createEXPBar() {
+    const labelX = HUD_PADDING;
+    const barX = HUD_PADDING + 30;
+    const barY = 56;
+
+    this.expLabel = this.scene.add.text(labelX, barY - 2, 'EXP', {
+      fontSize: '10px',
+      fontFamily: UI.FONT_FAMILY,
+      color: '#F1C40F',
+      fontStyle: 'bold',
+    });
+    this.container.add(this.expLabel);
+
+    this.expBg = this.scene.add.graphics();
+    this.expBg.fillStyle(UI.EXP_BG_COLOR, 1);
+    this.expBg.fillRoundedRect(barX, barY, BAR_WIDTH, EXP_BAR_HEIGHT, 3);
+    this.container.add(this.expBg);
+
+    this.expBar = this.scene.add.graphics();
+    this.container.add(this.expBar);
+
+    this.expText = this.scene.add.text(barX + BAR_WIDTH + 8, barY - 2, '', {
+      fontSize: '10px',
+      fontFamily: UI.FONT_FAMILY,
+      color: UI.FONT_COLOR,
+    });
+    this.container.add(this.expText);
+
+    this.expBarX = barX;
+    this.expBarY = barY;
+  }
+
+  createLevelText() {
+    this.levelText = this.scene.add.text(HUD_WIDTH - HUD_PADDING, 8, '', {
+      fontSize: '14px',
+      fontFamily: 'Arial Black, Arial',
+      color: '#F1C40F',
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(1, 0);
+    this.container.add(this.levelText);
+  }
+
   createMapName() {
     this.mapNameText = this.scene.add.text(0, 0, '', {
       fontSize: '16px',
@@ -176,6 +222,20 @@ export default class HUD {
       4
     );
     this.mpText.setText(`${player.mp}/${player.maxMp}`);
+
+    // EXP bar + level (only when the leveling system is present)
+    if (typeof player.level === 'number' && this.expBar) {
+      const need = player.expToNext();
+      const expRatio = Math.min(1, player.exp / need);
+      const fillWidth = BAR_WIDTH * expRatio;
+      this.expBar.clear();
+      if (fillWidth >= 8) {
+        this.expBar.fillStyle(UI.EXP_COLOR, 1);
+        this.expBar.fillRoundedRect(this.expBarX, this.expBarY, fillWidth, 8, 3);
+      }
+      this.expText.setText(`${player.exp}/${need}`);
+      this.levelText.setText(`Lv.${player.level}`);
+    }
   }
 
   setMapName(name) {

@@ -19,7 +19,8 @@ import {
 import Player from '../entities/Player.js';
 import HUD from '../ui/HUD.js';
 import { MAPS_DATA, START_MAP } from '../data/maps.js';
-import { MONSTER_TYPES } from '../data/monsters.js';
+import { MONSTER_TYPES, BOSS_TYPES } from '../data/monsters.js';
+import { WORLD_MAP_LAYOUT } from '../data/worldmap.js';
 import { STORY } from '../data/story.js';
 import HugGuardian from '../entities/HugGuardian.js';
 import VacuumKing from '../entities/VacuumKing.js';
@@ -82,6 +83,18 @@ export default class GameScene extends Phaser.Scene {
     this.initMinimap();
     this.initInteractionHint();
 
+    // Overlay state
+    this.dialogue = null;
+    this.worldMap = null;
+
+    // Overlays snapshot screen dims at open - close them on resize
+    // (handler detached on shutdown; scale is game-global)
+    this.overlayResizeHandler = () => {
+      this.closeWorldMap();
+      this.closeDialogue();
+    };
+    this.scale.on('resize', this.overlayResizeHandler);
+
     // Per-map BGM (silent graceful fallback when no audio file exists)
     AudioManager.play(this, this.mapData.bgm);
 
@@ -89,6 +102,7 @@ export default class GameScene extends Phaser.Scene {
     this.events.once('player-died', () => this.handlePlayerDeath());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off('player-died');
+      this.scale.off('resize', this.overlayResizeHandler);
       // Defensive: Clock/TweenManager persist across scene.restart -
       // never carry a frozen clock into the next scene instance
       this.time.paused = false;
@@ -114,7 +128,14 @@ export default class GameScene extends Phaser.Scene {
       }
       this.hud.update(this.player);
       this.updateMinimap();
+      // Dialogue advance consumes SPACE before checkInteractions can reopen
+      this.updateDialogue();
       this.checkInteractions();
+
+      // World map toggle (M)
+      if (Phaser.Input.Keyboard.JustDown(this.keys.m)) {
+        this.toggleWorldMap();
+      }
     }
   }
 
@@ -177,15 +198,235 @@ export default class GameScene extends Phaser.Scene {
       );
       if (distance < NPC.INTERACT_DISTANCE) {
         nearNPC = true;
-        this.interactionHint.setText('Space Talk');
+        this.interactionHint.setText('[SPACE] Talk');
         this.interactionHint.setPosition(npcObj.sprite.x, npcObj.sprite.y - 70);
         this.interactionHint.setVisible(true);
+
+        // Start a conversation (SPACE) - updateDialogue consumed the key
+        // this frame if a dialogue was already open; never open one hidden
+        // behind the world map overlay
+        if (
+          !this.dialogue &&
+          !this.worldMap &&
+          npcObj.data.dialogue &&
+          Phaser.Input.Keyboard.JustDown(this.keys.space)
+        ) {
+          this.openDialogue(npcObj);
+        }
       }
     });
 
     if (!nearPortal && !nearNPC) {
       this.interactionHint.setVisible(false);
     }
+  }
+
+  // ===== NPC dialogue =====
+
+  openDialogue(npcObj) {
+    const w = this.scale.width;
+    const h = this.scale.height;
+    const boxW = Math.min(560, w - 60);
+    const boxH = 96;
+
+    const container = this.add.container(w / 2, h - 205).setDepth(DEPTH.UI + 8).setScrollFactor(0);
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0x1A1A2E, 0.92);
+    bg.fillRoundedRect(-boxW / 2, 0, boxW, boxH, 10);
+    bg.lineStyle(2, 0xF39C12, 0.8);
+    bg.strokeRoundedRect(-boxW / 2, 0, boxW, boxH, 10);
+    container.add(bg);
+
+    const nameText = this.add.text(-boxW / 2 + 16, 10, npcObj.data.name, {
+      fontSize: '13px',
+      fontFamily: 'Arial Black, Arial',
+      color: '#F1C40F',
+    });
+    container.add(nameText);
+
+    const lineText = this.add.text(-boxW / 2 + 16, 34, '', {
+      fontSize: '13px',
+      fontFamily: UI.FONT_FAMILY,
+      color: '#ECF0F1',
+      wordWrap: { width: boxW - 32 },
+      lineSpacing: 4,
+    });
+    container.add(lineText);
+
+    const hint = this.add.text(boxW / 2 - 14, boxH - 18, 'SPACE >', {
+      fontSize: '11px',
+      fontFamily: UI.FONT_FAMILY,
+      color: '#7F8C8D',
+    }).setOrigin(1, 0.5);
+    container.add(hint);
+
+    this.dialogue = { npcObj, index: 0, container, lineText };
+    this.renderDialogueLine();
+  }
+
+  renderDialogueLine() {
+    if (!this.dialogue) return;
+    const lines = this.dialogue.npcObj.data.dialogue;
+    this.dialogue.lineText.setText(lines[this.dialogue.index]);
+  }
+
+  updateDialogue() {
+    if (!this.dialogue) return;
+
+    // Auto-close when the player walks away
+    const npcSprite = this.dialogue.npcObj.sprite;
+    const dist = Phaser.Math.Distance.Between(
+      this.player.sprite.x,
+      this.player.sprite.y,
+      npcSprite.x,
+      npcSprite.y
+    );
+    if (dist > NPC.INTERACT_DISTANCE * 2) {
+      this.closeDialogue();
+      return;
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.keys.space)) {
+      this.dialogue.index += 1;
+      if (this.dialogue.index >= this.dialogue.npcObj.data.dialogue.length) {
+        this.closeDialogue();
+      } else {
+        this.renderDialogueLine();
+      }
+    }
+  }
+
+  closeDialogue() {
+    if (!this.dialogue) return;
+    this.dialogue.container.destroy();
+    this.dialogue = null;
+  }
+
+  // ===== World map overlay (M) =====
+
+  toggleWorldMap() {
+    if (this.worldMap) {
+      this.closeWorldMap();
+    } else {
+      this.openWorldMap();
+    }
+  }
+
+  openWorldMap() {
+    const w = this.scale.width;
+    const h = this.scale.height;
+
+    const container = this.add.container(0, 0).setDepth(DEPTH.UI + 15).setScrollFactor(0);
+
+    // Dim the game behind the map
+    const dim = this.add.graphics();
+    dim.fillStyle(0x000000, 0.65);
+    dim.fillRect(0, 0, w, h);
+    container.add(dim);
+
+    // Panel frame
+    const x0 = w * 0.08;
+    const y0 = h * 0.12;
+    const pw = w * 0.84;
+    const ph = h * 0.74;
+    const panel = this.add.graphics();
+    panel.fillStyle(0x10101E, 0.95);
+    panel.fillRoundedRect(x0 - 20, y0 - 44, pw + 40, ph + 84, 12);
+    panel.lineStyle(2, 0xF39C12, 0.8);
+    panel.strokeRoundedRect(x0 - 20, y0 - 44, pw + 40, ph + 84, 12);
+    container.add(panel);
+
+    container.add(
+      this.add.text(w / 2, y0 - 24, 'HOUSE MAP', {
+        fontSize: '20px',
+        fontFamily: 'Arial Black, Arial',
+        color: '#F39C12',
+        stroke: '#000000',
+        strokeThickness: 3,
+      }).setOrigin(0.5)
+    );
+
+    const visible = (key) =>
+      key !== 'closet' || SaveManager.getFlag('hugGuardianDefeated');
+    const nodeX = (key) => x0 + WORLD_MAP_LAYOUT[key].x * pw;
+    const nodeY = (key) => y0 + WORLD_MAP_LAYOUT[key].y * ph;
+
+    // Edges (derived from portals, deduped per pair)
+    const edges = this.add.graphics();
+    edges.lineStyle(2, 0x5D6D7E, 0.9);
+    const drawn = new Set();
+    Object.entries(MAPS_DATA).forEach(([key, map]) => {
+      if (!visible(key) || !WORLD_MAP_LAYOUT[key]) return;
+      (map.portals || []).forEach((portal) => {
+        const target = portal.targetMap;
+        if (!visible(target) || !WORLD_MAP_LAYOUT[target]) return;
+        if (portal.hidden && !SaveManager.getFlag(portal.requiresFlag)) return;
+        const pairKey = [key, target].sort().join('|');
+        if (drawn.has(pairKey)) return;
+        drawn.add(pairKey);
+        edges.lineBetween(nodeX(key), nodeY(key), nodeX(target), nodeY(target));
+      });
+    });
+    container.add(edges);
+
+    // Nodes
+    Object.keys(MAPS_DATA).forEach((key) => {
+      if (!visible(key) || !WORLD_MAP_LAYOUT[key]) return;
+      const nx = nodeX(key);
+      const ny = nodeY(key);
+      const isHere = key === this.currentMapKey;
+
+      const node = this.add.graphics();
+      node.fillStyle(isHere ? 0x3E2A00 : 0x2C3E50, 1);
+      node.fillRoundedRect(nx - 52, ny - 15, 104, 30, 6);
+      node.lineStyle(2, isHere ? 0xF1C40F : 0x85929E, 1);
+      node.strokeRoundedRect(nx - 52, ny - 15, 104, 30, 6);
+      container.add(node);
+
+      container.add(
+        this.add.text(nx, ny, MAPS_DATA[key].name, {
+          fontSize: '10px',
+          fontFamily: UI.FONT_FAMILY,
+          color: isHere ? '#F1C40F' : '#D5DBDB',
+          fontStyle: isHere ? 'bold' : 'normal',
+        }).setOrigin(0.5)
+      );
+
+      if (isHere) {
+        const marker = this.add.text(nx, ny - 28, 'YOU', {
+          fontSize: '11px',
+          fontFamily: 'Arial Black, Arial',
+          color: '#F1C40F',
+          stroke: '#000000',
+          strokeThickness: 2,
+        }).setOrigin(0.5);
+        container.add(marker);
+        this.tweens.add({
+          targets: marker,
+          y: marker.y - 5,
+          duration: 500,
+          yoyo: true,
+          repeat: -1,
+        });
+      }
+    });
+
+    container.add(
+      this.add.text(w / 2, y0 + ph + 22, 'M - Close', {
+        fontSize: '12px',
+        fontFamily: UI.FONT_FAMILY,
+        color: '#7F8C8D',
+      }).setOrigin(0.5)
+    );
+
+    this.worldMap = container;
+  }
+
+  closeWorldMap() {
+    if (!this.worldMap) return;
+    this.worldMap.destroy();
+    this.worldMap = null;
   }
 
   createMonsterTextures() {
@@ -275,6 +516,34 @@ export default class GameScene extends Phaser.Scene {
       g.destroy();
     }
 
+    // Robo - wind-up robot (Gearist prototype, charges like a wild boar)
+    if (!this.textures.exists('monster_robo')) {
+      const c = MONSTER_TYPES.robo;
+      const g = this.add.graphics();
+      // Boxy body
+      g.fillStyle(c.color, 1);
+      g.fillRoundedRect(3, 8, 26, 24, 4);
+      // Visor with orange eye
+      g.fillStyle(0x2C3E50, 1);
+      g.fillRect(6, 12, 20, 8);
+      g.fillStyle(0xE67E22, 1);
+      g.fillRect(19, 14, 5, 4);
+      // Antenna
+      g.lineStyle(2, 0x7F8C8D, 1);
+      g.lineBetween(16, 8, 16, 2);
+      g.fillStyle(0xE74C3C, 1);
+      g.fillCircle(16, 2, 2);
+      // Wind-up key on the back
+      g.lineStyle(3, 0xF1C40F, 1);
+      g.strokeCircle(5, 20, 4);
+      g.lineBetween(5, 16, 5, 24);
+      // Treads
+      g.fillStyle(0x2C3E50, 1);
+      g.fillRoundedRect(4, 32, 24, 6, 3);
+      g.generateTexture('monster_robo', c.width, c.height);
+      g.destroy();
+    }
+
     // Pari - fly (erratic fast jitter)
     if (!this.textures.exists('monster_pari')) {
       const c = MONSTER_TYPES.pari;
@@ -302,6 +571,10 @@ export default class GameScene extends Phaser.Scene {
     // Already transitioning (map change or ending sequence) - skip death UI
     if (this.isTransitioning) return;
     this.isTransitioning = true;
+
+    // Clear overlays - update() is gated now, so they could never be closed
+    this.closeWorldMap();
+    this.closeDialogue();
 
     // Grayscale effect on the entire camera
     const pipeline = this.cameras.main.postFX.addColorMatrix();
@@ -411,6 +684,7 @@ export default class GameScene extends Phaser.Scene {
       space: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
       i: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.I),
       q: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q),
+      m: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M),
     };
 
     // Prevent browser default behavior for ALT and CTRL
@@ -546,10 +820,13 @@ export default class GameScene extends Phaser.Scene {
         m.stateUntil += pausedMs;
         m.nextJumpAt += pausedMs;
         m.dashReadyAt += pausedMs;
+        m.chargeReadyAt += pausedMs;
         if (m.retargetAt) m.retargetAt += pausedMs;
         if (m.knockedUntil) m.knockedUntil += pausedMs;
         if (m.pausedUntil) m.pausedUntil += pausedMs;
         if (m.dashingUntil) m.dashingUntil += pausedMs;
+        if (m.windupUntil) m.windupUntil += pausedMs;
+        if (m.chargeUntil) m.chargeUntil += pausedMs;
         if (m.deathTime) m.deathTime += pausedMs;
       });
       if (this.boss && this.boss.shiftTimers) {
@@ -780,6 +1057,12 @@ export default class GameScene extends Phaser.Scene {
         onGroundLast: false,
         knockedUntil: 0,
         isDying: false,
+        // Charger (robo) state
+        chargeState: 'patrol',
+        windupUntil: 0,
+        chargeUntil: 0,
+        chargeReadyAt: now + (cfg.cooldownMs || 0),
+        chargeDir: 1,
       };
 
       this.monsters.push(monsterObj);
@@ -1104,6 +1387,12 @@ export default class GameScene extends Phaser.Scene {
   onBossDefeated(bossId) {
     SaveManager.setFlag(`${bossId}Defeated`);
 
+    // Boss EXP
+    const bossCfg = BOSS_TYPES[bossId];
+    if (bossCfg && bossCfg.exp && this.player.hp > 0) {
+      this.player.gainExp(bossCfg.exp);
+    }
+
     if (this.bossBar) {
       this.bossBar.container.setVisible(false);
     }
@@ -1126,6 +1415,8 @@ export default class GameScene extends Phaser.Scene {
 
   startEndingSequence() {
     this.isTransitioning = true;
+    this.closeWorldMap();
+    this.closeDialogue();
     this.player.sprite.setVelocity(0, 0);
     AudioManager.stop();
 
@@ -1256,6 +1547,14 @@ export default class GameScene extends Phaser.Scene {
           const knockDir = this.player.facingRight ? 1 : -1;
           monsterObj.sprite.setVelocityX(200 * knockDir);
           monsterObj.knockedUntil = now + 250;
+
+          // A hit staggers a winding-up charger (and kills its rattle
+          // tween, which would otherwise pin the sprite in place)
+          if (monsterObj.cfg.movement === 'charger' && monsterObj.chargeState === 'windup') {
+            this.tweens.killTweensOf(monsterObj.sprite);
+            monsterObj.chargeState = 'patrol';
+            monsterObj.chargeReadyAt = now + monsterObj.cfg.cooldownMs;
+          }
           if (monsterObj.sprite.body.allowGravity) {
             monsterObj.sprite.setVelocityY(-100);
           } else {
@@ -1430,6 +1729,68 @@ export default class GameScene extends Phaser.Scene {
         break;
       }
 
+      // Robo: wild-boar-style charger — patrols, winds up, then charges
+      // straight ahead (even off ledges)
+      case 'charger': {
+        if (monsterObj.chargeState === 'windup') {
+          sprite.setVelocityX(0);
+          if (now > monsterObj.windupUntil) {
+            monsterObj.chargeState = 'charge';
+            monsterObj.chargeUntil = now + cfg.chargeMs;
+          }
+          break;
+        }
+
+        if (monsterObj.chargeState === 'charge') {
+          if (now > monsterObj.chargeUntil || sprite.body.blocked.left || sprite.body.blocked.right) {
+            monsterObj.chargeState = 'patrol';
+            monsterObj.chargeReadyAt = now + cfg.cooldownMs;
+            sprite.setVelocityX(0);
+          } else {
+            // Full speed ahead - ledges included
+            sprite.setVelocityX(cfg.chargeSpeed * monsterObj.chargeDir);
+          }
+          break;
+        }
+
+        // Patrol - and watch for a lined-up player
+        const dx = player.x - sprite.x;
+        const dy = Math.abs(player.y - sprite.y);
+        if (
+          this.player.hp > 0 &&
+          now > monsterObj.chargeReadyAt &&
+          Math.abs(dx) < cfg.detectRangeX &&
+          dy < cfg.detectRangeY &&
+          sprite.body.blocked.down
+        ) {
+          monsterObj.chargeState = 'windup';
+          monsterObj.windupUntil = now + cfg.windupMs;
+          monsterObj.chargeDir = dx < 0 ? -1 : 1;
+          sprite.setFlipX(monsterObj.chargeDir < 0);
+          sprite.setVelocityX(0);
+          // Rattle telegraph
+          this.tweens.add({
+            targets: sprite,
+            x: sprite.x + 3,
+            duration: 50,
+            yoyo: true,
+            repeat: 4,
+          });
+          break;
+        }
+
+        if (sprite.body.blocked.left) {
+          monsterObj.direction = 1;
+        } else if (sprite.body.blocked.right) {
+          monsterObj.direction = -1;
+        } else if (sprite.body.blocked.down && !this.hasGroundAhead(sprite, monsterObj.direction, cfg)) {
+          monsterObj.direction *= -1;
+        }
+        sprite.setVelocityX(cfg.speed * monsterObj.direction);
+        sprite.setFlipX(monsterObj.direction < 0);
+        break;
+      }
+
       // Pari: fly — fast erratic jitter, biased toward the player, leashed to spawn
       case 'jitter': {
         if (now > monsterObj.retargetAt) {
@@ -1493,6 +1854,26 @@ export default class GameScene extends Phaser.Scene {
     monsterObj.hpBar.clear();
     monsterObj.hpBarBg.clear();
 
+    // Award EXP
+    const expGain = monsterObj.cfg.exp || 0;
+    if (expGain > 0 && this.player.hp > 0) {
+      this.player.gainExp(expGain);
+      const expText = this.add.text(monsterObj.sprite.x, monsterObj.sprite.y - 34, `+${expGain} EXP`, {
+        fontSize: '12px',
+        fontFamily: UI.FONT_FAMILY,
+        color: '#F1C40F',
+        stroke: '#000000',
+        strokeThickness: 2,
+      }).setOrigin(0.5).setDepth(DEPTH.EFFECTS);
+      this.tweens.add({
+        targets: expText,
+        y: expText.y - 30,
+        alpha: 0,
+        duration: 900,
+        onComplete: () => expText.destroy(),
+      });
+    }
+
     // Death animation: shrink and fade, then deactivate
     this.tweens.add({
       targets: monsterObj.sprite,
@@ -1538,6 +1919,10 @@ export default class GameScene extends Phaser.Scene {
     monsterObj.dashReadyAt = now + (monsterObj.cfg.dashCooldownMs || 0);
     monsterObj.retargetAt = 0;
     monsterObj.onGroundLast = false;
+    monsterObj.chargeState = 'patrol';
+    monsterObj.windupUntil = 0;
+    monsterObj.chargeUntil = 0;
+    monsterObj.chargeReadyAt = now + (monsterObj.cfg.cooldownMs || 0);
 
     // Reactivate sprite
     monsterObj.sprite.setActive(true);

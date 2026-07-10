@@ -47,7 +47,7 @@ const MAP_LIVINGROOM = {
   ],
   portals: [
     { x: 60, y: 690, label: '← Backyard', targetMap: 'yard', spawnX: 2240, spawnY: 680 },
-    { x: 3140, y: 690, label: '→ Kitchen', targetMap: 'kitchen', spawnX: 120, spawnY: 680 },
+    { x: 3140, y: 690, label: '→ Kitchen', targetMap: 'kitchen', spawnX: 150, spawnY: 680 },
   ],
   ropes: [
     // Ground to layer 1

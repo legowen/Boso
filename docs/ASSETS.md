@@ -20,6 +20,7 @@ Put PNG files here: `public/assets/images/tex/<key>.png`
 | `monster_laser` | 26 x 26 | Laser — laser-pointer dot (free flyer) |
 | `monster_nabi` | 38 x 32 | Nabi — butterfly (sine glider) |
 | `monster_pari` | 24 x 22 | Pari — fly (erratic jitter) |
+| `monster_robo` | 32 x 38 | Robo — wind-up robot (wild-boar charge) |
 | `boss_hug_guardian` | 140 x 160 | Hug Guardian — toy golem field boss |
 | `boss_vacuum_king` | 120 x 150 | Vacuum King — hidden special boss |
 | `proj_arm` | 120 x 50 | Hug Guardian's sweeping plush arm |
