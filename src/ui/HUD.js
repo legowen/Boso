@@ -26,8 +26,13 @@ export default class HUD {
     // Position on create
     this.repositionHUD();
 
-    // Listen for resize events
-    this.scene.scale.on('resize', () => this.repositionHUD());
+    // Listen for resize events (scale is game-global: detach on scene shutdown
+    // or restarted scenes would stack dead listeners)
+    this.resizeHandler = () => this.repositionHUD();
+    this.scene.scale.on('resize', this.resizeHandler);
+    this.scene.events.once('shutdown', () => {
+      this.scene.scale.off('resize', this.resizeHandler);
+    });
   }
 
   repositionHUD() {
@@ -173,13 +178,7 @@ export default class HUD {
     this.mpText.setText(`${player.mp}/${player.maxMp}`);
   }
 
-  setMapName(name, mapKey) {
-    if (mapKey === 'ruins') {
-      this.mapNameText.setText('5-1 Ancient Ruins');
-    } else if (mapKey === 'shadow') {
-      this.mapNameText.setText('5-2 Shadow Realm');
-    } else {
-      this.mapNameText.setText(name);
-    }
+  setMapName(name) {
+    this.mapNameText.setText(name);
   }
 }

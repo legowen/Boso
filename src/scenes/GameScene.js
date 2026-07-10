@@ -4,15 +4,11 @@
 
 import Phaser from 'phaser';
 import {
-  GAME_WIDTH,
-  GAME_HEIGHT,
   PLAYER,
   PLATFORM,
   PORTAL,
   NPC,
   MONSTER,
-  MONSTER_ELITE,
-  MONSTER_CHAMPION,
   CAMERA,
   DEPTH,
   DAMAGE_TEXT,
@@ -22,32 +18,16 @@ import {
 } from '../utils/constants.js';
 import Player from '../entities/Player.js';
 import HUD from '../ui/HUD.js';
-import MAP_HAVEN from '../data/map_haven.js';
-import MAP_OUTSKIRTS from '../data/map_outskirts.js';
-import MAP_FOREST from '../data/map_forest.js';
-import MAP_CAVE from '../data/map_cave.js';
-import MAP_MOUNTAIN from '../data/map_mountain.js';
-import MAP_RUINS from '../data/map_ruins.js';
-import MAP_SHADOW from '../data/map_shadow.js';
-import MAP_FOREST2 from '../data/map_forest2.js';
-import MAP_PLAINS from '../data/map_plains.js';
-import MAP_OUTSKIRTS2 from '../data/map_outskirts2.js';
-import MAP_SANCTUARY from '../data/map_sanctuary.js';
+import { MAPS_DATA, START_MAP } from '../data/maps.js';
+import { MONSTER_TYPES, BOSS_TYPES } from '../data/monsters.js';
+import { STORY } from '../data/story.js';
+import HugGuardian from '../entities/HugGuardian.js';
+import VacuumKing from '../entities/VacuumKing.js';
+import AudioManager from '../systems/AudioManager.js';
+import SaveManager from '../systems/SaveManager.js';
 
-// Map registry - add new maps here
-const MAPS = {
-  haven: MAP_HAVEN,
-  outskirts: MAP_OUTSKIRTS,
-  forest: MAP_FOREST,
-  cave: MAP_CAVE,
-  mountain: MAP_MOUNTAIN,
-  ruins: MAP_RUINS,
-  shadow: MAP_SHADOW,
-  forest2: MAP_FOREST2,
-  plains: MAP_PLAINS,
-  outskirts2: MAP_OUTSKIRTS2,
-  sanctuary: MAP_SANCTUARY,
-};
+// Map registry lives in src/data/maps.js (pure data, Node-validatable)
+const MAPS = MAPS_DATA;
 
 // Persistent map state across portal transitions
 const MAP_STATE = {};
@@ -55,12 +35,16 @@ const MAP_STATE = {};
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super(SCENES.GAME);
-    this.currentMapKey = 'haven';
+    this.currentMapKey = START_MAP;
     this.spawnX = null;
     this.spawnY = null;
   }
 
   init(data) {
+    // New game from character select: clear in-memory monster state
+    if (data && data.freshRun) {
+      Object.keys(MAP_STATE).forEach((key) => delete MAP_STATE[key]);
+    }
     if (data && data.mapKey) {
       this.currentMapKey = data.mapKey;
     }
@@ -79,8 +63,10 @@ export default class GameScene extends Phaser.Scene {
   }
 
   create() {
-    this.mapData = MAPS[this.currentMapKey] || MAP_HAVEN;
+    this.mapData = MAPS[this.currentMapKey] || MAPS[START_MAP];
     this.isTransitioning = false;
+    // Brief portal lock so a held UP key cannot ping-pong between maps
+    this.portalLockUntil = Date.now() + 700;
 
     this.initBackground();
     this.initPlatforms();
@@ -89,24 +75,40 @@ export default class GameScene extends Phaser.Scene {
     this.initMonsters();
     this.initPortals();
     this.initNPCs();
+    this.initBoss();
     this.initCamera();
     this.initControls();
     this.initHUD();
     this.initMinimap();
     this.initInteractionHint();
 
-    // Event listeners
-    this.events.on('player-died', () => this.handlePlayerDeath());
+    // Per-map BGM (silent graceful fallback when no audio file exists)
+    AudioManager.play(this, this.mapData.bgm);
+
+    // Event listeners (once: scene.restart would stack persistent listeners)
+    this.events.once('player-died', () => this.handlePlayerDeath());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.events.off('player-died');
+      if (this.boss) {
+        this.boss.destroy();
+        this.boss = null;
+      }
+    });
 
     // Fade in when entering map
     this.cameras.main.fadeIn(400, 0, 0, 0);
   }
 
-  update() {
+  update(time, delta) {
     if (this.player && !this.isTransitioning && !this.isPaused) {
       this.player.update(this.cursors, this.keys);
-      this.hud.update(this.player);
       this.updateMonsters();
+      // Boss updates AFTER the player so suction can stack on input velocity
+      if (this.boss) {
+        this.boss.update(time, delta);
+        this.updateBossHpBar();
+      }
+      this.hud.update(this.player);
       this.updateMinimap();
       this.checkInteractions();
     }
@@ -116,10 +118,7 @@ export default class GameScene extends Phaser.Scene {
 
   changeMap(targetMapKey, spawnX, spawnY) {
     if (this.isTransitioning) return;
-    if (!MAPS[targetMapKey]) {
-      console.log(`Map "${targetMapKey}" not found yet!`);
-      return;
-    }
+    if (!MAPS[targetMapKey]) return;
 
     this.isTransitioning = true;
 
@@ -156,8 +155,8 @@ export default class GameScene extends Phaser.Scene {
         this.interactionHint.setPosition(zone.x, zone.y - 80);
         this.interactionHint.setVisible(true);
 
-        // Enter portal with UP arrow
-        if (this.cursors.up.isDown && zone.portalData) {
+        // Enter portal with UP arrow (locked briefly after entering a map)
+        if (this.cursors.up.isDown && zone.portalData && Date.now() > this.portalLockUntil) {
           this.changeMap(zone.portalData.targetMap, zone.portalData.spawnX, zone.portalData.spawnY);
         }
       }
@@ -185,94 +184,114 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  createMonsterTexture() {
-    if (this.textures.exists('monster')) return;
-
-    const graphics = this.add.graphics();
-    // Body (red)
-    graphics.fillStyle(MONSTER.COLOR, 1);
-    graphics.fillRect(2, 8, MONSTER.WIDTH - 4, MONSTER.HEIGHT - 8);
-
-    // Eyes (angry expression)
-    graphics.fillStyle(0xFFFFFF, 1);
-    graphics.fillRect(8, 14, 8, 6);
-    graphics.fillRect(20, 14, 8, 6);
-
-    graphics.fillStyle(0x000000, 1);
-    graphics.fillRect(10, 16, 4, 4);
-    graphics.fillRect(24, 16, 4, 4);
-
-    // Horns
-    graphics.fillStyle(0xC0392B, 1);
-    graphics.fillTriangle(10, 8, 6, 0, 14, 8);
-    graphics.fillTriangle(26, 8, 22, 0, 30, 8);
-
-    graphics.generateTexture('monster', MONSTER.WIDTH, MONSTER.HEIGHT);
-    graphics.destroy();
-  }
-
-  createEliteMonsterTexture() {
-    if (this.textures.exists('monster_elite')) return;
-
-    const W = MONSTER_ELITE.WIDTH;
-    const H = MONSTER_ELITE.HEIGHT;
-    const graphics = this.add.graphics();
-
-    // Body (purple)
-    graphics.fillStyle(MONSTER_ELITE.COLOR, 1);
-    graphics.fillRect(2, 10, W - 4, H - 10);
-
-    // Eyes (red, angry)
-    graphics.fillStyle(0xFFFFFF, 1);
-    graphics.fillRect(10, 18, 10, 8);
-    graphics.fillRect(24, 18, 10, 8);
-    graphics.fillStyle(0xFF0000, 1);
-    graphics.fillRect(13, 20, 5, 5);
-    graphics.fillRect(27, 20, 5, 5);
-
-    // 3 horns
-    graphics.fillStyle(0x6C3483, 1);
-    graphics.fillTriangle(8, 10, 4, 0, 12, 10);
-    graphics.fillTriangle(W / 2, 10, W / 2 - 4, -2, W / 2 + 4, 10);
-    graphics.fillTriangle(W - 8, 10, W - 12, 0, W - 4, 10);
-
-    graphics.generateTexture('monster_elite', W, H);
-    graphics.destroy();
-  }
-
-  createChampionMonsterTexture() {
-    if (this.textures.exists('monster_champion')) return;
-
-    const W = MONSTER_CHAMPION.WIDTH;
-    const H = MONSTER_CHAMPION.HEIGHT;
-    const graphics = this.add.graphics();
-
-    // Body (dark orange)
-    graphics.fillStyle(MONSTER_CHAMPION.COLOR, 1);
-    graphics.fillRect(2, 12, W - 4, H - 12);
-
-    // Body stripes
-    graphics.fillStyle(0xE67E22, 0.6);
-    for (let sy = 24; sy < H - 4; sy += 8) {
-      graphics.fillRect(6, sy, W - 12, 3);
+  createMonsterTextures() {
+    // Bangul - soap bubble experiment (snail-like ground crawler)
+    if (!this.textures.exists('monster_bangul')) {
+      const c = MONSTER_TYPES.bangul;
+      const g = this.add.graphics();
+      g.fillStyle(c.color, 0.55);
+      g.fillCircle(17, 15, 14);
+      g.lineStyle(2, 0xD6EAF8, 0.9);
+      g.strokeCircle(17, 15, 14);
+      // Shine highlight
+      g.fillStyle(0xFFFFFF, 0.8);
+      g.fillEllipse(11, 9, 7, 4);
+      // Sleepy eyes
+      g.fillStyle(0x1B2631, 1);
+      g.fillRect(12, 14, 3, 4);
+      g.fillRect(20, 14, 3, 4);
+      g.generateTexture('monster_bangul', c.width, c.height);
+      g.destroy();
     }
 
-    // Eyes (yellow, fierce)
-    graphics.fillStyle(0xFFFFFF, 1);
-    graphics.fillRect(12, 20, 10, 8);
-    graphics.fillRect(28, 20, 10, 8);
-    graphics.fillStyle(0xF1C40F, 1);
-    graphics.fillRect(15, 22, 5, 5);
-    graphics.fillRect(31, 22, 5, 5);
+    // Gong - bouncing rubber ball (slime-like hopper)
+    if (!this.textures.exists('monster_gong')) {
+      const c = MONSTER_TYPES.gong;
+      const g = this.add.graphics();
+      g.fillStyle(c.color, 1);
+      g.fillCircle(17, 16, 15);
+      // White band
+      g.fillStyle(0xFDFEFE, 1);
+      g.fillEllipse(17, 9, 24, 7);
+      // Star button
+      g.fillStyle(0xF4D03F, 1);
+      g.fillCircle(17, 9, 3);
+      // Angry eyes
+      g.fillStyle(0xFFFFFF, 1);
+      g.fillRect(9, 16, 6, 6);
+      g.fillRect(19, 16, 6, 6);
+      g.fillStyle(0x000000, 1);
+      g.fillRect(11, 18, 3, 3);
+      g.fillRect(21, 18, 3, 3);
+      g.generateTexture('monster_gong', c.width, c.height);
+      g.destroy();
+    }
 
-    // 3 large horns
-    graphics.fillStyle(0xA04000, 1);
-    graphics.fillTriangle(8, 12, 2, -2, 14, 12);
-    graphics.fillTriangle(W / 2, 12, W / 2 - 5, -4, W / 2 + 5, 12);
-    graphics.fillTriangle(W - 8, 12, W - 14, -2, W - 2, 12);
+    // Laser - glowing laser-pointer dot (free flyer, dashes at player)
+    if (!this.textures.exists('monster_laser')) {
+      const c = MONSTER_TYPES.laser;
+      const g = this.add.graphics();
+      g.fillStyle(c.color, 0.25);
+      g.fillCircle(13, 13, 12);
+      g.fillStyle(c.color, 0.6);
+      g.fillCircle(13, 13, 8);
+      g.fillStyle(0xFFFFFF, 1);
+      g.fillCircle(13, 13, 4);
+      // Cross glint
+      g.lineStyle(2, c.color, 0.8);
+      g.lineBetween(13, 0, 13, 26);
+      g.lineBetween(0, 13, 26, 13);
+      g.generateTexture('monster_laser', c.width, c.height);
+      g.destroy();
+    }
 
-    graphics.generateTexture('monster_champion', W, H);
-    graphics.destroy();
+    // Nabi - butterfly (sine-wave glider)
+    if (!this.textures.exists('monster_nabi')) {
+      const c = MONSTER_TYPES.nabi;
+      const g = this.add.graphics();
+      // Wings
+      g.fillStyle(c.color, 0.95);
+      g.fillEllipse(11, 10, 16, 14);
+      g.fillEllipse(27, 10, 16, 14);
+      g.fillStyle(0xE67E22, 0.9);
+      g.fillEllipse(11, 22, 12, 10);
+      g.fillEllipse(27, 22, 12, 10);
+      // Wing spots
+      g.fillStyle(0x6E2C00, 0.8);
+      g.fillCircle(11, 10, 3);
+      g.fillCircle(27, 10, 3);
+      // Body
+      g.fillStyle(0x4A235A, 1);
+      g.fillRoundedRect(16, 6, 6, 22, 3);
+      // Antennae
+      g.lineStyle(1, 0x4A235A, 1);
+      g.lineBetween(18, 6, 14, 0);
+      g.lineBetween(20, 6, 24, 0);
+      g.generateTexture('monster_nabi', c.width, c.height);
+      g.destroy();
+    }
+
+    // Pari - fly (erratic fast jitter)
+    if (!this.textures.exists('monster_pari')) {
+      const c = MONSTER_TYPES.pari;
+      const g = this.add.graphics();
+      // Translucent wings
+      g.fillStyle(0xD5DBDB, 0.6);
+      g.fillEllipse(7, 5, 12, 7);
+      g.fillEllipse(17, 5, 12, 7);
+      // Body
+      g.fillStyle(c.color, 1);
+      g.fillEllipse(12, 13, 18, 14);
+      // Big red eyes
+      g.fillStyle(0xC0392B, 1);
+      g.fillCircle(8, 11, 4);
+      g.fillCircle(16, 11, 4);
+      g.fillStyle(0xFFFFFF, 0.9);
+      g.fillCircle(7, 10, 2);
+      g.fillCircle(15, 10, 2);
+      g.generateTexture('monster_pari', c.width, c.height);
+      g.destroy();
+    }
   }
 
   handlePlayerDeath() {
@@ -282,18 +301,14 @@ export default class GameScene extends Phaser.Scene {
     const pipeline = this.cameras.main.postFX.addColorMatrix();
     pipeline.grayscale(1);
 
-    // Dark overlay
-    const centerX = this.cameras.main.scrollX + GAME_WIDTH / 2;
-    const centerY = this.cameras.main.scrollY + GAME_HEIGHT / 2;
+    // Screen-fixed dark overlay (RESIZE scale mode: use live screen size)
+    const w = this.scale.width;
+    const h = this.scale.height;
 
-    const overlay = this.add.graphics().setDepth(DEPTH.UI + 10);
-    overlay.fillStyle(0x000000, 0);
-    overlay.fillRect(
-      this.cameras.main.scrollX,
-      this.cameras.main.scrollY,
-      GAME_WIDTH,
-      GAME_HEIGHT
-    );
+    const overlay = this.add.graphics().setDepth(DEPTH.UI + 10).setScrollFactor(0);
+    overlay.fillStyle(0x000000, 1);
+    overlay.fillRect(0, 0, w, h);
+    overlay.setAlpha(0);
 
     // Fade in dark overlay
     this.tweens.add({
@@ -304,20 +319,20 @@ export default class GameScene extends Phaser.Scene {
 
     // Death text (delayed for dramatic effect)
     this.time.delayedCall(500, () => {
-      this.add.text(centerX, centerY - 30, 'You Died', {
+      this.add.text(w / 2, h / 2 - 30, 'You Died', {
         fontSize: '36px',
         fontFamily: UI.FONT_FAMILY,
         color: '#E74C3C',
         fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 4,
-      }).setOrigin(0.5).setDepth(DEPTH.UI + 11);
+      }).setOrigin(0.5).setDepth(DEPTH.UI + 11).setScrollFactor(0);
 
-      const restartText = this.add.text(centerX, centerY + 30, 'Press Space to return to village', {
+      const restartText = this.add.text(w / 2, h / 2 + 30, 'Press Space to return to the backyard', {
         fontSize: '16px',
         fontFamily: UI.FONT_FAMILY,
         color: '#95A5A6',
-      }).setOrigin(0.5).setDepth(DEPTH.UI + 11);
+      }).setOrigin(0.5).setDepth(DEPTH.UI + 11).setScrollFactor(0);
 
       this.tweens.add({
         targets: restartText,
@@ -327,14 +342,14 @@ export default class GameScene extends Phaser.Scene {
         repeat: -1,
       });
 
-      // Space to respawn at Haven Village
+      // Space to respawn at the starting map
       this.input.keyboard.once('keydown-SPACE', () => {
         this.cameras.main.fadeOut(500, 0, 0, 0);
         this.cameras.main.once('camerafadeoutcomplete', () => {
           this.scene.restart({
-            mapKey: 'haven',
-            spawnX: MAP_HAVEN.spawnX,
-            spawnY: MAP_HAVEN.spawnY,
+            mapKey: START_MAP,
+            spawnX: MAPS[START_MAP].spawnX,
+            spawnY: MAPS[START_MAP].spawnY,
             characterData: this.characterData,
           });
         });
@@ -414,6 +429,10 @@ export default class GameScene extends Phaser.Scene {
   openPauseMenu() {
     this.isPaused = true;
     this.physics.pause();
+    // Freeze clocks and tweens too - boss telegraphs and respawn timers
+    // must not resolve while the pause menu is open
+    this.time.paused = true;
+    this.tweens.pauseAll();
 
     const cam = this.cameras.main;
     const cx = cam.scrollX + cam.width / 2;
@@ -503,6 +522,8 @@ export default class GameScene extends Phaser.Scene {
   closePauseMenu() {
     this.isPaused = false;
     this.physics.resume();
+    this.time.paused = false;
+    this.tweens.resumeAll();
     if (this.pauseMenu) {
       this.pauseMenu.destroy();
       this.pauseMenu = null;
@@ -527,7 +548,7 @@ export default class GameScene extends Phaser.Scene {
 
   initHUD() {
     this.hud = new HUD(this);
-    this.hud.setMapName(this.mapData.name, this.currentMapKey);
+    this.hud.setMapName(this.mapData.name);
   }
 
   initMinimap() {
@@ -646,6 +667,16 @@ export default class GameScene extends Phaser.Scene {
       }
     });
 
+    // Boss dot (orange, larger)
+    if (this.boss && this.boss.sprite && this.boss.sprite.active) {
+      this.minimap.monsterGraphics.fillStyle(0xE67E22, 1);
+      this.minimap.monsterGraphics.fillCircle(
+        this.boss.sprite.x * sx,
+        this.boss.sprite.y * sy,
+        3
+      );
+    }
+
     // Update camera view rectangle (white outline, clamped to minimap bounds)
     this.minimap.cameraRect.clear();
     this.minimap.cameraRect.lineStyle(1, 0xFFFFFF, 0.4);
@@ -668,100 +699,62 @@ export default class GameScene extends Phaser.Scene {
   }
 
   initMonsters() {
-    this.createMonsterTexture();
-    this.createEliteMonsterTexture();
-    this.createChampionMonsterTexture();
+    this.createMonsterTextures();
     this.monsters = [];
 
+    const now = Date.now();
+
     this.mapData.monsters.forEach((monsterData) => {
-      const type = monsterData.type || 'normal';
+      const type = monsterData.type || 'bangul';
+      const cfg = MONSTER_TYPES[type] || MONSTER_TYPES.bangul;
+      const flying =
+        cfg.movement === 'flyerDash' ||
+        cfg.movement === 'sineGlider' ||
+        cfg.movement === 'jitter';
 
-      // Determine texture, size, speed, and patrol range based on type
-      let textureKey, monsterWidth, monsterHeight, speed, patrolRange;
-      if (type === 'champion') {
-        textureKey = 'monster_champion';
-        monsterWidth = MONSTER_CHAMPION.WIDTH;
-        monsterHeight = MONSTER_CHAMPION.HEIGHT;
-        speed = 30;
-        patrolRange = 100;
-      } else if (type === 'elite') {
-        textureKey = 'monster_elite';
-        monsterWidth = MONSTER_ELITE.WIDTH;
-        monsterHeight = MONSTER_ELITE.HEIGHT;
-        speed = 40;
-        patrolRange = 120;
-      } else {
-        textureKey = 'monster';
-        monsterWidth = MONSTER.WIDTH;
-        monsterHeight = MONSTER.HEIGHT;
-        speed = 40;
-        patrolRange = 150;
-      }
-
-      const sprite = this.physics.add.sprite(monsterData.x, monsterData.y, textureKey);
+      const sprite = this.physics.add.sprite(monsterData.x, monsterData.y, `monster_${type}`);
       sprite.setDepth(DEPTH.MONSTERS);
-      sprite.body.setSize(monsterWidth - 8, monsterHeight);
+      sprite.body.setSize(cfg.width - 6, cfg.height - 2);
       sprite.setBounce(0);
       sprite.setCollideWorldBounds(true);
 
-      // Determine if monster is on the ground platform
-      const groundPlatform = this.mapData.platforms.find(p => p.isGround);
-      const isOnGround = groundPlatform && Math.abs(monsterData.y - groundPlatform.y) < 80;
-
-      // Find the closest platform this monster is standing on
-      let boundPlatform = null;
-      if (!isOnGround) {
-        let closestDist = Infinity;
-        this.mapData.platforms.forEach((p) => {
-          if (p.isGround) return;
-          // Platform top surface is at p.y
-          const distY = Math.abs(monsterData.y - p.y);
-          const withinX = monsterData.x >= p.x - 20 && monsterData.x <= p.x + p.w + 20;
-          if (withinX && distY < closestDist && distY < 80) {
-            closestDist = distY;
-            boundPlatform = p;
-          }
+      if (flying) {
+        // Flyers ignore gravity and pass through platforms
+        sprite.body.setAllowGravity(false);
+      } else {
+        // Ground walkers collide with platforms
+        this.platforms.forEach((platform) => {
+          this.physics.add.collider(sprite, platform);
         });
-      }
-
-      // 60% of platform monsters are platformBound, ground monsters are never bound
-      const platformBound = !isOnGround && boundPlatform && Math.random() < 0.6;
-
-      let finalPatrolLeft = monsterData.x - patrolRange;
-      let finalPatrolRight = monsterData.x + patrolRange;
-      if (platformBound && boundPlatform) {
-        finalPatrolLeft = boundPlatform.x + 10;
-        finalPatrolRight = boundPlatform.x + boundPlatform.w - 10;
       }
 
       const monsterObj = {
         sprite: sprite,
-        hp: monsterData.hp,
-        maxHp: monsterData.hp,
         type: type,
-        speed: speed,
-        direction: 1,
-        patrolRange: patrolRange,
-        patrolLeft: finalPatrolLeft,
-        patrolRight: finalPatrolRight,
+        cfg: cfg,
+        hp: cfg.hp,
+        maxHp: cfg.hp,
         startX: monsterData.x,
         startY: monsterData.y,
-        monsterHeight: monsterHeight,
+        monsterHeight: cfg.height,
+        direction: Math.random() < 0.5 ? -1 : 1,
         isHit: false,
-        platformBound: platformBound,
-        nextJumpTime: type === 'elite'
-          ? Date.now() + Phaser.Math.Between(3000, 5000)
-          : type === 'champion'
-            ? Date.now() + Phaser.Math.Between(2000, 4000)
-            : 0,
+        // Per-movement AI state
+        moveState: 'walk',
+        stateUntil: now + Phaser.Math.Between(500, 2000),
+        nextJumpAt: now + Phaser.Math.Between(cfg.jumpCooldownMin || 800, cfg.jumpCooldownMax || 2000),
+        wanderTarget: null,
+        pausedUntil: 0,
+        dashingUntil: 0,
+        dashReadyAt: now + (cfg.dashCooldownMs || 0),
+        retargetAt: 0,
+        baseY: monsterData.y,
+        onGroundLast: false,
+        knockedUntil: 0,
+        isDying: false,
       };
 
       this.monsters.push(monsterObj);
-
-      // Monster-ground collision
-      this.platforms.forEach((platform) => {
-        this.physics.add.collider(sprite, platform);
-      });
 
       // HP bar (above monster)
       monsterObj.hpBarBg = this.add.graphics().setDepth(DEPTH.UI - 5);
@@ -914,13 +907,30 @@ export default class GameScene extends Phaser.Scene {
       );
       platform.setDepth(DEPTH.PLATFORMS);
 
+      // Floating platforms are one-way (MapleStory style):
+      // solid from above only, so jumps and Gong hops pass through from below
+      if (!platData.isGround) {
+        platform.body.checkCollision.down = false;
+        platform.body.checkCollision.left = false;
+        platform.body.checkCollision.right = false;
+      }
+
       this.platforms.push(platform);
     });
   }
 
   initPortals() {
     this.portalZones = [];
+    this.createPortalTextures();
 
+    this.mapData.portals.forEach((portalData) => {
+      // Hidden portals stay closed until their save flag is set
+      if (portalData.hidden && !SaveManager.getFlag(portalData.requiresFlag)) return;
+      this.spawnPortal(portalData);
+    });
+  }
+
+  createPortalTextures() {
     if (!this.textures.exists('portal')) {
       const graphics = this.add.graphics();
       // Portal body
@@ -933,34 +943,212 @@ export default class GameScene extends Phaser.Scene {
       graphics.destroy();
     }
 
-    this.mapData.portals.forEach((portalData) => {
-      const sprite = this.add.sprite(portalData.x, portalData.y, 'portal');
-      sprite.setDepth(DEPTH.PORTALS);
+    if (!this.textures.exists('portal_hidden')) {
+      const graphics = this.add.graphics();
+      // Golden secret portal
+      graphics.fillStyle(0xB7950B, 0.75);
+      graphics.fillEllipse(PORTAL.WIDTH / 2, PORTAL.HEIGHT / 2, PORTAL.WIDTH, PORTAL.HEIGHT);
+      graphics.fillStyle(0xF9E79F, 0.6);
+      graphics.fillEllipse(PORTAL.WIDTH / 2, PORTAL.HEIGHT / 2, PORTAL.WIDTH - 16, PORTAL.HEIGHT - 16);
+      graphics.generateTexture('portal_hidden', PORTAL.WIDTH, PORTAL.HEIGHT);
+      graphics.destroy();
+    }
+  }
 
-      // Store portal transition data on the sprite
-      sprite.portalData = portalData;
+  spawnPortal(portalData) {
+    const textureKey = portalData.hidden ? 'portal_hidden' : 'portal';
+    const sprite = this.add.sprite(portalData.x, portalData.y, textureKey);
+    sprite.setDepth(DEPTH.PORTALS);
 
-      // Portal pulse animation
-      this.tweens.add({
-        targets: sprite,
-        scaleX: 1.05,
-        scaleY: 0.95,
-        duration: 1000,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
+    // Store portal transition data on the sprite
+    sprite.portalData = portalData;
+
+    // Portal pulse animation
+    this.tweens.add({
+      targets: sprite,
+      scaleX: 1.05,
+      scaleY: 0.95,
+      duration: 1000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
+    // Portal label
+    this.add.text(portalData.x, portalData.y - 50, portalData.label, {
+      fontSize: '12px',
+      fontFamily: UI.FONT_FAMILY,
+      color: portalData.hidden ? '#F1C40F' : '#BB8FCE',
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(DEPTH.PORTALS);
+
+    this.portalZones.push(sprite);
+    return sprite;
+  }
+
+  // ===== Boss handling =====
+
+  initBoss() {
+    this.boss = null;
+    this.bossBar = null;
+
+    const bossData = this.mapData.boss;
+    if (!bossData) return;
+
+    // A defeated boss stays defeated (persisted via SaveManager)
+    if (SaveManager.getFlag(`${bossData.id}Defeated`)) return;
+
+    if (bossData.id === 'hugGuardian') {
+      this.boss = new HugGuardian(this, bossData.x, bossData.y);
+      // Hug Guardian walks on the ground
+      this.platforms.forEach((platform) => {
+        this.physics.add.collider(this.boss.sprite, platform);
       });
+    } else if (bossData.id === 'vacuumKing') {
+      this.boss = new VacuumKing(this, bossData.x, bossData.y);
+    }
 
-      // Portal label
-      this.add.text(portalData.x, portalData.y - 50, portalData.label, {
-        fontSize: '12px',
-        fontFamily: UI.FONT_FAMILY,
-        color: '#BB8FCE',
-        stroke: '#000000',
-        strokeThickness: 2,
-      }).setOrigin(0.5).setDepth(DEPTH.PORTALS);
+    if (!this.boss) return;
 
-      this.portalZones.push(sprite);
+    this.createBossHpBar();
+    this.showBossWarning(STORY.bossWarning[bossData.id]);
+  }
+
+  createBossHpBar() {
+    const w = this.scale.width;
+    const barWidth = Math.min(480, w - 80);
+
+    const container = this.add.container(w / 2, 24).setDepth(DEPTH.UI + 6).setScrollFactor(0);
+
+    const nameText = this.add.text(0, 0, this.boss.name, {
+      fontSize: '15px',
+      fontFamily: 'Arial Black, Arial',
+      color: '#FFFFFF',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5, 0.5);
+    container.add(nameText);
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0x000000, 0.7);
+    bg.fillRoundedRect(-barWidth / 2, 12, barWidth, 14, 4);
+    bg.lineStyle(1, 0x888888, 0.8);
+    bg.strokeRoundedRect(-barWidth / 2, 12, barWidth, 14, 4);
+    container.add(bg);
+
+    const fill = this.add.graphics();
+    container.add(fill);
+
+    this.bossBar = { container, fill, barWidth };
+    this.updateBossHpBar();
+  }
+
+  updateBossHpBar() {
+    if (!this.bossBar || !this.boss) return;
+    const ratio = Math.max(0, this.boss.hp / this.boss.maxHp);
+    const bw = this.bossBar.barWidth;
+    this.bossBar.fill.clear();
+    this.bossBar.fill.fillStyle(0xC0392B, 1);
+    this.bossBar.fill.fillRoundedRect(-bw / 2 + 2, 14, (bw - 4) * ratio, 10, 3);
+  }
+
+  showBossWarning(text) {
+    if (!text) return;
+    const warning = this.add.text(this.scale.width / 2, this.scale.height * 0.3, text, {
+      fontSize: '22px',
+      fontFamily: 'Arial Black, Arial',
+      color: '#E74C3C',
+      stroke: '#000000',
+      strokeThickness: 4,
+      align: 'center',
+    }).setOrigin(0.5).setDepth(DEPTH.UI + 7).setScrollFactor(0);
+
+    this.tweens.add({
+      targets: warning,
+      alpha: 0,
+      delay: 2200,
+      duration: 700,
+      onComplete: () => warning.destroy(),
+    });
+  }
+
+  onBossDefeated(bossId) {
+    SaveManager.setFlag(`${bossId}Defeated`);
+
+    if (this.bossBar) {
+      this.bossBar.container.setVisible(false);
+    }
+    this.boss = null;
+
+    if (bossId === 'hugGuardian') {
+      // Reveal the secret portal to the Vacuum Closet
+      const hiddenPortal = this.mapData.portals.find((p) => p.hidden);
+      if (hiddenPortal) {
+        const sprite = this.spawnPortal(hiddenPortal);
+        sprite.setAlpha(0);
+        this.tweens.add({ targets: sprite, alpha: 1, duration: 900 });
+        this.showBossWarning(STORY.hiddenPortalHint);
+      }
+    } else if (bossId === 'vacuumKing') {
+      SaveManager.setFlag('demoCleared');
+      this.startEndingSequence();
+    }
+  }
+
+  startEndingSequence() {
+    this.isTransitioning = true;
+    this.player.sprite.setVelocity(0, 0);
+    AudioManager.stop();
+
+    const w = this.scale.width;
+    const h = this.scale.height;
+
+    // Warm white fade
+    const overlay = this.add.graphics().setDepth(DEPTH.UI + 20).setScrollFactor(0);
+    overlay.fillStyle(0xFFF8E7, 1);
+    overlay.fillRect(0, 0, w, h);
+    overlay.setAlpha(0);
+
+    this.tweens.add({
+      targets: overlay,
+      alpha: 1,
+      duration: 2000,
+      onComplete: () => {
+        // Show the ending lines one at a time
+        STORY.ending.forEach((line, i) => {
+          this.time.delayedCall(600 + i * 2200, () => {
+            const isLast = i === STORY.ending.length - 1;
+            const lineText = this.add.text(w / 2, h * 0.3 + i * 54, line, {
+              fontSize: isLast ? '20px' : '22px',
+              fontFamily: isLast ? 'Arial' : 'Arial Black, Arial',
+              color: isLast ? '#B9770E' : '#4A3728',
+              align: 'center',
+            }).setOrigin(0.5).setAlpha(0).setDepth(DEPTH.UI + 21).setScrollFactor(0);
+            this.tweens.add({ targets: lineText, alpha: 1, duration: 800 });
+
+            if (isLast) {
+              this.time.delayedCall(1200, () => {
+                const hint = this.add.text(w / 2, h * 0.8, 'Press SPACE to return to the title', {
+                  fontSize: '14px',
+                  fontFamily: UI.FONT_FAMILY,
+                  color: '#7D6608',
+                }).setOrigin(0.5).setDepth(DEPTH.UI + 21).setScrollFactor(0);
+                this.tweens.add({
+                  targets: hint,
+                  alpha: 0.3,
+                  duration: 600,
+                  yoyo: true,
+                  repeat: -1,
+                });
+                this.input.keyboard.once('keydown-SPACE', () => {
+                  this.scene.start(SCENES.MENU);
+                });
+              });
+            }
+          });
+        });
+      },
     });
   }
 
@@ -987,46 +1175,13 @@ export default class GameScene extends Phaser.Scene {
   }
 
   updateMonsters() {
+    const now = Date.now();
+
     this.monsters.forEach((monsterObj) => {
-      if (!monsterObj.sprite.active) return;
+      if (!monsterObj.sprite.active || monsterObj.isDying) return;
 
-      // Patrol AI using left/right boundary
-      if (monsterObj.sprite.x <= monsterObj.patrolLeft) {
-        monsterObj.direction = 1;
-        monsterObj.sprite.setFlipX(false);
-      } else if (monsterObj.sprite.x >= monsterObj.patrolRight) {
-        monsterObj.direction = -1;
-        monsterObj.sprite.setFlipX(true);
-      }
-
-      // Platform-bound monsters clamp position to stay on platform
-      if (monsterObj.platformBound) {
-        if (monsterObj.sprite.x < monsterObj.patrolLeft) {
-          monsterObj.sprite.x = monsterObj.patrolLeft;
-          monsterObj.direction = 1;
-          monsterObj.sprite.setFlipX(false);
-        } else if (monsterObj.sprite.x > monsterObj.patrolRight) {
-          monsterObj.sprite.x = monsterObj.patrolRight;
-          monsterObj.direction = -1;
-          monsterObj.sprite.setFlipX(true);
-        }
-      }
-
-      monsterObj.sprite.setVelocityX(monsterObj.speed * monsterObj.direction);
-
-      // Elite/champion jump ability
-      if (monsterObj.type !== 'normal' && monsterObj.nextJumpTime > 0) {
-        const now = Date.now();
-        if (now > monsterObj.nextJumpTime && monsterObj.sprite.body.blocked.down) {
-          if (monsterObj.type === 'champion') {
-            monsterObj.sprite.setVelocityY(-350);
-            monsterObj.nextJumpTime = now + Phaser.Math.Between(2000, 4000);
-          } else if (monsterObj.type === 'elite') {
-            monsterObj.sprite.setVelocityY(-250);
-            monsterObj.nextJumpTime = now + Phaser.Math.Between(3000, 5000);
-          }
-        }
-      }
+      // Movement AI per monster type
+      this.updateMonsterAI(monsterObj, now);
 
       // Update monster HP bar
       const barWidth = 36;
@@ -1069,10 +1224,19 @@ export default class GameScene extends Phaser.Scene {
             false
           );
 
-          // Knockback
+          // Knockback (AI resteers after the knock window)
           const knockDir = this.player.facingRight ? 1 : -1;
           monsterObj.sprite.setVelocityX(200 * knockDir);
-          monsterObj.sprite.setVelocityY(-100);
+          monsterObj.knockedUntil = now + 250;
+          if (monsterObj.sprite.body.allowGravity) {
+            monsterObj.sprite.setVelocityY(-100);
+          } else {
+            // Interrupt the current flight plan so the AI re-steers
+            monsterObj.wanderTarget = null;
+            monsterObj.dashingUntil = 0;
+            monsterObj.pausedUntil = 0;
+            monsterObj.retargetAt = 0;
+          }
 
           // Hit cooldown
           this.time.delayedCall(PLAYER.ATTACK_DURATION + 50, () => {
@@ -1086,15 +1250,15 @@ export default class GameScene extends Phaser.Scene {
         }
       }
 
-      // Monster-player contact damage (simple check)
-      if (monsterObj.sprite.active) {
+      // Monster-player contact damage (skip corpses and dying monsters)
+      if (monsterObj.sprite.active && !monsterObj.isDying && this.player.hp > 0) {
         const playerBounds = this.player.sprite.getBounds();
         const monsterBounds = monsterObj.sprite.getBounds();
         if (Phaser.Geom.Intersects.RectangleToRectangle(playerBounds, monsterBounds)) {
           if (!monsterObj.hasContactDamage) {
             monsterObj.hasContactDamage = true;
             const dir = this.player.sprite.x < monsterObj.sprite.x ? -1 : 1;
-            this.player.takeDamage(10, dir);
+            this.player.takeDamage(monsterObj.cfg.touchDamage, dir);
             this.time.delayedCall(1000, () => {
               monsterObj.hasContactDamage = false;
             });
@@ -1104,9 +1268,202 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
+  // Per-type movement AI dispatch
+  updateMonsterAI(monsterObj, now) {
+    // Let knockback velocity play out before the AI resteers
+    if (now < monsterObj.knockedUntil) return;
+
+    const { sprite, cfg } = monsterObj;
+    const player = this.player.sprite;
+
+    switch (cfg.movement) {
+      // Bangul: MapleStory-snail — slow patrol, random pauses, turns at walls/ledges
+      case 'snail': {
+        if (monsterObj.moveState === 'pause') {
+          sprite.setVelocityX(0);
+          if (now > monsterObj.stateUntil) {
+            monsterObj.moveState = 'walk';
+            monsterObj.stateUntil = now + Phaser.Math.Between(cfg.walkMsMin, cfg.walkMsMax);
+          }
+          break;
+        }
+        if (now > monsterObj.stateUntil) {
+          if (Math.random() < cfg.pauseChance) {
+            monsterObj.moveState = 'pause';
+            monsterObj.stateUntil = now + Phaser.Math.Between(cfg.pauseMsMin, cfg.pauseMsMax);
+            sprite.setVelocityX(0);
+            break;
+          }
+          monsterObj.stateUntil = now + Phaser.Math.Between(cfg.walkMsMin, cfg.walkMsMax);
+        }
+        if (sprite.body.blocked.left) {
+          monsterObj.direction = 1;
+        } else if (sprite.body.blocked.right) {
+          monsterObj.direction = -1;
+        } else if (sprite.body.blocked.down && !this.hasGroundAhead(sprite, monsterObj.direction, cfg)) {
+          // Ledge ahead - turn around instead of falling
+          monsterObj.direction *= -1;
+        }
+        sprite.setVelocityX(cfg.speed * monsterObj.direction);
+        sprite.setFlipX(monsterObj.direction < 0);
+        break;
+      }
+
+      // Gong: MapleStory-slime — hops around ignoring terrain, sometimes at the player
+      case 'bouncer': {
+        const onGround = sprite.body.blocked.down;
+        if (onGround) {
+          if (!monsterObj.onGroundLast) {
+            // Just landed - squash
+            this.tweens.add({
+              targets: sprite,
+              scaleX: 1.25,
+              scaleY: 0.75,
+              duration: 90,
+              yoyo: true,
+            });
+          }
+          sprite.setVelocityX(0);
+          if (now > monsterObj.nextJumpAt) {
+            let dir;
+            if (Math.random() < cfg.chasePlayerChance) {
+              dir = player.x < sprite.x ? -1 : 1;
+            } else {
+              dir = Math.random() < 0.5 ? -1 : 1;
+            }
+            monsterObj.direction = dir;
+            sprite.setFlipX(dir < 0);
+            sprite.setVelocity(
+              dir * (cfg.jumpVelocityX + Phaser.Math.Between(-30, 30)),
+              cfg.jumpVelocityY + Phaser.Math.Between(-40, 20)
+            );
+            // Stretch on takeoff
+            this.tweens.add({
+              targets: sprite,
+              scaleX: 0.8,
+              scaleY: 1.2,
+              duration: 120,
+              yoyo: true,
+            });
+            monsterObj.nextJumpAt = now + Phaser.Math.Between(cfg.jumpCooldownMin, cfg.jumpCooldownMax);
+          }
+        }
+        monsterObj.onGroundLast = onGround;
+        // Failsafe: somehow escaped the map - return to spawn
+        if (sprite.y > this.mapData.height + 40) {
+          sprite.setPosition(monsterObj.startX, monsterObj.startY);
+          sprite.setVelocity(0, 0);
+        }
+        break;
+      }
+
+      // Laser: Stitch-like — free flight between waypoints, dashes at nearby player
+      case 'flyerDash': {
+        if (now < monsterObj.dashingUntil) break; // steering locked during dash
+        const distToPlayer = Phaser.Math.Distance.Between(sprite.x, sprite.y, player.x, player.y);
+        if (distToPlayer < cfg.dashRange && now > monsterObj.dashReadyAt && this.player.hp > 0) {
+          this.physics.moveTo(sprite, player.x, player.y, cfg.dashSpeed);
+          monsterObj.dashingUntil = now + cfg.dashDurationMs;
+          monsterObj.dashReadyAt = now + cfg.dashCooldownMs;
+          monsterObj.wanderTarget = null;
+          sprite.setFlipX(player.x < sprite.x);
+          break;
+        }
+        if (monsterObj.pausedUntil > now) {
+          sprite.setVelocity(0, 0);
+          break;
+        }
+        if (!monsterObj.wanderTarget) {
+          monsterObj.wanderTarget = this.pickAirPoint(monsterObj);
+          this.physics.moveTo(sprite, monsterObj.wanderTarget.x, monsterObj.wanderTarget.y, cfg.flySpeed);
+          sprite.setFlipX(monsterObj.wanderTarget.x < sprite.x);
+        } else if (
+          Phaser.Math.Distance.Between(sprite.x, sprite.y, monsterObj.wanderTarget.x, monsterObj.wanderTarget.y) < 10
+        ) {
+          monsterObj.wanderTarget = null;
+          monsterObj.pausedUntil = now + Phaser.Math.Between(cfg.pauseMsMin, cfg.pauseMsMax);
+          sprite.setVelocity(0, 0);
+        }
+        break;
+      }
+
+      // Nabi: butterfly — horizontal patrol with sine-wave altitude
+      case 'sineGlider': {
+        if (sprite.x <= monsterObj.startX - cfg.patrolRange) {
+          monsterObj.direction = 1;
+        } else if (sprite.x >= monsterObj.startX + cfg.patrolRange) {
+          monsterObj.direction = -1;
+        }
+        sprite.setVelocityX(cfg.flySpeed * monsterObj.direction);
+        sprite.setFlipX(monsterObj.direction < 0);
+        // Velocity steering toward the sine target (knockback-safe)
+        const targetY = monsterObj.baseY + Math.sin((now / 1000) * cfg.sineFrequency) * cfg.sineAmplitude;
+        sprite.setVelocityY((targetY - sprite.y) * 4);
+        break;
+      }
+
+      // Pari: fly — fast erratic jitter, biased toward the player, leashed to spawn
+      case 'jitter': {
+        if (now > monsterObj.retargetAt) {
+          let angle;
+          if (Phaser.Math.Distance.Between(sprite.x, sprite.y, monsterObj.startX, monsterObj.startY) > cfg.leashRadius) {
+            // Too far from home - steer back
+            angle = Phaser.Math.Angle.Between(sprite.x, sprite.y, monsterObj.startX, monsterObj.startY);
+          } else if (Math.random() < cfg.chaseBias && this.player.hp > 0) {
+            angle = Phaser.Math.Angle.Between(sprite.x, sprite.y, player.x, player.y)
+              + Phaser.Math.FloatBetween(-0.5, 0.5);
+          } else {
+            angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+          }
+          const speed = Phaser.Math.Between(cfg.speedMin, cfg.speedMax);
+          sprite.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+          sprite.setFlipX(Math.cos(angle) < 0);
+          monsterObj.retargetAt = now + Phaser.Math.Between(cfg.retargetMsMin, cfg.retargetMsMax);
+        }
+        break;
+      }
+    }
+  }
+
+  // Is there platform support just ahead of the sprite's feet?
+  hasGroundAhead(sprite, dir, cfg) {
+    const probeX = sprite.x + dir * (cfg.width / 2 + 8);
+    const footY = sprite.y + cfg.height / 2 + 6;
+    return this.mapData.platforms.some(
+      (p) => probeX >= p.x && probeX <= p.x + p.w && footY >= p.y - 4 && footY <= p.y + 24
+    );
+  }
+
+  // Random open-air waypoint near a flyer's spawn point
+  pickAirPoint(monsterObj) {
+    const cfg = monsterObj.cfg;
+    const ground = this.mapData.platforms.find((p) => p.isGround);
+    const minY = 100;
+    const maxY = (ground ? ground.y : this.mapData.height - 60) - 80;
+    return {
+      x: Phaser.Math.Clamp(
+        monsterObj.startX + Phaser.Math.Between(-cfg.wanderRadius, cfg.wanderRadius),
+        80,
+        this.mapData.width - 80
+      ),
+      y: Phaser.Math.Clamp(
+        monsterObj.startY + Phaser.Math.Between(-cfg.wanderRadius, cfg.wanderRadius),
+        minY,
+        maxY
+      ),
+    };
+  }
+
   killMonster(monsterObj) {
+    // Guard against a second killing blow landing during the death tween
+    if (monsterObj.isDying) return;
+    monsterObj.isDying = true;
     monsterObj.isDead = true;
     monsterObj.deathTime = Date.now();
+
+    // Hide the HP bar right away (a negative-HP bar looks broken)
+    monsterObj.hpBar.clear();
+    monsterObj.hpBarBg.clear();
 
     // Death animation: shrink and fade, then deactivate
     this.tweens.add({
@@ -1133,11 +1490,26 @@ export default class GameScene extends Phaser.Scene {
   respawnMonster(monsterObj) {
     // Reset position to original spawn
     monsterObj.sprite.setPosition(monsterObj.startX, monsterObj.startY);
+    monsterObj.sprite.setVelocity(0, 0);
 
     // Reset HP
     monsterObj.hp = monsterObj.maxHp;
     monsterObj.isDead = false;
+    monsterObj.isDying = false;
     monsterObj.deathTime = null;
+    monsterObj.knockedUntil = 0;
+
+    // Reset AI state
+    const now = Date.now();
+    monsterObj.moveState = 'walk';
+    monsterObj.stateUntil = now + Phaser.Math.Between(500, 2000);
+    monsterObj.nextJumpAt = now + Phaser.Math.Between(800, 1800);
+    monsterObj.wanderTarget = null;
+    monsterObj.pausedUntil = 0;
+    monsterObj.dashingUntil = 0;
+    monsterObj.dashReadyAt = now + (monsterObj.cfg.dashCooldownMs || 0);
+    monsterObj.retargetAt = 0;
+    monsterObj.onGroundLast = false;
 
     // Reactivate sprite
     monsterObj.sprite.setActive(true);

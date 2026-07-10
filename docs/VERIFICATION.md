@@ -1,0 +1,51 @@
+# 적대적 검증 보고서 (v0.4 리빌드)
+
+## 자동 검증 (scripts/validate.mjs) — PASSED (548 checks)
+- 7개 맵 전 필드/지면 규칙, 포탈 target 존재 & 대상 스폰 지지 플랫폼 확인
+- 스폰/포탈/NPC/지상몬스터 지지 규칙 (220px 이내 플랫폼)
+- yard 기점 도달성 BFS: 7/7 (히든 포탈 엣지 포함)
+- 몬스터 5종 타입 정의 일치, 보스 2종 배치(attic=hugGuardian, closet=vacuumKing)
+- 로프 앵커링(topY=플랫폼 표면, x가 플랫폼 범위 내), BGM 키 5종 registry 일치
+- 컨벤션: src/ 내 한글 0건, console.log 0건
+
+## 빌드 검증 — PASSED
+- vite build 에러 0 (번들 ~1.56MB는 Phaser 자체 크기, 정상)
+
+## 적대적 코드 리뷰 (서브에이전트) — 발견 8건 전부 수정 완료
+1. **포탈 핑퐁**: playroom→hallway 복귀 스폰이 상단 포탈 위(10px) →
+   스폰 80px 오프셋 + 맵 진입 후 700ms 전역 포탈 잠금 추가
+2. **일시정지 중 보스 공격 판정**: physics만 pause → time.paused +
+   tweens.pauseAll/resumeAll 추가 (텔레그래프/리스폰 타이머 동결)
+3. **사망 화면 고정 1024x768 가정**: RESIZE 모드에서 오정렬 →
+   scrollFactor(0) + 실시간 scale 크기로 재작성
+4. **보스 처치 플래그 유실**: 사망 트윈 onComplete에서 onBossDefeated 호출 →
+   die() 즉시 호출로 이동 (트윈 중 씬 전환에도 킬 인정, 엔딩 보장)
+5. **몬스터 넉백 1프레임 무효화**: AI가 매 프레임 속도 덮어씀 →
+   knockedUntil(250ms) 동안 AI 조향 정지
+6. **죽어가는 몬스터 300ms 판정 잔존**: isDying 플래그로 이중 킬/접촉
+   데미지/음수 HP바 차단, 리스폰 타이머 중복 방지
+7. **사망한 플레이어 반복 피격**: 접촉 데미지에 player.hp>0 가드 +
+   Player.takeDamage 재진입 가드
+8. **캐릭터 선택 중복 진입**: isLaunching 가드 (fade 리스너 중첩 방지)
+
+추가 수정 (suspicion 대응):
+- 새 게임 시작 시 MAP_STATE(인메모리 몬스터 상태) 초기화 (freshRun 플래그)
+- VacuumKing 호스 텍스처 클리핑 3px 보정, 보스 부양 고도 380→430
+  (Brave Paw 점프 도달성 개선)
+- 로프 등반 중 피격 시 releaseRope (중력 복원, 유령 활강 방지)
+- HUD/TitleScene 전역 resize 리스너 shutdown 시 해제 (씬 재시작 누적 방지)
+- docs/ASSETS.md에 mp3 우선 권장 명시 (브라우저 포맷 선택 특성)
+
+## 코드 교차 검증 — PASSED
+- 텍스처 키 14종(OPTIONAL_TEXTURES): 생성처(exists 가드) ↔ 사용처 1:1
+- 씬 키 5종 등록/전이 payload(mapKey/characterData/HP/MP/freshRun) 일치
+- 구 시스템 잔재 0건: haven/bomi/seoli/MONSTER_ELITE/monster_elite 등
+- 보스 ↔ 씬 표면 API 전수 확인 (takeDamage 시그니처, onBossDefeated 단일 호출)
+- update 순서: Player → 몬스터 → 보스 (흡입이 입력 속도 위에 누적) 보장
+
+## 알려진 한계 (다음 스레드 후보)
+- 브라우저 실기 플레이테스트는 로컬에서 npm run dev로 확인 필요
+  (컨테이너는 headless — 물리 밸런스 수치는 튜닝 여지 있음)
+- 일시정지 중 Date.now() 기반 AI 타이머는 계속 진행 (재개 시 즉시 행동
+  가능성 — 게임플레이 영향 경미)
+- ogg 단독 드롭 시 일부 브라우저 무음 (mp3 권장, 문서화됨)
