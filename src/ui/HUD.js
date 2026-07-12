@@ -48,9 +48,12 @@ export default class HUD {
 
     this.container.setPosition(hudX, hudY);
 
-    // Map name: top-right corner of screen
+    // Map name: top-right corner of screen; treats right below it
     if (this.mapNameText) {
       this.mapNameText.setPosition(w - hudX - 10, -hudY + 16);
+    }
+    if (this.treatsText) {
+      this.treatsText.setPosition(w - hudX - 10, -hudY + 40);
     }
   }
 
@@ -192,6 +195,17 @@ export default class HUD {
       strokeThickness: 3,
     }).setOrigin(1, 0);
     this.container.add(this.mapNameText);
+
+    // Treats (currency) under the map name
+    this.treatsText = this.scene.add.text(0, 0, '', {
+      fontSize: '13px',
+      fontFamily: UI.FONT_FAMILY,
+      color: '#F1C40F',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(1, 0);
+    this.container.add(this.treatsText);
   }
 
   update(player) {
@@ -235,6 +249,11 @@ export default class HUD {
       }
       this.expText.setText(`${player.exp}/${need}`);
       this.levelText.setText(`Lv.${player.level}`);
+    }
+
+    // Treats counter
+    if (this.treatsText && typeof player.treats === 'number') {
+      this.treatsText.setText(`Treats: ${player.treats}`);
     }
   }
 

@@ -38,7 +38,10 @@ boso-rpg/
 │   ├── data/                 # PURE DATA (no Phaser imports, Node-validatable)
 │   │   ├── maps.js           # MAPS_DATA registry + START_MAP
 │   │   ├── map_*.js          # 7 house maps (yard..closet)
-│   │   ├── monsters.js       # MONSTER_TYPES (5) + BOSS_TYPES (2)
+│   │   ├── monsters.js       # MONSTER_TYPES (6) + BOSS_TYPES (2) + drop tables
+│   │   ├── quests.js         # QUESTS (kill objectives, NPC givers, rewards)
+│   │   ├── items.js          # ITEMS (consumables: cookie/milk)
+│   │   ├── worldmap.js       # World map screen layout (M key overlay)
 │   │   ├── audio.js          # BGM registry (5 keys, graceful fallback)
 │   │   ├── story.js          # Intro/ending/warning text
 │   │   └── assets.js         # Optional texture override registry
@@ -112,11 +115,24 @@ HP/touch damage/EXP come from MONSTER_TYPES (map data holds only x, y, type).
 - **EXP/Leveling**: MONSTER_TYPES/BOSS_TYPES carry `exp`; Player.gainExp →
   levelUp (+12 HP, +6 MP, +2 ATK, full heal); expToNext = 30 + level*25.
   Progress persists per character id (MapleStory-style: survives new games).
-  HUD shows Lv + EXP bar; CharacterSelect shows saved level.
+  HUD shows Lv + EXP bar + Treats; CharacterSelect shows saved level.
+- **Drops**: MONSTER_TYPES.drops = { treatsMin/Max, items: [{key, chance}] };
+  killMonster spawns physical pickups (bounce, auto-collect on touch,
+  15s despawn with blink). Bosses award drops directly (no physical spawn -
+  the vacuumKing ending starts immediately). Treats = currency.
+- **Items**: src/data/items.js; hotkeys 1 (Cookie +40 HP), 2 (Milk +30 MP);
+  bag overlay on I. MP regenerates +2/2s naturally.
+- **Bark (Swift Paw)**: X key fires 'proj_bark' (4 MP, 350ms cd, 360px range,
+  0.8x ATK); hits monsters AND bosses via boss.applyDamage().
+- **Quests**: src/data/quests.js kill-count quests; NPC markers (! available,
+  ? ready); accept/turn-in happens on dialogue open; tracker under minimap;
+  progress in save (characters.<id>.quests). Boss quests auto-complete if
+  the boss flag is already set.
 - **NPC dialogue**: SPACE near an NPC opens a dialogue box (lines from map
-  npc data); SPACE advances, auto-closes when walking away.
-- **SaveManager**: localStorage key `boso_save_v1`,
-  `{ flags: {}, characters: { <charId>: { level, exp } } }`; Node-safe.
+  npc data + quest offer/reminder/completion); SPACE advances, auto-closes
+  when walking away.
+- **SaveManager**: localStorage key `boso_save_v1`, `{ flags: {}, characters:
+  { <charId>: { level, exp, treats, items, quests } } }`; Node-safe.
   Flags: hugGuardianDefeated, vacuumKingDefeated, demoCleared.
 - **AudioManager**: `play(scene, key)` / `stop()`. Missing audio file = silent
   no-op. Same key keeps playing across map changes.
@@ -137,6 +153,9 @@ HP/touch damage/EXP come from MONSTER_TYPES (map data holds only x, y, type).
 | Jump off rope | ALT (+ optional ← →) |
 | Enter portal | ↑ near portal |
 | Talk to NPC | SPACE near NPC |
+| Bark (Swift Paw only) | X |
+| Use Cookie / Milk | 1 / 2 |
+| Bag & quest log | I |
 | World map | M |
 | Pause menu | ESC |
 | Respawn after death | SPACE |
@@ -179,8 +198,7 @@ HP/touch damage/EXP come from MONSTER_TYPES (map data holds only x, y, type).
 4. Add the texture key to `src/data/assets.js` for image override support
 
 ## Planned Features (next)
-- Inventory & item drops (meso-style)
-- Quest system (NPC dialogue hooks are in place)
-- Swift Paw ranged attack
+- Shop NPC (spend Treats)
+- More quest types (fetch/escort), quest chains
 - Real BGM files (keys ready — see docs/ASSETS.md)
 - Character/monster art replacement via texture overrides

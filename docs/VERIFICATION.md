@@ -1,5 +1,22 @@
 # 적대적 검증 보고서
 
+## v0.6 Treats & Tasks 업데이트 검증 패스
+- 자동 검증 976체크 통과 (기존 9그룹 + 신규: 퀘스트 무결성 — id 중복/
+  실존 NPC giver/유효 타깃/보상 아이템 키, 드롭 테이블 — 범위/확률/아이템 키)
+- vite build 에러 0
+- 수동 트레이스 검증 및 수정:
+  - **미드프레임 전환 가드**: Bark로 보스 막타 → 같은 프레임 엔딩 시작 시
+    나머지 update 단계(핫키/상호작용)가 오버레이를 엔딩 위에 열 수 있던
+    경로 차단 (isTransitioning 재확인)
+  - 드롭 미끄러짐 방지 (setDragX), 토스트 스택 오프셋 (동시 표시 겹침 방지)
+  - 프레임 순서: updateDialogue가 SPACE를 먼저 소비 → checkInteractions
+    재오픈 불가 ✓; 드롭 타이머/barkReadyAt/MP리젠 일시정지 시프트 포함 ✓
+  - updateBarks 중 killMonster/onBossDefeated 재진입 안전 (monsters 배열
+    불변, boss null 가드) ✓; 사망 플레이어 줍기/물약/바크 전부 hp 가드 ✓
+  - 구세이브 호환: characters.<id>에 treats/items/quests 없으면 기본값
+    정규화 (getCharacter) ✓
+  - 텍스처 키 4종(proj_bark/drop_*) 생성 크기 = ASSETS.md 표 일치 ✓
+
 ## v0.5 오픈월드 업데이트 검증 패스
 - 자동 검증 915체크 통과 (11맵: 지지 규칙/로프 앵커/포탈 타깃/도달성 BFS
   루프 포함), vite build 에러 0

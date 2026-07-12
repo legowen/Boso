@@ -25,6 +25,10 @@ Put PNG files here: `public/assets/images/tex/<key>.png`
 | `boss_vacuum_king` | 120 x 150 | Vacuum King — hidden special boss |
 | `proj_arm` | 120 x 50 | Hug Guardian's sweeping plush arm |
 | `proj_dust` | 20 x 20 | Vacuum King's dust ball projectile |
+| `proj_bark` | 26 x 18 | Swift Paw's sonic bark projectile |
+| `drop_treat` | 16 x 16 | Treat currency drop (golden bone) |
+| `drop_cookie` | 16 x 16 | Cookie item drop (+40 HP) |
+| `drop_milk` | 14 x 18 | Milk item drop (+30 MP) |
 
 Notes:
 - Sprites face RIGHT by default (the game flips them with `flipX`).

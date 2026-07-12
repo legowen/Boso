@@ -13,6 +13,8 @@ import { fileURLToPath } from 'node:url';
 import { MAPS_DATA, START_MAP } from '../src/data/maps.js';
 import { MONSTER_TYPES, BOSS_TYPES } from '../src/data/monsters.js';
 import { BGM_KEYS } from '../src/data/audio.js';
+import { QUESTS } from '../src/data/quests.js';
+import { ITEMS } from '../src/data/items.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -240,6 +242,76 @@ for (const [key, map] of Object.entries(MAPS_DATA)) {
     key,
     `bgm '${map.bgm}' is not in BGM_KEYS [${BGM_KEYS.join(', ')}]`
   );
+}
+
+// ===== Check 10: quests — unique ids, real givers, valid targets & rewards =====
+{
+  const questIds = new Set();
+  const allNpcNames = new Set();
+  for (const map of Object.values(MAPS_DATA)) {
+    (map.npcs || []).forEach((npc) => allNpcNames.add(npc.name));
+  }
+  for (const quest of QUESTS) {
+    check(!questIds.has(quest.id), `quest:${quest.id}`, 'duplicate quest id');
+    questIds.add(quest.id);
+    check(
+      allNpcNames.has(quest.giver),
+      `quest:${quest.id}`,
+      `giver '${quest.giver}' is not an NPC in any map`
+    );
+    const target = quest.objective && quest.objective.target;
+    check(
+      !!(MONSTER_TYPES[target] || BOSS_TYPES[target]),
+      `quest:${quest.id}`,
+      `objective target '${target}' is not a monster or boss type`
+    );
+    check(
+      quest.objective && quest.objective.count >= 1,
+      `quest:${quest.id}`,
+      'objective count must be >= 1'
+    );
+    for (const arr of ['offer', 'complete']) {
+      check(
+        Array.isArray(quest[arr]) && quest[arr].length > 0,
+        `quest:${quest.id}`,
+        `missing '${arr}' lines`
+      );
+    }
+    const reward = quest.reward || {};
+    for (const key of Object.keys(reward.items || {})) {
+      check(!!ITEMS[key], `quest:${quest.id}`, `reward item '${key}' is not in ITEMS`);
+    }
+  }
+}
+
+// ===== Check 11: drop tables — sane ranges and valid item keys =====
+for (const [key, type] of Object.entries(MONSTER_TYPES)) {
+  const drops = type.drops;
+  check(!!drops, `monster:${key}`, 'missing drops table');
+  if (drops) {
+    check(
+      drops.treatsMin >= 0 && drops.treatsMin <= drops.treatsMax,
+      `monster:${key}`,
+      `bad treats range ${drops.treatsMin}..${drops.treatsMax}`
+    );
+    (drops.items || []).forEach((entry) => {
+      check(!!ITEMS[entry.key], `monster:${key}`, `drop item '${entry.key}' is not in ITEMS`);
+      check(
+        entry.chance > 0 && entry.chance <= 1,
+        `monster:${key}`,
+        `drop chance ${entry.chance} out of (0,1]`
+      );
+    });
+  }
+}
+for (const [key, boss] of Object.entries(BOSS_TYPES)) {
+  const drops = boss.drops;
+  check(!!drops, `boss:${key}`, 'missing drops table');
+  if (drops) {
+    for (const itemKey of Object.keys(drops.items || {})) {
+      check(!!ITEMS[itemKey], `boss:${key}`, `drop item '${itemKey}' is not in ITEMS`);
+    }
+  }
 }
 
 // ===== Check 9: source scan — no Korean characters, no console.log in src/ =====

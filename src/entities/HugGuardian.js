@@ -394,12 +394,22 @@ export default class HugGuardian {
 
     this.isHit = true;
     const damage = player.attackPower + Phaser.Math.Between(-3, 3);
-    this.hp -= damage;
+    this.applyDamage(damage);
+
+    this.scene.time.delayedCall(PLAYER.ATTACK_DURATION + 50, () => {
+      this.isHit = false;
+    });
+  }
+
+  // Damage from any player source (melee overlap, bark projectile)
+  applyDamage(amount) {
+    if (this.defeated || !this.sprite.active) return;
+    this.hp -= amount;
 
     this.scene.showDamageNumber(
       this.sprite.x + Phaser.Math.Between(-20, 20),
       this.sprite.y - 40,
-      damage,
+      amount,
       false
     );
 
@@ -407,10 +417,6 @@ export default class HugGuardian {
     this.sprite.setTintFill(0xFFFFFF);
     this.scene.time.delayedCall(80, () => {
       if (this.sprite.active && !this.defeated) this.sprite.clearTint();
-    });
-
-    this.scene.time.delayedCall(PLAYER.ATTACK_DURATION + 50, () => {
-      this.isHit = false;
     });
 
     if (this.hp <= 0) this.die();

@@ -78,23 +78,36 @@ export default class SaveManager {
     SaveManager.save(data);
   }
 
-  // Read persistent character progress ({ level, exp }) or null.
+  // Read persistent character progress or null. Normalizes missing fields
+  // so older saves (level/exp only) keep working.
   static getCharacter(charId) {
     if (!charId) return null;
     const data = SaveManager.load();
     const progress = data.characters && data.characters[charId];
     if (!progress || typeof progress.level !== 'number') return null;
-    return { level: progress.level, exp: progress.exp || 0 };
+    return {
+      level: progress.level,
+      exp: progress.exp || 0,
+      treats: progress.treats || 0,
+      items: progress.items && typeof progress.items === 'object' ? { ...progress.items } : {},
+      quests: progress.quests && typeof progress.quests === 'object' ? { ...progress.quests } : {},
+    };
   }
 
-  // Persist character progress (MapleStory-style: levels survive new games).
+  // Persist character progress (MapleStory-style: survives new games).
   static setCharacter(charId, progress) {
     if (!charId) return;
     const data = SaveManager.load();
     if (!data.characters || typeof data.characters !== 'object') {
       data.characters = {};
     }
-    data.characters[charId] = { level: progress.level, exp: progress.exp };
+    data.characters[charId] = {
+      level: progress.level,
+      exp: progress.exp,
+      treats: progress.treats || 0,
+      items: progress.items || {},
+      quests: progress.quests || {},
+    };
     SaveManager.save(data);
   }
 }

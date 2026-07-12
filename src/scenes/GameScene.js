@@ -21,6 +21,8 @@ import HUD from '../ui/HUD.js';
 import { MAPS_DATA, START_MAP } from '../data/maps.js';
 import { MONSTER_TYPES, BOSS_TYPES } from '../data/monsters.js';
 import { WORLD_MAP_LAYOUT } from '../data/worldmap.js';
+import { ITEMS, ITEM_KEYS } from '../data/items.js';
+import { QUESTS } from '../data/quests.js';
 import { STORY } from '../data/story.js';
 import HugGuardian from '../entities/HugGuardian.js';
 import VacuumKing from '../entities/VacuumKing.js';
@@ -29,6 +31,9 @@ import SaveManager from '../systems/SaveManager.js';
 
 // Map registry lives in src/data/maps.js (pure data, Node-validatable)
 const MAPS = MAPS_DATA;
+
+// Swift Paw's ranged bark attack
+const BARK = { mpCost: 4, speed: 420, maxDist: 360, cooldownMs: 350 };
 
 // Persistent map state across portal transitions
 const MAP_STATE = {};
@@ -86,12 +91,22 @@ export default class GameScene extends Phaser.Scene {
     // Overlay state
     this.dialogue = null;
     this.worldMap = null;
+    this.bag = null;
+
+    // Drops, projectiles, quests
+    this.drops = [];
+    this.barks = [];
+    this.barkReadyAt = 0;
+    this.createPickupTextures();
+    this.createQuestTracker();
+    this.refreshNPCMarkers();
 
     // Overlays snapshot screen dims at open - close them on resize
     // (handler detached on shutdown; scale is game-global)
     this.overlayResizeHandler = () => {
       this.closeWorldMap();
       this.closeDialogue();
+      this.closeBag();
     };
     this.scale.on('resize', this.overlayResizeHandler);
 
@@ -126,15 +141,51 @@ export default class GameScene extends Phaser.Scene {
         this.boss.update(time, delta);
         this.updateBossHpBar();
       }
+      this.updateBarks();
+      this.updateDrops();
       this.hud.update(this.player);
       this.updateMinimap();
+
+      // A bark/attack this frame may have killed the boss and started the
+      // ending sequence - never process interactions past that point, or an
+      // overlay opened this exact frame could get stuck over the ending
+      if (this.isTransitioning) return;
+
       // Dialogue advance consumes SPACE before checkInteractions can reopen
       this.updateDialogue();
       this.checkInteractions();
+      this.handleHotkeys();
+    }
+  }
 
-      // World map toggle (M)
-      if (Phaser.Input.Keyboard.JustDown(this.keys.m)) {
-        this.toggleWorldMap();
+  handleHotkeys() {
+    // Potions
+    if (Phaser.Input.Keyboard.JustDown(this.keys.one)) {
+      this.player.useItem('cookie');
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.keys.two)) {
+      this.player.useItem('milk');
+    }
+
+    // Bag & world map overlays
+    if (Phaser.Input.Keyboard.JustDown(this.keys.i)) {
+      this.toggleBag();
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.keys.m)) {
+      this.toggleWorldMap();
+    }
+
+    // Bark (Swift Paw's ranged attack, X key)
+    if (
+      this.characterData &&
+      this.characterData.id === 'boso_swift' &&
+      this.keys.x.isDown &&
+      this.player.hp > 0 &&
+      !this.player.isClimbing
+    ) {
+      const now = Date.now();
+      if (now > this.barkReadyAt && this.player.mp >= BARK.mpCost) {
+        this.fireBark(now);
       }
     }
   }
@@ -229,6 +280,28 @@ export default class GameScene extends Phaser.Scene {
     const boxW = Math.min(560, w - 60);
     const boxH = 96;
 
+    // Compose lines: base dialogue + quest offer/reminder/completion.
+    // Quest state transitions happen when the conversation opens.
+    let lines = [...(npcObj.data.dialogue || [])];
+    const defs = QUESTS.filter((q) => q.giver === npcObj.data.name);
+    for (const quest of defs) {
+      const st = this.player.quests[quest.id];
+      if (st && st.state === 'ready') {
+        lines = [...quest.complete, `[Quest complete: ${quest.title}]`];
+        this.completeQuest(quest);
+        break;
+      } else if (!st) {
+        lines = [...lines, ...quest.offer, `[Quest accepted: ${quest.title}]`];
+        this.acceptQuest(quest);
+        break;
+      } else if (st.state === 'active') {
+        lines = [...lines, quest.reminder];
+        break;
+      }
+    }
+    this.refreshNPCMarkers();
+    this.refreshQuestTracker();
+
     const container = this.add.container(w / 2, h - 205).setDepth(DEPTH.UI + 8).setScrollFactor(0);
 
     const bg = this.add.graphics();
@@ -261,14 +334,13 @@ export default class GameScene extends Phaser.Scene {
     }).setOrigin(1, 0.5);
     container.add(hint);
 
-    this.dialogue = { npcObj, index: 0, container, lineText };
+    this.dialogue = { npcObj, index: 0, container, lineText, lines };
     this.renderDialogueLine();
   }
 
   renderDialogueLine() {
     if (!this.dialogue) return;
-    const lines = this.dialogue.npcObj.data.dialogue;
-    this.dialogue.lineText.setText(lines[this.dialogue.index]);
+    this.dialogue.lineText.setText(this.dialogue.lines[this.dialogue.index]);
   }
 
   updateDialogue() {
@@ -289,7 +361,7 @@ export default class GameScene extends Phaser.Scene {
 
     if (Phaser.Input.Keyboard.JustDown(this.keys.space)) {
       this.dialogue.index += 1;
-      if (this.dialogue.index >= this.dialogue.npcObj.data.dialogue.length) {
+      if (this.dialogue.index >= this.dialogue.lines.length) {
         this.closeDialogue();
       } else {
         this.renderDialogueLine();
@@ -427,6 +499,494 @@ export default class GameScene extends Phaser.Scene {
     if (!this.worldMap) return;
     this.worldMap.destroy();
     this.worldMap = null;
+  }
+
+  // ===== Drops (treats & items) =====
+
+  createPickupTextures() {
+    if (!this.textures.exists('drop_treat')) {
+      const g = this.add.graphics();
+      // Golden bone-shaped treat
+      g.fillStyle(0xF1C40F, 1);
+      g.fillCircle(4, 6, 3);
+      g.fillCircle(4, 10, 3);
+      g.fillCircle(12, 6, 3);
+      g.fillCircle(12, 10, 3);
+      g.fillRect(4, 5, 8, 6);
+      g.fillStyle(0xF8E187, 1);
+      g.fillRect(5, 6, 6, 2);
+      g.generateTexture('drop_treat', 16, 16);
+      g.destroy();
+    }
+
+    if (!this.textures.exists('drop_cookie')) {
+      const g = this.add.graphics();
+      g.fillStyle(0xB5804A, 1);
+      g.fillCircle(8, 8, 7);
+      g.fillStyle(0x5D3A1A, 1);
+      g.fillCircle(5, 6, 1.5);
+      g.fillCircle(10, 9, 1.5);
+      g.fillCircle(7, 11, 1.5);
+      g.fillCircle(11, 5, 1.5);
+      g.generateTexture('drop_cookie', 16, 16);
+      g.destroy();
+    }
+
+    if (!this.textures.exists('drop_milk')) {
+      const g = this.add.graphics();
+      // Milk carton
+      g.fillStyle(0xFDFEFE, 1);
+      g.fillRect(2, 5, 10, 12);
+      g.fillStyle(0x3498DB, 1);
+      g.fillRect(2, 5, 10, 4);
+      g.fillTriangle(2, 5, 12, 5, 7, 0);
+      g.generateTexture('drop_milk', 14, 18);
+      g.destroy();
+    }
+
+    if (!this.textures.exists('proj_bark')) {
+      const g = this.add.graphics();
+      // Sonic bark - three expanding arcs
+      g.lineStyle(3, 0xFFFFFF, 0.95);
+      g.beginPath();
+      g.arc(3, 9, 5, -0.9, 0.9);
+      g.strokePath();
+      g.lineStyle(3, 0xAED6F1, 0.85);
+      g.beginPath();
+      g.arc(3, 9, 10, -0.8, 0.8);
+      g.strokePath();
+      g.lineStyle(2, 0xFFFFFF, 0.7);
+      g.beginPath();
+      g.arc(3, 9, 15, -0.7, 0.7);
+      g.strokePath();
+      g.generateTexture('proj_bark', 26, 18);
+      g.destroy();
+    }
+  }
+
+  spawnDrops(monsterObj) {
+    const drops = monsterObj.cfg.drops;
+    if (!drops) return;
+    const now = Date.now();
+
+    const value = Phaser.Math.Between(drops.treatsMin, drops.treatsMax);
+    if (value > 0) {
+      this.spawnDropSprite('drop_treat', monsterObj.sprite.x, monsterObj.sprite.y, { treats: value }, now);
+    }
+
+    (drops.items || []).forEach((entry) => {
+      if (Math.random() < entry.chance) {
+        this.spawnDropSprite(
+          ITEMS[entry.key].texture,
+          monsterObj.sprite.x,
+          monsterObj.sprite.y - 6,
+          { item: entry.key },
+          now
+        );
+      }
+    });
+  }
+
+  spawnDropSprite(texture, x, y, payload, now) {
+    const sprite = this.physics.add.sprite(x, y, texture);
+    sprite.setDepth(DEPTH.EFFECTS - 1);
+    sprite.setBounce(0.4);
+    sprite.setCollideWorldBounds(true);
+    sprite.setDragX(120); // settle instead of sliding forever
+    sprite.setVelocity(Phaser.Math.Between(-90, 90), Phaser.Math.Between(-240, -160));
+    this.platforms.forEach((platform) => {
+      this.physics.add.collider(sprite, platform);
+    });
+
+    this.drops.push({
+      sprite,
+      payload,
+      pickupAt: now + 400,
+      expiresAt: now + 15000,
+      blinking: false,
+    });
+  }
+
+  updateDrops() {
+    if (this.drops.length === 0) return;
+    const now = Date.now();
+    const playerBounds = this.player.hp > 0 ? this.player.sprite.getBounds() : null;
+
+    this.drops = this.drops.filter((drop) => {
+      if (!drop.sprite.active) return false;
+
+      if (now > drop.expiresAt) {
+        this.tweens.killTweensOf(drop.sprite);
+        drop.sprite.destroy();
+        return false;
+      }
+
+      if (!drop.blinking && now > drop.expiresAt - 3000) {
+        drop.blinking = true;
+        this.tweens.add({
+          targets: drop.sprite,
+          alpha: 0.25,
+          duration: 200,
+          yoyo: true,
+          repeat: -1,
+        });
+      }
+
+      if (playerBounds && now > drop.pickupAt) {
+        const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
+          playerBounds,
+          drop.sprite.getBounds()
+        );
+        if (overlap) {
+          this.collectDrop(drop);
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+
+  collectDrop(drop) {
+    const { payload, sprite } = drop;
+    if (payload.treats) {
+      this.player.gainTreats(payload.treats);
+      this.showPickupText(sprite.x, sprite.y, `+${payload.treats} Treats`, '#F1C40F');
+    } else if (payload.item) {
+      this.player.addItem(payload.item, 1);
+      this.showPickupText(sprite.x, sprite.y, `+1 ${ITEMS[payload.item].name}`, '#82E0AA');
+    }
+    this.tweens.killTweensOf(sprite);
+    sprite.destroy();
+  }
+
+  showPickupText(x, y, text, color) {
+    const label = this.add.text(x, y - 16, text, {
+      fontSize: '11px',
+      fontFamily: UI.FONT_FAMILY,
+      color: color,
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(DEPTH.EFFECTS);
+    this.tweens.add({
+      targets: label,
+      y: label.y - 26,
+      alpha: 0,
+      duration: 800,
+      onComplete: () => label.destroy(),
+    });
+  }
+
+  // ===== Bark projectile (Swift Paw) =====
+
+  fireBark(now) {
+    this.player.mp -= BARK.mpCost;
+    this.barkReadyAt = now + BARK.cooldownMs;
+
+    const dir = this.player.facingRight ? 1 : -1;
+    const bark = this.physics.add.sprite(
+      this.player.sprite.x + dir * 26,
+      this.player.sprite.y - 4,
+      'proj_bark'
+    );
+    bark.setDepth(DEPTH.EFFECTS);
+    bark.body.setAllowGravity(false);
+    bark.setFlipX(dir < 0);
+    bark.setVelocityX(dir * BARK.speed);
+    bark.startX = bark.x;
+    bark.dying = false;
+    this.barks.push(bark);
+  }
+
+  barkDamage() {
+    return Math.max(5, Math.round(this.player.attackPower * 0.8)) + Phaser.Math.Between(-2, 2);
+  }
+
+  updateBarks() {
+    if (this.barks.length === 0) return;
+    const now = Date.now();
+
+    this.barks = this.barks.filter((bark) => {
+      if (!bark.active || bark.dying) return false;
+
+      // Out of range
+      if (Math.abs(bark.x - bark.startX) > BARK.maxDist) {
+        bark.dying = true;
+        bark.destroy();
+        return false;
+      }
+
+      const barkBounds = bark.getBounds();
+
+      // Monsters (first hit consumes the bark)
+      for (const monsterObj of this.monsters) {
+        if (!monsterObj.sprite.active || monsterObj.isDying) continue;
+        const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
+          barkBounds,
+          monsterObj.sprite.getBounds()
+        );
+        if (!overlap) continue;
+
+        const damage = this.barkDamage();
+        monsterObj.hp -= damage;
+        this.showDamageNumber(monsterObj.sprite.x, monsterObj.sprite.y, damage, false);
+
+        // Light knockback
+        const dir = bark.body.velocity.x >= 0 ? 1 : -1;
+        monsterObj.sprite.setVelocityX(120 * dir);
+        monsterObj.knockedUntil = now + 200;
+        if (monsterObj.cfg.movement === 'charger' && monsterObj.chargeState === 'windup') {
+          this.tweens.killTweensOf(monsterObj.sprite);
+          monsterObj.chargeState = 'patrol';
+          monsterObj.chargeReadyAt = now + monsterObj.cfg.cooldownMs;
+        }
+
+        if (monsterObj.hp <= 0) {
+          this.killMonster(monsterObj);
+        }
+
+        bark.dying = true;
+        bark.destroy();
+        return false;
+      }
+
+      // Boss
+      if (this.boss && this.boss.sprite.active && !this.boss.defeated) {
+        const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
+          barkBounds,
+          this.boss.sprite.getBounds()
+        );
+        if (overlap) {
+          this.boss.applyDamage(this.barkDamage());
+          bark.dying = true;
+          bark.destroy();
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }
+
+  // ===== Quests =====
+
+  createQuestTracker() {
+    // Sits just below the minimap
+    this.questTracker = this.add.text(12, 120, '', {
+      fontSize: '11px',
+      fontFamily: UI.FONT_FAMILY,
+      color: '#F7DC6F',
+      stroke: '#000000',
+      strokeThickness: 2,
+      lineSpacing: 4,
+    }).setScrollFactor(0).setDepth(DEPTH.UI + 5);
+    this.refreshQuestTracker();
+  }
+
+  refreshQuestTracker() {
+    if (!this.questTracker) return;
+    const lines = [];
+    QUESTS.forEach((quest) => {
+      const st = this.player.quests[quest.id];
+      if (!st || st.state === 'done') return;
+      if (st.state === 'ready') {
+        lines.push(`${quest.title}: DONE - see ${quest.giver}`);
+      } else {
+        lines.push(`${quest.title}: ${st.progress}/${quest.objective.count}`);
+      }
+    });
+    this.questTracker.setText(lines.join('\n'));
+  }
+
+  refreshNPCMarkers() {
+    this.npcSprites.forEach((npcObj) => {
+      if (!npcObj.questMarker) return;
+      const defs = QUESTS.filter((q) => q.giver === npcObj.data.name);
+      let marker = '';
+      if (defs.some((q) => {
+        const st = this.player.quests[q.id];
+        return st && st.state === 'ready';
+      })) {
+        marker = '?';
+      } else if (defs.some((q) => !this.player.quests[q.id])) {
+        marker = '!';
+      }
+      npcObj.questMarker.setText(marker);
+    });
+  }
+
+  acceptQuest(quest) {
+    let progress = 0;
+    // A boss slain before accepting still counts (flags persist)
+    if (BOSS_TYPES[quest.objective.target] && SaveManager.getFlag(`${quest.objective.target}Defeated`)) {
+      progress = quest.objective.count;
+    }
+    this.player.quests[quest.id] = {
+      state: progress >= quest.objective.count ? 'ready' : 'active',
+      progress,
+    };
+    this.player.persistProgress();
+    this.showQuestToast(`Quest accepted: ${quest.title}`);
+  }
+
+  completeQuest(quest) {
+    const reward = quest.reward || {};
+    if (reward.treats) this.player.gainTreats(reward.treats);
+    if (reward.exp) this.player.gainExp(reward.exp);
+    Object.entries(reward.items || {}).forEach(([key, count]) => {
+      this.player.addItem(key, count);
+    });
+    this.player.quests[quest.id].state = 'done';
+    this.player.persistProgress();
+    this.showQuestToast(`Quest complete: ${quest.title}!`);
+  }
+
+  questKill(target) {
+    let changed = false;
+    QUESTS.forEach((quest) => {
+      if (quest.objective.target !== target) return;
+      const st = this.player.quests[quest.id];
+      if (!st || st.state !== 'active') return;
+      st.progress += 1;
+      if (st.progress >= quest.objective.count) {
+        st.state = 'ready';
+        this.showQuestToast(`Quest ready: ${quest.title} - report back!`);
+      }
+      changed = true;
+    });
+    if (changed) {
+      this.player.persistProgress();
+      this.refreshQuestTracker();
+      this.refreshNPCMarkers();
+    }
+  }
+
+  showQuestToast(text) {
+    // Stack simultaneous toasts instead of overlapping them
+    this.activeToasts = this.activeToasts || 0;
+    const toastY = 64 + this.activeToasts * 22;
+    this.activeToasts += 1;
+
+    const toast = this.add.text(this.scale.width / 2, toastY, text, {
+      fontSize: '14px',
+      fontFamily: 'Arial Black, Arial',
+      color: '#F1C40F',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(DEPTH.UI + 7).setScrollFactor(0);
+    this.tweens.add({
+      targets: toast,
+      alpha: 0,
+      delay: 1800,
+      duration: 600,
+      onComplete: () => {
+        toast.destroy();
+        this.activeToasts = Math.max(0, this.activeToasts - 1);
+      },
+    });
+  }
+
+  // ===== Bag overlay (I) =====
+
+  toggleBag() {
+    if (this.bag) {
+      this.closeBag();
+    } else {
+      this.closeWorldMap();
+      this.openBag();
+    }
+  }
+
+  openBag() {
+    const w = this.scale.width;
+    const h = this.scale.height;
+    const boxW = 400;
+    const boxH = 350;
+
+    const container = this.add.container(w / 2, h / 2).setDepth(DEPTH.UI + 14).setScrollFactor(0);
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0x10101E, 0.95);
+    bg.fillRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 12);
+    bg.lineStyle(2, 0xF39C12, 0.8);
+    bg.strokeRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 12);
+    container.add(bg);
+
+    container.add(this.add.text(0, -boxH / 2 + 22, 'ADVENTURE BAG', {
+      fontSize: '18px',
+      fontFamily: 'Arial Black, Arial',
+      color: '#F39C12',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5));
+
+    // Treats
+    const treatIcon = this.add.sprite(-boxW / 2 + 34, -boxH / 2 + 60, 'drop_treat').setScale(1.4);
+    container.add(treatIcon);
+    container.add(this.add.text(-boxW / 2 + 52, -boxH / 2 + 60, `Treats  x ${this.player.treats}`, {
+      fontSize: '14px',
+      fontFamily: UI.FONT_FAMILY,
+      color: '#F1C40F',
+      fontStyle: 'bold',
+    }).setOrigin(0, 0.5));
+
+    // Items with hotkeys
+    ITEM_KEYS.forEach((key, i) => {
+      const def = ITEMS[key];
+      const rowY = -boxH / 2 + 96 + i * 30;
+      container.add(this.add.sprite(-boxW / 2 + 34, rowY, def.texture).setScale(1.2));
+      container.add(this.add.text(
+        -boxW / 2 + 52,
+        rowY,
+        `${def.name}  x ${this.player.items[key] || 0}   [${def.hotkey}] use`,
+        {
+          fontSize: '13px',
+          fontFamily: UI.FONT_FAMILY,
+          color: '#ECF0F1',
+        }
+      ).setOrigin(0, 0.5));
+    });
+
+    // Quest log
+    container.add(this.add.text(0, -boxH / 2 + 172, '- QUESTS -', {
+      fontSize: '13px',
+      fontFamily: 'Arial Black, Arial',
+      color: '#BB8FCE',
+    }).setOrigin(0.5));
+
+    const questLines = [];
+    QUESTS.forEach((quest) => {
+      const st = this.player.quests[quest.id];
+      if (!st) return;
+      if (st.state === 'done') questLines.push(`(done) ${quest.title}`);
+      else if (st.state === 'ready') questLines.push(`! ${quest.title} - see ${quest.giver}`);
+      else questLines.push(`- ${quest.title}: ${st.progress}/${quest.objective.count}`);
+    });
+    container.add(this.add.text(
+      -boxW / 2 + 24,
+      -boxH / 2 + 192,
+      questLines.length > 0 ? questLines.join('\n') : 'No quests yet - talk to the locals! (SPACE)',
+      {
+        fontSize: '12px',
+        fontFamily: UI.FONT_FAMILY,
+        color: '#D5DBDB',
+        lineSpacing: 6,
+        wordWrap: { width: boxW - 48 },
+      }
+    ));
+
+    container.add(this.add.text(0, boxH / 2 - 18, 'I - Close', {
+      fontSize: '11px',
+      fontFamily: UI.FONT_FAMILY,
+      color: '#7F8C8D',
+    }).setOrigin(0.5));
+
+    this.bag = container;
+  }
+
+  closeBag() {
+    if (!this.bag) return;
+    this.bag.destroy();
+    this.bag = null;
   }
 
   createMonsterTextures() {
@@ -575,6 +1135,7 @@ export default class GameScene extends Phaser.Scene {
     // Clear overlays - update() is gated now, so they could never be closed
     this.closeWorldMap();
     this.closeDialogue();
+    this.closeBag();
 
     // Grayscale effect on the entire camera
     const pipeline = this.cameras.main.postFX.addColorMatrix();
@@ -685,6 +1246,8 @@ export default class GameScene extends Phaser.Scene {
       i: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.I),
       q: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q),
       m: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M),
+      one: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE),
+      two: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TWO),
     };
 
     // Prevent browser default behavior for ALT and CTRL
@@ -816,6 +1379,12 @@ export default class GameScene extends Phaser.Scene {
     this.pauseStartedAt = null;
     if (pausedMs > 0) {
       this.portalLockUntil += pausedMs;
+      this.barkReadyAt += pausedMs;
+      this.player.nextMpRegenAt += pausedMs;
+      this.drops.forEach((drop) => {
+        drop.pickupAt += pausedMs;
+        drop.expiresAt += pausedMs;
+      });
       this.monsters.forEach((m) => {
         m.stateUntil += pausedMs;
         m.nextJumpAt += pausedMs;
@@ -1115,7 +1684,23 @@ export default class GameScene extends Phaser.Scene {
         strokeThickness: 2,
       }).setOrigin(0.5).setDepth(DEPTH.NPCS);
 
-      this.npcSprites.push({ sprite, nameTag, data: npcData });
+      // Quest marker (! available / ? ready) above the name tag
+      const questMarker = this.add.text(npcData.x, npcData.y - 62, '', {
+        fontSize: '18px',
+        fontFamily: 'Arial Black, Arial',
+        color: '#F1C40F',
+        stroke: '#000000',
+        strokeThickness: 3,
+      }).setOrigin(0.5).setDepth(DEPTH.NPCS);
+      this.tweens.add({
+        targets: questMarker,
+        y: questMarker.y - 5,
+        duration: 500,
+        yoyo: true,
+        repeat: -1,
+      });
+
+      this.npcSprites.push({ sprite, nameTag, questMarker, data: npcData });
     });
   }
 
@@ -1387,10 +1972,21 @@ export default class GameScene extends Phaser.Scene {
   onBossDefeated(bossId) {
     SaveManager.setFlag(`${bossId}Defeated`);
 
-    // Boss EXP
+    // Boss EXP, rewards, and quest progress
     const bossCfg = BOSS_TYPES[bossId];
-    if (bossCfg && bossCfg.exp && this.player.hp > 0) {
-      this.player.gainExp(bossCfg.exp);
+    if (bossCfg && this.player.hp > 0) {
+      if (bossCfg.exp) this.player.gainExp(bossCfg.exp);
+      const drops = bossCfg.drops;
+      if (drops) {
+        if (drops.treats) {
+          this.player.gainTreats(drops.treats);
+          this.showQuestToast(`+${drops.treats} Treats!`);
+        }
+        Object.entries(drops.items || {}).forEach(([key, count]) => {
+          this.player.addItem(key, count);
+        });
+      }
+      this.questKill(bossId);
     }
 
     if (this.bossBar) {
@@ -1417,6 +2013,7 @@ export default class GameScene extends Phaser.Scene {
     this.isTransitioning = true;
     this.closeWorldMap();
     this.closeDialogue();
+    this.closeBag();
     this.player.sprite.setVelocity(0, 0);
     AudioManager.stop();
 
@@ -1853,6 +2450,12 @@ export default class GameScene extends Phaser.Scene {
     // Hide the HP bar right away (a negative-HP bar looks broken)
     monsterObj.hpBar.clear();
     monsterObj.hpBarBg.clear();
+
+    // Drops & quest progress
+    if (this.player.hp > 0) {
+      this.spawnDrops(monsterObj);
+      this.questKill(monsterObj.type);
+    }
 
     // Award EXP
     const expGain = monsterObj.cfg.exp || 0;

@@ -4,9 +4,14 @@
 import Phaser from 'phaser';
 import { PLAYER, DEPTH, DAMAGE_TEXT, ROPE } from '../utils/constants.js';
 import SaveManager from '../systems/SaveManager.js';
+import { ITEMS } from '../data/items.js';
 
 // Stat growth per level (MapleStory-style persistent progression)
 const LEVEL_GROWTH = { hp: 12, mp: 6, atk: 2 };
+
+// Slow natural MP regeneration
+const MP_REGEN_AMOUNT = 2;
+const MP_REGEN_INTERVAL_MS = 2000;
 
 export default class Player {
   constructor(scene, x, y, characterData) {
@@ -21,11 +26,16 @@ export default class Player {
     this.sprite.setBounce(0);
     this.sprite.body.setSize(PLAYER.WIDTH - 8, PLAYER.HEIGHT);
 
-    // Level & EXP (persisted per character id via SaveManager)
+    // Level, EXP, treats, items, quests (persisted per character id)
     this.charId = this.characterData ? this.characterData.id : 'default';
-    const progress = SaveManager.getCharacter(this.charId) || { level: 1, exp: 0 };
+    const progress = SaveManager.getCharacter(this.charId)
+      || { level: 1, exp: 0, treats: 0, items: {}, quests: {} };
     this.level = progress.level;
     this.exp = progress.exp;
+    this.treats = progress.treats;
+    this.items = progress.items;
+    this.quests = progress.quests;
+    this.nextMpRegenAt = Date.now() + MP_REGEN_INTERVAL_MS;
 
     // Stats = base character stats + per-level growth
     const stats = this.characterData ? this.characterData.stats : null;
@@ -122,6 +132,13 @@ export default class Player {
 
     this.handleMovement(cursors, keys);
     this.handleAttack(keys);
+
+    // Natural MP regeneration
+    const now = Date.now();
+    if (now > this.nextMpRegenAt) {
+      this.mp = Math.min(this.maxMp, this.mp + MP_REGEN_AMOUNT);
+      this.nextMpRegenAt = now + MP_REGEN_INTERVAL_MS;
+    }
   }
 
   handleMovement(cursors, keys) {
@@ -360,6 +377,16 @@ export default class Player {
     return 30 + this.level * 25;
   }
 
+  persistProgress() {
+    SaveManager.setCharacter(this.charId, {
+      level: this.level,
+      exp: this.exp,
+      treats: this.treats,
+      items: this.items,
+      quests: this.quests,
+    });
+  }
+
   gainExp(amount) {
     if (!amount || amount <= 0) return;
     this.exp += amount;
@@ -367,7 +394,39 @@ export default class Player {
       this.exp -= this.expToNext();
       this.levelUp();
     }
-    SaveManager.setCharacter(this.charId, { level: this.level, exp: this.exp });
+    this.persistProgress();
+  }
+
+  gainTreats(amount) {
+    if (!amount || amount <= 0) return;
+    this.treats += amount;
+    this.persistProgress();
+  }
+
+  addItem(key, count = 1) {
+    if (!ITEMS[key] || count <= 0) return;
+    this.items[key] = (this.items[key] || 0) + count;
+    this.persistProgress();
+  }
+
+  // Use a consumable by key; returns true if consumed
+  useItem(key) {
+    const def = ITEMS[key];
+    if (!def || !(this.items[key] > 0) || this.hp <= 0) return false;
+
+    if (def.heal) {
+      if (this.hp >= this.maxHp) return false; // don't waste it
+      this.hp = Math.min(this.maxHp, this.hp + def.heal);
+      this.showFloatingText(`+${def.heal} HP`, '#2ECC71');
+    } else if (def.mana) {
+      if (this.mp >= this.maxMp) return false;
+      this.mp = Math.min(this.maxMp, this.mp + def.mana);
+      this.showFloatingText(`+${def.mana} MP`, '#3498DB');
+    }
+
+    this.items[key] -= 1;
+    this.persistProgress();
+    return true;
   }
 
   levelUp() {

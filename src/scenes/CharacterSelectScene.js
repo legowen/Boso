@@ -20,7 +20,7 @@ const CHARACTERS = [
     name: 'Boso',
     className: 'Swift Paw',
     color: 0xEDD9B5,
-    desc: 'A nimble pup, light on his paws.\nFast runner, higher jumps.',
+    desc: 'A nimble pup, light on his paws.\nFast, high jumps, sonic bark (X).',
     stats: { hp: 90, mp: 80, atk: 12, spd: 240, jumpPower: -540 },
   },
 ];
