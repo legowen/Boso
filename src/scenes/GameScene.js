@@ -38,6 +38,11 @@ const BARK = { mpCost: 4, speed: 420, maxDist: 360, cooldownMs: 350 };
 // Persistent map state across portal transitions
 const MAP_STATE = {};
 
+// Movement styles that fly free of gravity and platform collision
+const FLYING_MOVEMENTS = new Set([
+  'flyerDash', 'sineGlider', 'jitter', 'floater', 'shyGhost', 'lampOrbit',
+]);
+
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super(SCENES.GAME);
@@ -135,7 +140,7 @@ export default class GameScene extends Phaser.Scene {
   update(time, delta) {
     if (this.player && !this.isTransitioning && !this.isPaused) {
       this.player.update(this.cursors, this.keys);
-      this.updateMonsters();
+      this.updateMonsters(delta);
       // Boss updates AFTER the player so suction can stack on input velocity
       if (this.boss) {
         this.boss.update(time, delta);
@@ -1104,6 +1109,233 @@ export default class GameScene extends Phaser.Scene {
       g.destroy();
     }
 
+    // Dust Mote - drifting dust speck (floater)
+    if (!this.textures.exists('monster_dustmote')) {
+      const c = MONSTER_TYPES.dustmote;
+      const g = this.add.graphics();
+      // Fluffy gray cluster
+      g.fillStyle(c.color, 0.9);
+      g.fillCircle(13, 13, 9);
+      g.fillStyle(0xD7DBDD, 0.85);
+      g.fillCircle(8, 9, 5);
+      g.fillCircle(18, 8, 5);
+      g.fillCircle(17, 17, 5);
+      g.fillStyle(0x99A3A4, 0.8);
+      g.fillCircle(7, 16, 4);
+      // Tiny sleepy eyes
+      g.fillStyle(0x2C3E50, 1);
+      g.fillRect(10, 12, 2, 3);
+      g.fillRect(16, 12, 2, 3);
+      g.generateTexture('monster_dustmote', c.width, c.height);
+      g.destroy();
+    }
+
+    // Lonesome - shy translucent ghost (shyGhost)
+    if (!this.textures.exists('monster_lonesome')) {
+      const c = MONSTER_TYPES.lonesome;
+      const g = this.add.graphics();
+      // Rounded ghost body with a wavy hem
+      g.fillStyle(c.color, 1);
+      g.fillRoundedRect(3, 2, 24, 24, { tl: 12, tr: 12, bl: 0, br: 0 });
+      g.fillTriangle(3, 26, 9, 26, 6, 33);
+      g.fillTriangle(9, 26, 15, 26, 12, 33);
+      g.fillTriangle(15, 26, 21, 26, 18, 33);
+      g.fillTriangle(21, 26, 27, 26, 24, 33);
+      // Droopy sad eyes
+      g.fillStyle(0x2C1B3E, 1);
+      g.fillEllipse(10, 13, 4, 6);
+      g.fillEllipse(20, 13, 4, 6);
+      g.fillStyle(0xFFFFFF, 0.8);
+      g.fillCircle(9, 11, 1.5);
+      g.fillCircle(19, 11, 1.5);
+      // Tiny frown
+      g.lineStyle(2, 0x2C1B3E, 1);
+      g.beginPath();
+      g.arc(15, 22, 4, Math.PI + 0.4, -0.4);
+      g.strokePath();
+      g.generateTexture('monster_lonesome', c.width, c.height);
+      g.destroy();
+    }
+
+    // Stray Kitten - fellow shelter kitten (pouncer)
+    if (!this.textures.exists('monster_straykitten')) {
+      const c = MONSTER_TYPES.straykitten;
+      const g = this.add.graphics();
+      // Tail
+      g.fillStyle(0xCA6F1E, 1);
+      g.fillTriangle(2, 20, 8, 14, 8, 24);
+      // Body
+      g.fillStyle(c.color, 1);
+      g.fillRoundedRect(6, 12, 22, 16, 6);
+      // Head
+      g.fillCircle(21, 10, 9);
+      // Pointy ears
+      g.fillTriangle(14, 6, 16, -1, 20, 4);
+      g.fillTriangle(22, 4, 26, -1, 28, 6);
+      g.fillStyle(0xF6DDCC, 1);
+      g.fillTriangle(15.5, 5, 16.5, 1, 19, 4);
+      // Stripes
+      g.fillStyle(0xCA6F1E, 1);
+      g.fillRect(9, 14, 3, 8);
+      g.fillRect(14, 15, 3, 9);
+      // Eyes
+      g.fillStyle(0x145A32, 1);
+      g.fillCircle(18, 9, 2);
+      g.fillCircle(25, 9, 2);
+      // Nose
+      g.fillStyle(0xE75480, 1);
+      g.fillTriangle(20.5, 12, 23.5, 12, 22, 14);
+      g.generateTexture('monster_straykitten', c.width, c.height);
+      g.destroy();
+    }
+
+    // Sock Slinker - runaway sock (inchworm)
+    if (!this.textures.exists('monster_sockslinker')) {
+      const c = MONSTER_TYPES.sockslinker;
+      const g = this.add.graphics();
+      // Sock body lying flat, toe to the right
+      g.fillStyle(c.color, 1);
+      g.fillRoundedRect(0, 6, 40, 14, 7);
+      // Heel bump
+      g.fillCircle(10, 18, 6);
+      // Cuff ribbing on the left
+      g.fillStyle(0xE8DAEF, 1);
+      g.fillRect(0, 5, 7, 16);
+      g.lineStyle(1, 0xBB8FCE, 0.8);
+      g.lineBetween(2, 5, 2, 21);
+      g.lineBetween(5, 5, 5, 21);
+      // Stripes
+      g.fillStyle(0xE74C3C, 0.85);
+      g.fillRect(14, 6, 5, 14);
+      g.fillRect(24, 6, 5, 14);
+      // Eyes at the toe end
+      g.fillStyle(0xFFFFFF, 1);
+      g.fillCircle(34, 10, 4);
+      g.fillCircle(39, 12, 3.5);
+      g.fillStyle(0x1B2631, 1);
+      g.fillCircle(35, 10, 2);
+      g.fillCircle(40, 12, 1.8);
+      g.generateTexture('monster_sockslinker', c.width, c.height);
+      g.destroy();
+    }
+
+    // Yarn Roller - rolling yarn ball (roller)
+    if (!this.textures.exists('monster_yarnroller')) {
+      const c = MONSTER_TYPES.yarnroller;
+      const g = this.add.graphics();
+      g.fillStyle(c.color, 1);
+      g.fillCircle(17, 17, 15);
+      // Wrapped strands
+      g.lineStyle(2, 0xF1948A, 0.9);
+      g.beginPath();
+      g.arc(17, 17, 12, 0.3, Math.PI - 0.3);
+      g.strokePath();
+      g.beginPath();
+      g.arc(17, 17, 12, Math.PI + 0.5, -0.5);
+      g.strokePath();
+      g.lineStyle(2, 0xCB4335, 0.8);
+      g.lineBetween(6, 10, 28, 24);
+      g.lineBetween(6, 24, 28, 10);
+      // Loose strand tail
+      g.lineStyle(2, 0xF1948A, 1);
+      g.lineBetween(29, 20, 34, 26);
+      // Cross little eyes
+      g.fillStyle(0x641E16, 1);
+      g.fillCircle(12, 15, 2.4);
+      g.fillCircle(22, 15, 2.4);
+      g.generateTexture('monster_yarnroller', c.width, c.height);
+      g.destroy();
+    }
+
+    // Crumb Hopper - skittering crumb (multiHop)
+    if (!this.textures.exists('monster_crumbhopper')) {
+      const c = MONSTER_TYPES.crumbhopper;
+      const g = this.add.graphics();
+      // Lumpy crumb body
+      g.fillStyle(c.color, 1);
+      g.fillCircle(10, 10, 7);
+      g.fillCircle(5, 12, 4);
+      g.fillCircle(15, 12, 4);
+      g.fillStyle(0x9C7A3C, 0.9);
+      g.fillCircle(8, 7, 2);
+      g.fillCircle(13, 9, 1.6);
+      // Tiny legs
+      g.lineStyle(2, 0x6E4F14, 1);
+      g.lineBetween(6, 15, 4, 18);
+      g.lineBetween(10, 16, 10, 18);
+      g.lineBetween(14, 15, 16, 18);
+      // Beady eyes
+      g.fillStyle(0x17202A, 1);
+      g.fillCircle(8, 9, 1.6);
+      g.fillCircle(13, 9, 1.6);
+      g.generateTexture('monster_crumbhopper', c.width, c.height);
+      g.destroy();
+    }
+
+    // Moth Circler - lamp-drunk moth (lampOrbit)
+    if (!this.textures.exists('monster_mothcircler')) {
+      const c = MONSTER_TYPES.mothcircler;
+      const g = this.add.graphics();
+      // Dusty wings
+      g.fillStyle(c.color, 0.95);
+      g.fillEllipse(9, 12, 16, 18);
+      g.fillEllipse(25, 12, 16, 18);
+      g.fillStyle(0xAEB6BF, 0.9);
+      g.fillEllipse(9, 24, 10, 9);
+      g.fillEllipse(25, 24, 10, 9);
+      // Wing eyespots
+      g.fillStyle(0x7D6608, 0.85);
+      g.fillCircle(9, 11, 3.4);
+      g.fillCircle(25, 11, 3.4);
+      g.fillStyle(0xF7DC6F, 0.9);
+      g.fillCircle(9, 11, 1.6);
+      g.fillCircle(25, 11, 1.6);
+      // Fuzzy body
+      g.fillStyle(0x8D6E63, 1);
+      g.fillRoundedRect(14, 6, 6, 20, 3);
+      // Antennae
+      g.lineStyle(1, 0x8D6E63, 1);
+      g.lineBetween(16, 6, 12, 0);
+      g.lineBetween(18, 6, 22, 0);
+      g.generateTexture('monster_mothcircler', c.width, c.height);
+      g.destroy();
+    }
+
+    // RC Racer - toy race car (racer)
+    if (!this.textures.exists('monster_rcracer')) {
+      const c = MONSTER_TYPES.rcracer;
+      const g = this.add.graphics();
+      // Chassis
+      g.fillStyle(c.color, 1);
+      g.fillRoundedRect(2, 8, 36, 10, 4);
+      // Cabin
+      g.fillStyle(0x2E86C1, 1);
+      g.fillRoundedRect(12, 2, 14, 9, 3);
+      g.fillStyle(0xAED6F1, 1);
+      g.fillRect(14, 4, 6, 5);
+      // Rear spoiler
+      g.fillStyle(0x1B4F72, 1);
+      g.fillRect(2, 3, 6, 3);
+      g.fillRect(4, 5, 2, 4);
+      // Racing stripe
+      g.fillStyle(0xF4D03F, 1);
+      g.fillRect(6, 11, 28, 3);
+      // Antenna
+      g.lineStyle(1, 0x85929E, 1);
+      g.lineBetween(9, 8, 7, 0);
+      g.fillStyle(0xE74C3C, 1);
+      g.fillCircle(7, 1, 1.6);
+      // Wheels
+      g.fillStyle(0x17202A, 1);
+      g.fillCircle(10, 19, 5);
+      g.fillCircle(30, 19, 5);
+      g.fillStyle(0x85929E, 1);
+      g.fillCircle(10, 19, 2);
+      g.fillCircle(30, 19, 2);
+      g.generateTexture('monster_rcracer', c.width, c.height);
+      g.destroy();
+    }
+
     // Pari - fly (erratic fast jitter)
     if (!this.textures.exists('monster_pari')) {
       const c = MONSTER_TYPES.pari;
@@ -1581,16 +1813,15 @@ export default class GameScene extends Phaser.Scene {
     this.mapData.monsters.forEach((monsterData) => {
       const type = monsterData.type || 'bangul';
       const cfg = MONSTER_TYPES[type] || MONSTER_TYPES.bangul;
-      const flying =
-        cfg.movement === 'flyerDash' ||
-        cfg.movement === 'sineGlider' ||
-        cfg.movement === 'jitter';
+      const flying = FLYING_MOVEMENTS.has(cfg.movement);
 
       const sprite = this.physics.add.sprite(monsterData.x, monsterData.y, `monster_${type}`);
       sprite.setDepth(DEPTH.MONSTERS);
       sprite.body.setSize(cfg.width - 6, cfg.height - 2);
       sprite.setBounce(0);
       sprite.setCollideWorldBounds(true);
+      // Translucent types (ghosts, dust) carry a per-type base alpha
+      if (cfg.alpha) sprite.setAlpha(cfg.alpha);
 
       if (flying) {
         // Flyers ignore gravity and pass through platforms
@@ -1632,6 +1863,10 @@ export default class GameScene extends Phaser.Scene {
         chargeUntil: 0,
         chargeReadyAt: now + (cfg.cooldownMs || 0),
         chargeDir: 1,
+        // Multi-hop / roller / lamp-orbit state
+        hopsLeft: 0,
+        rollSpeed: null,
+        orbitAngle: null,
       };
 
       this.monsters.push(monsterObj);
@@ -2090,14 +2325,14 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  updateMonsters() {
+  updateMonsters(delta) {
     const now = Date.now();
 
     this.monsters.forEach((monsterObj) => {
       if (!monsterObj.sprite.active || monsterObj.isDying) return;
 
       // Movement AI per monster type
-      this.updateMonsterAI(monsterObj, now);
+      this.updateMonsterAI(monsterObj, now, delta);
 
       // Update monster HP bar
       const barWidth = 36;
@@ -2193,7 +2428,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   // Per-type movement AI dispatch
-  updateMonsterAI(monsterObj, now) {
+  updateMonsterAI(monsterObj, now, delta) {
     // Let knockback velocity play out before the AI resteers
     if (now < monsterObj.knockedUntil) return;
 
@@ -2408,6 +2643,378 @@ export default class GameScene extends Phaser.Scene {
         }
         break;
       }
+
+      // Dust Mote: floater — bobs in place, slowly rising and sinking,
+      // with a gentle leashed horizontal drift
+      case 'floater': {
+        if (monsterObj.moveState !== 'rise' && monsterObj.moveState !== 'sink') {
+          monsterObj.moveState = Math.random() < 0.5 ? 'rise' : 'sink';
+          monsterObj.stateUntil = now + Phaser.Math.Between(cfg.phaseMsMin, cfg.phaseMsMax);
+        }
+        if (now > monsterObj.stateUntil) {
+          monsterObj.moveState = monsterObj.moveState === 'rise' ? 'sink' : 'rise';
+          monsterObj.stateUntil = now + Phaser.Math.Between(cfg.phaseMsMin, cfg.phaseMsMax);
+        }
+        // Hard ceiling/floor turnarounds
+        const ground = this.mapData.platforms.find((p) => p.isGround);
+        const maxY = (ground ? ground.y : this.mapData.height - 60) - 80;
+        if (sprite.y < 120) monsterObj.moveState = 'sink';
+        else if (sprite.y > maxY) monsterObj.moveState = 'rise';
+        sprite.setVelocityY(monsterObj.moveState === 'rise' ? -cfg.riseSpeed : cfg.riseSpeed);
+
+        // Leashed drift
+        if (sprite.x < monsterObj.startX - cfg.driftRange) monsterObj.direction = 1;
+        else if (sprite.x > monsterObj.startX + cfg.driftRange) monsterObj.direction = -1;
+        sprite.setVelocityX(cfg.driftSpeed * monsterObj.direction);
+        sprite.setFlipX(monsterObj.direction < 0);
+        break;
+      }
+
+      // Lonesome: shyGhost — slowly follows the player, but flinches and
+      // backs away whenever the player gets too close
+      case 'shyGhost': {
+        const dist = Phaser.Math.Distance.Between(sprite.x, sprite.y, player.x, player.y);
+
+        if (monsterObj.moveState === 'flinch') {
+          sprite.setVelocity(0, 0);
+          if (now > monsterObj.stateUntil) {
+            monsterObj.moveState = 'retreat';
+            monsterObj.stateUntil = now + cfg.retreatMs;
+          }
+          break;
+        }
+
+        if (monsterObj.moveState === 'retreat') {
+          if (now > monsterObj.stateUntil || dist > cfg.shyRadius * 1.8) {
+            monsterObj.moveState = 'follow';
+          } else {
+            const away = Phaser.Math.Angle.Between(player.x, player.y, sprite.x, sprite.y);
+            sprite.setVelocity(Math.cos(away) * cfg.retreatSpeed, Math.sin(away) * cfg.retreatSpeed);
+            // Keeps facing the player while backing away
+            sprite.setFlipX(player.x < sprite.x);
+            break;
+          }
+        }
+
+        // Too close - freeze up, then retreat (the whole concept of Lonesome)
+        if (this.player.hp > 0 && dist < cfg.shyRadius) {
+          monsterObj.moveState = 'flinch';
+          monsterObj.stateUntil = now + cfg.flinchMs;
+          sprite.setVelocity(0, 0);
+          this.tweens.add({
+            targets: sprite,
+            x: sprite.x - Math.sign(player.x - sprite.x) * 4,
+            duration: 60,
+            yoyo: true,
+            repeat: 2,
+          });
+          break;
+        }
+
+        if (this.player.hp > 0 && dist < cfg.followRange) {
+          const ang = Phaser.Math.Angle.Between(sprite.x, sprite.y, player.x, player.y);
+          sprite.setVelocity(Math.cos(ang) * cfg.followSpeed, Math.sin(ang) * cfg.followSpeed);
+          sprite.setFlipX(player.x < sprite.x);
+        } else {
+          // Drift back home
+          const distHome = Phaser.Math.Distance.Between(
+            sprite.x, sprite.y, monsterObj.startX, monsterObj.startY
+          );
+          if (distHome > 16) {
+            const ang = Phaser.Math.Angle.Between(
+              sprite.x, sprite.y, monsterObj.startX, monsterObj.startY
+            );
+            sprite.setVelocity(
+              Math.cos(ang) * cfg.followSpeed * 0.6,
+              Math.sin(ang) * cfg.followSpeed * 0.6
+            );
+          } else {
+            sprite.setVelocity(0, 0);
+          }
+        }
+        break;
+      }
+
+      // Stray Kitten: pouncer — short fast chained hops with an occasional
+      // full pounce at the player
+      case 'pouncer': {
+        const onGround = sprite.body.blocked.down;
+        if (onGround) {
+          if (!monsterObj.onGroundLast) {
+            this.tweens.add({
+              targets: sprite,
+              scaleX: 1.2,
+              scaleY: 0.8,
+              duration: 70,
+              yoyo: true,
+            });
+          }
+          sprite.setVelocityX(0);
+          if (now > monsterObj.nextJumpAt) {
+            const canPounce =
+              this.player.hp > 0 &&
+              Math.abs(player.x - sprite.x) < cfg.pounceRange &&
+              Math.random() < cfg.pounceChance;
+            if (canPounce) {
+              const dir = player.x < sprite.x ? -1 : 1;
+              monsterObj.direction = dir;
+              sprite.setFlipX(dir < 0);
+              sprite.setVelocity(dir * cfg.pounceVelocityX, cfg.pounceVelocityY);
+              this.tweens.add({
+                targets: sprite,
+                scaleX: 0.75,
+                scaleY: 1.25,
+                duration: 110,
+                yoyo: true,
+              });
+              monsterObj.nextJumpAt =
+                now + Phaser.Math.Between(cfg.hopCooldownMin, cfg.hopCooldownMax) + 400;
+            } else {
+              let dir;
+              if (this.player.hp > 0 && Math.random() < 0.4) {
+                dir = player.x < sprite.x ? -1 : 1;
+              } else {
+                dir = Math.random() < 0.5 ? -1 : 1;
+              }
+              monsterObj.direction = dir;
+              sprite.setFlipX(dir < 0);
+              sprite.setVelocity(
+                dir * (cfg.hopVelocityX + Phaser.Math.Between(-20, 20)),
+                cfg.hopVelocityY + Phaser.Math.Between(-20, 20)
+              );
+              monsterObj.nextJumpAt =
+                now + Phaser.Math.Between(cfg.hopCooldownMin, cfg.hopCooldownMax);
+            }
+          }
+        }
+        monsterObj.onGroundLast = onGround;
+        if (sprite.y > this.mapData.height + 40) {
+          sprite.setPosition(monsterObj.startX, monsterObj.startY);
+          sprite.setVelocity(0, 0);
+        }
+        break;
+      }
+
+      // Sock Slinker: inchworm — scrunches up, then stretches out and
+      // slides forward in bursts
+      case 'inchworm': {
+        if (monsterObj.moveState === 'extend') {
+          if (now > monsterObj.stateUntil) {
+            monsterObj.moveState = 'rest';
+            monsterObj.stateUntil = now + cfg.restMs;
+            sprite.setVelocityX(0);
+          }
+          break; // burst velocity set on transition, let it play out
+        }
+        if (monsterObj.moveState === 'rest') {
+          sprite.setVelocityX(0);
+          if (now > monsterObj.stateUntil) {
+            monsterObj.moveState = 'contract';
+            monsterObj.stateUntil = now + cfg.contractMs;
+            this.tweens.add({
+              targets: sprite,
+              scaleX: 0.72,
+              scaleY: 1.18,
+              duration: cfg.contractMs * 0.8,
+            });
+          }
+          break;
+        }
+        if (monsterObj.moveState !== 'contract') {
+          // First tick - start with a contraction
+          monsterObj.moveState = 'contract';
+          monsterObj.stateUntil = now + cfg.contractMs;
+          this.tweens.add({
+            targets: sprite,
+            scaleX: 0.72,
+            scaleY: 1.18,
+            duration: cfg.contractMs * 0.8,
+          });
+          break;
+        }
+        sprite.setVelocityX(0);
+        if (now > monsterObj.stateUntil) {
+          // Turn at walls/ledges before springing forward
+          if (sprite.body.blocked.left) monsterObj.direction = 1;
+          else if (sprite.body.blocked.right) monsterObj.direction = -1;
+          else if (
+            sprite.body.blocked.down &&
+            !this.hasGroundAhead(sprite, monsterObj.direction, cfg)
+          ) {
+            monsterObj.direction *= -1;
+          }
+          monsterObj.moveState = 'extend';
+          monsterObj.stateUntil = now + cfg.extendMs;
+          sprite.setFlipX(monsterObj.direction < 0);
+          sprite.setVelocityX(cfg.crawlBurstSpeed * monsterObj.direction);
+          this.tweens.add({
+            targets: sprite,
+            scaleX: 1.25,
+            scaleY: 0.9,
+            duration: cfg.extendMs * 0.6,
+          });
+        }
+        break;
+      }
+
+      // Yarn Roller: roller — rolls constantly, accelerating to a max,
+      // bouncing off walls with an extra speed burst
+      case 'roller': {
+        const dt = (delta || 16) / 1000;
+        if (monsterObj.rollSpeed === null || monsterObj.rollSpeed === undefined) {
+          monsterObj.rollSpeed = cfg.rollSpeedMin;
+        }
+        if (monsterObj.rollSpeed < cfg.rollSpeedMax) {
+          monsterObj.rollSpeed = Math.min(
+            cfg.rollSpeedMax,
+            monsterObj.rollSpeed + cfg.rollAccel * dt
+          );
+        } else {
+          // Bounce overshoot decays back toward the cap
+          monsterObj.rollSpeed = Math.max(
+            cfg.rollSpeedMax,
+            monsterObj.rollSpeed - cfg.rollDecay * dt
+          );
+        }
+        if (sprite.body.blocked.left) {
+          monsterObj.direction = 1;
+          monsterObj.rollSpeed = Math.min(
+            cfg.rollSpeedMax + cfg.bounceBoost,
+            monsterObj.rollSpeed + cfg.bounceBoost
+          );
+        } else if (sprite.body.blocked.right) {
+          monsterObj.direction = -1;
+          monsterObj.rollSpeed = Math.min(
+            cfg.rollSpeedMax + cfg.bounceBoost,
+            monsterObj.rollSpeed + cfg.bounceBoost
+          );
+        }
+        sprite.setVelocityX(monsterObj.rollSpeed * monsterObj.direction);
+        // Visible rolling spin
+        sprite.rotation += monsterObj.direction * monsterObj.rollSpeed * dt * 0.05;
+        break;
+      }
+
+      // Crumb Hopper: multiHop — 2-3 quick low hops in a row, then a rest
+      case 'multiHop': {
+        const onGround = sprite.body.blocked.down;
+        if (onGround) {
+          if (!monsterObj.onGroundLast) {
+            this.tweens.add({
+              targets: sprite,
+              scaleY: 0.8,
+              scaleX: 1.15,
+              duration: 60,
+              yoyo: true,
+            });
+          }
+          sprite.setVelocityX(0);
+          if (monsterObj.moveState !== 'burst') {
+            if (now > monsterObj.stateUntil) {
+              monsterObj.moveState = 'burst';
+              monsterObj.hopsLeft = Phaser.Math.Between(cfg.hopsMin, cfg.hopsMax);
+              if (this.player.hp > 0 && Math.random() < cfg.chasePlayerChance) {
+                monsterObj.direction = player.x < sprite.x ? -1 : 1;
+              } else {
+                monsterObj.direction = Math.random() < 0.5 ? -1 : 1;
+              }
+              monsterObj.nextJumpAt = now;
+            }
+          }
+          if (monsterObj.moveState === 'burst' && now > monsterObj.nextJumpAt) {
+            if (monsterObj.hopsLeft > 0) {
+              monsterObj.hopsLeft -= 1;
+              sprite.setFlipX(monsterObj.direction < 0);
+              sprite.setVelocity(
+                monsterObj.direction * cfg.hopVelocityX,
+                cfg.hopVelocityY
+              );
+              monsterObj.nextJumpAt = now + cfg.hopGapMs;
+            } else {
+              monsterObj.moveState = 'rest';
+              monsterObj.stateUntil =
+                now + Phaser.Math.Between(cfg.burstPauseMsMin, cfg.burstPauseMsMax);
+            }
+          }
+        }
+        monsterObj.onGroundLast = onGround;
+        if (sprite.y > this.mapData.height + 40) {
+          sprite.setPosition(monsterObj.startX, monsterObj.startY);
+          sprite.setVelocity(0, 0);
+        }
+        break;
+      }
+
+      // Moth Circler: lampOrbit — circles its lamp point; breaks off to
+      // dash at a close player, then returns to the orbit
+      case 'lampOrbit': {
+        if (monsterObj.orbitAngle === null || monsterObj.orbitAngle === undefined) {
+          monsterObj.orbitAngle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+          monsterObj.moveState = 'orbit';
+        }
+        if (now < monsterObj.dashingUntil) break; // steering locked during dash
+
+        if (monsterObj.moveState === 'return') {
+          const tx = monsterObj.startX + Math.cos(monsterObj.orbitAngle) * cfg.orbitRadius;
+          const ty = monsterObj.startY + Math.sin(monsterObj.orbitAngle) * cfg.orbitRadius;
+          if (Phaser.Math.Distance.Between(sprite.x, sprite.y, tx, ty) < 14) {
+            monsterObj.moveState = 'orbit';
+          } else {
+            this.physics.moveTo(sprite, tx, ty, cfg.returnSpeed);
+            sprite.setFlipX(tx < sprite.x);
+            break;
+          }
+        }
+
+        const distToPlayer = Phaser.Math.Distance.Between(sprite.x, sprite.y, player.x, player.y);
+        if (this.player.hp > 0 && distToPlayer < cfg.breakRange && now > monsterObj.dashReadyAt) {
+          this.physics.moveTo(sprite, player.x, player.y, cfg.dashSpeed);
+          monsterObj.dashingUntil = now + cfg.dashDurationMs;
+          monsterObj.dashReadyAt = now + cfg.dashCooldownMs;
+          monsterObj.moveState = 'return';
+          sprite.setFlipX(player.x < sprite.x);
+          break;
+        }
+
+        // Velocity steering toward the moving point on the orbit ring
+        monsterObj.orbitAngle += cfg.orbitSpeed * ((delta || 16) / 1000);
+        const ox = monsterObj.startX + Math.cos(monsterObj.orbitAngle) * cfg.orbitRadius;
+        const oy = monsterObj.startY + Math.sin(monsterObj.orbitAngle) * cfg.orbitRadius;
+        sprite.setVelocity((ox - sprite.x) * 6, (oy - sprite.y) * 6);
+        sprite.setFlipX(-Math.sin(monsterObj.orbitAngle) < 0);
+        break;
+      }
+
+      // RC Racer: racer — full-throttle back-and-forth runs with a
+      // drifting skid telegraph before every turn
+      case 'racer': {
+        if (monsterObj.moveState === 'drift') {
+          sprite.setVelocityX(cfg.raceSpeed * monsterObj.direction * 0.2);
+          if (now > monsterObj.windupUntil) {
+            monsterObj.moveState = 'race';
+            monsterObj.direction *= -1;
+            sprite.setAngle(0);
+            sprite.setFlipX(monsterObj.direction < 0);
+          }
+          break;
+        }
+        const atBound =
+          (monsterObj.direction > 0 && sprite.x >= monsterObj.startX + cfg.patrolRange) ||
+          (monsterObj.direction < 0 && sprite.x <= monsterObj.startX - cfg.patrolRange);
+        const wallAhead = sprite.body.blocked.left || sprite.body.blocked.right;
+        const ledgeAhead =
+          sprite.body.blocked.down && !this.hasGroundAhead(sprite, monsterObj.direction, cfg);
+        if (atBound || wallAhead || ledgeAhead) {
+          monsterObj.moveState = 'drift';
+          monsterObj.windupUntil = now + cfg.driftMs;
+          // Skid tilt telegraph
+          sprite.setAngle(monsterObj.direction * -10);
+          break;
+        }
+        sprite.setVelocityX(cfg.raceSpeed * monsterObj.direction);
+        sprite.setFlipX(monsterObj.direction < 0);
+        break;
+      }
     }
   }
 
@@ -2526,25 +3133,34 @@ export default class GameScene extends Phaser.Scene {
     monsterObj.windupUntil = 0;
     monsterObj.chargeUntil = 0;
     monsterObj.chargeReadyAt = now + (monsterObj.cfg.cooldownMs || 0);
+    monsterObj.hopsLeft = 0;
+    monsterObj.rollSpeed = null;
+    monsterObj.orbitAngle = null;
 
     // Reactivate sprite
+    const baseAlpha = monsterObj.cfg.alpha || 1;
     monsterObj.sprite.setActive(true);
     monsterObj.sprite.setVisible(true);
     monsterObj.sprite.body.enable = true;
-    monsterObj.sprite.setAlpha(1);
+    monsterObj.sprite.setAlpha(baseAlpha);
     monsterObj.sprite.setScale(1, 1);
+    monsterObj.sprite.setRotation(0);
 
     // Show HP bars again
     monsterObj.hpBar.setVisible(true);
     monsterObj.hpBarBg.setVisible(true);
 
-    // Respawn blink effect
+    // Respawn blink effect (restore base alpha explicitly - a yoyo tween
+    // finishes at its 'from' value)
     this.tweens.add({
       targets: monsterObj.sprite,
-      alpha: { from: 0.2, to: 1 },
+      alpha: { from: 0.2, to: baseAlpha },
       duration: 150,
       yoyo: true,
       repeat: 3,
+      onComplete: () => {
+        if (monsterObj.sprite.active) monsterObj.sprite.setAlpha(baseAlpha);
+      },
     });
   }
 

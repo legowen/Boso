@@ -100,6 +100,170 @@ export const MONSTER_TYPES = {
     leashRadius: 300,
   },
 
+  // ===== Shelter Isle tutorial monsters (lowest tier) =====
+
+  // Drifting dust speck in the clinic air. Floats in place, slowly
+  // rising and sinking with a gentle horizontal drift.
+  dustmote: {
+    name: 'Dust Mote',
+    hp: 15,
+    touchDamage: 3,
+    exp: 4,
+    drops: { treatsMin: 1, treatsMax: 2, items: [{ key: 'cookie', chance: 0.05 }] },
+    width: 26,
+    height: 24,
+    color: 0xBFC9CA,
+    movement: 'floater',
+    alpha: 0.85,
+    riseSpeed: 30,
+    driftSpeed: 14,
+    phaseMsMin: 1800,
+    phaseMsMax: 3000,
+    driftRange: 120,
+  },
+
+  // A translucent little ghost of loneliness. Slowly follows the player,
+  // but flinches and backs away whenever anyone gets too close.
+  lonesome: {
+    name: 'Lonesome',
+    hp: 25,
+    touchDamage: 4,
+    exp: 6,
+    drops: { treatsMin: 1, treatsMax: 3, items: [{ key: 'milk', chance: 0.05 }] },
+    width: 30,
+    height: 34,
+    color: 0xA569BD,
+    movement: 'shyGhost',
+    alpha: 0.6,
+    followSpeed: 45,
+    retreatSpeed: 95,
+    shyRadius: 130,
+    followRange: 420,
+    flinchMs: 300,
+    retreatMs: 700,
+  },
+
+  // Another shelter kitten with too much energy. Short, fast chained
+  // hops - and every so often a full pounce at the player.
+  straykitten: {
+    name: 'Stray Kitten',
+    hp: 35,
+    touchDamage: 6,
+    exp: 8,
+    drops: { treatsMin: 2, treatsMax: 4, items: [{ key: 'cookie', chance: 0.06 }] },
+    width: 32,
+    height: 30,
+    color: 0xE59866,
+    movement: 'pouncer',
+    hopVelocityY: -240,
+    hopVelocityX: 150,
+    hopCooldownMin: 450,
+    hopCooldownMax: 850,
+    pounceChance: 0.3,
+    pounceRange: 240,
+    pounceVelocityX: 260,
+    pounceVelocityY: -300,
+  },
+
+  // ===== Buddy House monsters (mid tier) =====
+
+  // A runaway sock moving like an inchworm: it scrunches up, then
+  // stretches out and slides forward in bursts.
+  sockslinker: {
+    name: 'Sock Slinker',
+    hp: 70,
+    touchDamage: 10,
+    exp: 16,
+    drops: { treatsMin: 5, treatsMax: 8, items: [{ key: 'cookie', chance: 0.07 }] },
+    width: 44,
+    height: 22,
+    color: 0xF0B27A,
+    movement: 'inchworm',
+    crawlBurstSpeed: 130,
+    contractMs: 480,
+    extendMs: 520,
+    restMs: 260,
+  },
+
+  // A loose ball of yarn that never stops rolling. Builds up speed and
+  // bounces off walls with an extra burst.
+  yarnroller: {
+    name: 'Yarn Roller',
+    hp: 85,
+    touchDamage: 12,
+    exp: 18,
+    drops: { treatsMin: 6, treatsMax: 9, items: [{ key: 'milk', chance: 0.07 }] },
+    width: 34,
+    height: 34,
+    color: 0xEC7063,
+    movement: 'roller',
+    rollSpeedMin: 60,
+    rollSpeedMax: 230,
+    rollAccel: 55,
+    bounceBoost: 90,
+    rollDecay: 45,
+  },
+
+  // A skittering crumb from under the table. Chains 2-3 quick low hops,
+  // then stops to catch its breath.
+  crumbhopper: {
+    name: 'Crumb Hopper',
+    hp: 45,
+    touchDamage: 8,
+    exp: 12,
+    drops: { treatsMin: 4, treatsMax: 7, items: [{ key: 'cookie', chance: 0.06 }] },
+    width: 20,
+    height: 18,
+    color: 0xC8A165,
+    movement: 'multiHop',
+    hopVelocityY: -190,
+    hopVelocityX: 130,
+    hopGapMs: 180,
+    hopsMin: 2,
+    hopsMax: 3,
+    burstPauseMsMin: 900,
+    burstPauseMsMax: 1600,
+    chasePlayerChance: 0.3,
+  },
+
+  // A moth circling the lamp light. Orbits its lamp point; when the
+  // player comes close it breaks off, dashes once, and returns.
+  mothcircler: {
+    name: 'Moth Circler',
+    hp: 100,
+    touchDamage: 13,
+    exp: 20,
+    drops: { treatsMin: 7, treatsMax: 11, items: [{ key: 'milk', chance: 0.08 }] },
+    width: 34,
+    height: 30,
+    color: 0xD5D8DC,
+    movement: 'lampOrbit',
+    orbitRadius: 110,
+    orbitSpeed: 1.6,
+    breakRange: 170,
+    dashSpeed: 240,
+    dashDurationMs: 500,
+    dashCooldownMs: 3200,
+    returnSpeed: 130,
+  },
+
+  // A toy RC car stuck on full throttle. Races back and forth at high
+  // speed, with a drifting skid telegraph right before every turn.
+  rcracer: {
+    name: 'RC Racer',
+    hp: 110,
+    touchDamage: 16,
+    exp: 26,
+    drops: { treatsMin: 8, treatsMax: 13, items: [{ key: 'cookie', chance: 0.07 }, { key: 'milk', chance: 0.05 }] },
+    width: 42,
+    height: 24,
+    color: 0x5DADE2,
+    movement: 'racer',
+    raceSpeed: 280,
+    driftMs: 450,
+    patrolRange: 380,
+  },
+
   // Wind-up robot - a feral Gearist prototype from the basement.
   // Patrols slowly; when the player lines up it winds up, then charges
   // like a MapleStory wild boar (charges straight, even off ledges).
