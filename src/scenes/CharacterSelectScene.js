@@ -3,24 +3,25 @@
 
 import Phaser from 'phaser';
 import { SCENES } from '../utils/constants.js';
+import SaveManager from '../systems/SaveManager.js';
 
-// Character definitions
+// Character definitions - two builds of Boso the dog
 const CHARACTERS = [
   {
-    id: 'bomi',
-    name: 'Bomi',
-    className: 'Warrior',
-    color: 0xF39C12,
-    desc: 'Melee fighter with high HP.\nSlow but powerful strikes.',
-    stats: { hp: 150, mp: 30, atk: 20, spd: 140 },
+    id: 'boso_brave',
+    name: 'Boso',
+    className: 'Brave Paw',
+    color: 0xC68642,
+    desc: 'A bold pup with a mighty bite.\nHigh HP, strong attacks.',
+    stats: { hp: 150, mp: 30, atk: 20, spd: 160 },
   },
   {
-    id: 'seoli',
-    name: 'Seoli',
-    className: 'Mage',
-    color: 0x9B59B6,
-    desc: 'Ranged magic attacker.\nFast but lower damage.',
-    stats: { hp: 80, mp: 100, atk: 10, spd: 220, jumpPower: -550 },
+    id: 'boso_swift',
+    name: 'Boso',
+    className: 'Swift Paw',
+    color: 0xEDD9B5,
+    desc: 'A nimble pup, light on his paws.\nFast, high jumps, sonic bark (X).',
+    stats: { hp: 90, mp: 80, atk: 12, spd: 240, jumpPower: -540 },
   },
 ];
 
@@ -33,6 +34,10 @@ export default class CharacterSelectScene extends Phaser.Scene {
     const w = this.scale.width;
     const h = this.scale.height;
     this.selectedIndex = 0;
+    this.isLaunching = false;
+    // Ignore launch input briefly - a held SPACE from the title screen
+    // auto-repeats into this scene and would skip it instantly
+    this.inputReadyAt = Date.now() + 400;
 
     // === Background - warm forest tone ===
     const bg = this.add.graphics();
@@ -114,33 +119,30 @@ export default class CharacterSelectScene extends Phaser.Scene {
       charGfx.fillRect(-3, -bodyH / 2 + 20, 4, 4);
       charGfx.fillRect(7, -bodyH / 2 + 20, 4, 4);
 
-      // Class-specific accessories
-      if (charData.id === 'bomi') {
-        // Warrior helmet
-        charGfx.fillStyle(0xBDC3C7, 1);
-        charGfx.fillRect(-bodyW / 2 + 1, -bodyH / 2 - 2, bodyW - 2, 12);
-        charGfx.fillStyle(0x95A5A6, 1);
-        charGfx.fillRect(-4, -bodyH / 2 - 10, 8, 12);
-        // Sword on back
-        charGfx.fillStyle(0xBDC3C7, 0.6);
-        charGfx.fillRect(bodyW / 2 - 2, -bodyH / 2 - 10, 4, 40);
-        charGfx.fillStyle(0xF1C40F, 0.6);
-        charGfx.fillRect(bodyW / 2 - 5, -bodyH / 2 + 26, 10, 6);
-      } else if (charData.id === 'seoli') {
-        // Witch hat
-        charGfx.fillStyle(0x6C3483, 1);
-        charGfx.fillTriangle(0, -bodyH / 2 - 28, -18, -bodyH / 2 + 4, 18, -bodyH / 2 + 4);
-        charGfx.fillStyle(0x8E44AD, 1);
-        charGfx.fillRect(-20, -bodyH / 2 + 2, 40, 6);
-        // Star on hat tip
-        charGfx.fillStyle(0xF1C40F, 1);
-        charGfx.fillCircle(0, -bodyH / 2 - 26, 4);
-        // Staff
-        charGfx.fillStyle(0x7D3C98, 0.8);
-        charGfx.fillRect(-bodyW / 2 - 6, -bodyH / 2 - 8, 4, 50);
-        charGfx.fillStyle(0xE8DAEF, 1);
-        charGfx.fillCircle(-bodyW / 2 - 4, -bodyH / 2 - 12, 6);
-      }
+      // Dog features (both are Boso - different coat/collar)
+      const earColor = charData.id === 'boso_brave' ? 0x8B5A2B : 0xC9B08A;
+      const collarColor = charData.id === 'boso_brave' ? 0xE74C3C : 0x3498DB;
+
+      // Floppy ears
+      charGfx.fillStyle(earColor, 1);
+      charGfx.fillTriangle(-bodyW / 2 + 4, -bodyH / 2 + 6, -bodyW / 2 - 8, -bodyH / 2 + 24, -bodyW / 2 + 12, -bodyH / 2 + 18);
+      charGfx.fillTriangle(bodyW / 2 - 4, -bodyH / 2 + 6, bodyW / 2 + 8, -bodyH / 2 + 24, bodyW / 2 - 12, -bodyH / 2 + 18);
+
+      // Snout
+      charGfx.fillStyle(0xF5E6D3, 1);
+      charGfx.fillRoundedRect(-7, -bodyH / 2 + 26, 14, 10, 3);
+      charGfx.fillStyle(0x2C1810, 1);
+      charGfx.fillRect(-3, -bodyH / 2 + 26, 6, 5);
+
+      // Collar with tag
+      charGfx.fillStyle(collarColor, 1);
+      charGfx.fillRect(-bodyW / 2 + 3, -bodyH / 2 + 40, bodyW - 6, 5);
+      charGfx.fillStyle(0xF1C40F, 1);
+      charGfx.fillCircle(0, -bodyH / 2 + 48, 4);
+
+      // Wagging tail
+      charGfx.fillStyle(earColor, 1);
+      charGfx.fillTriangle(bodyW / 2 - 2, bodyH / 2 - 14, bodyW / 2 + 12, bodyH / 2 - 26, bodyW / 2 + 4, bodyH / 2 - 8);
 
       container.add(charGfx);
 
@@ -367,7 +369,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
     sign.fillRect(signX - 4, signY + sH, 8, 30);
 
     // Title text
-    this.add.text(signX, signY + sH / 2, 'SELECT CHARACTER', {
+    this.add.text(signX, signY + sH / 2, 'CHOOSE YOUR PUP', {
       fontSize: '22px',
       fontFamily: 'Arial Black, Arial',
       color: '#FFF8DC',
@@ -440,8 +442,11 @@ export default class CharacterSelectScene extends Phaser.Scene {
       }
     });
 
-    // Update info panel
-    this.infoName.setText(charData.name);
+    // Update info panel (show saved level if this pup has progress)
+    const progress = SaveManager.getCharacter(charData.id);
+    this.infoName.setText(
+      progress && progress.level > 1 ? `${charData.name} Lv.${progress.level}` : charData.name
+    );
     this.infoClass.setText(charData.className);
     this.infoDesc.setText(charData.desc);
 
@@ -458,13 +463,18 @@ export default class CharacterSelectScene extends Phaser.Scene {
   }
 
   launchGame() {
+    // Guard against repeated SPACE/clicks stacking fade listeners,
+    // and against key auto-repeat leaking in from the previous scene
+    if (this.isLaunching || Date.now() < this.inputReadyAt) return;
+    this.isLaunching = true;
+
     const selectedChar = CHARACTERS[this.selectedIndex];
 
     this.cameras.main.fadeOut(500, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start(SCENES.GAME, {
-        mapKey: 'haven',
+      this.scene.start(SCENES.STORY, {
         characterData: selectedChar,
+        freshRun: true,
       });
     });
   }

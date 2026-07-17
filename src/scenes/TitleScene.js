@@ -3,31 +3,43 @@
 
 import Phaser from 'phaser';
 import { SCENES } from '../utils/constants.js';
+import AudioManager from '../systems/AudioManager.js';
+import SaveManager from '../systems/SaveManager.js';
 
 export default class TitleScene extends Phaser.Scene {
   constructor() {
     super(SCENES.MENU);
   }
 
-  preload() {
-    this.load.image('title_bg', '/assets/images/title_bg.png');
-  }
-
   create() {
     const w = this.scale.width;
     const h = this.scale.height;
 
-    // === Background image - cover entire screen ===
-    this.bg = this.add.image(w / 2, h / 2, 'title_bg');
-    this.coverBackground(w, h);
+    // Title BGM (silent if no file was dropped into public/assets/bgm)
+    AudioManager.play(this, 'bgm_title');
 
-    // Resize listener for responsive background
-    this.scale.on('resize', (gameSize) => {
-      const nw = gameSize.width;
-      const nh = gameSize.height;
-      this.bg.setPosition(nw / 2, nh / 2);
-      this.coverBackground(nw, nh);
-    });
+    // === Background image - cover entire screen (fallback gradient if missing) ===
+    if (this.textures.exists('title_bg')) {
+      this.bg = this.add.image(w / 2, h / 2, 'title_bg');
+      this.coverBackground(w, h);
+
+      // Resize listener for responsive background (detached on shutdown -
+      // scale is game-global and would keep dead references otherwise)
+      const resizeHandler = (gameSize) => {
+        const nw = gameSize.width;
+        const nh = gameSize.height;
+        this.bg.setPosition(nw / 2, nh / 2);
+        this.coverBackground(nw, nh);
+      };
+      this.scale.on('resize', resizeHandler);
+      this.events.once('shutdown', () => {
+        this.scale.off('resize', resizeHandler);
+      });
+    } else {
+      const fallback = this.add.graphics();
+      fallback.fillGradientStyle(0x1A1A2E, 0x1A1A2E, 0x3D2B1A, 0x3D2B1A, 1);
+      fallback.fillRect(0, 0, w * 2, h * 2);
+    }
 
     // Dark overlay for text readability
     const overlay = this.add.graphics();
@@ -61,12 +73,36 @@ export default class TitleScene extends Phaser.Scene {
     });
 
     // Subtitle
-    this.add.text(w / 2, h * 0.38, 'RPG Adventure', {
-      fontSize: '18px',
+    this.add.text(w / 2, h * 0.38, '"Look at me!"', {
+      fontSize: '20px',
+      fontFamily: 'Arial',
+      color: '#F7DC6F',
+      fontStyle: 'italic',
+    }).setOrigin(0.5);
+
+    this.add.text(w / 2, h * 0.43, "A little dog's big adventure", {
+      fontSize: '13px',
       fontFamily: 'Arial',
       color: '#95A5A6',
-      letterSpacing: 8,
     }).setOrigin(0.5);
+
+    // Demo-clear badge (persisted via SaveManager)
+    if (SaveManager.getFlag('demoCleared')) {
+      const badge = this.add.text(w / 2, h * 0.49, '* DEMO CLEARED *', {
+        fontSize: '14px',
+        fontFamily: 'Arial Black, Arial',
+        color: '#F1C40F',
+        stroke: '#000000',
+        strokeThickness: 3,
+      }).setOrigin(0.5);
+      this.tweens.add({
+        targets: badge,
+        alpha: 0.5,
+        duration: 900,
+        yoyo: true,
+        repeat: -1,
+      });
+    }
 
     // === Press Start Button ===
     const btnW = 220;
@@ -127,7 +163,7 @@ export default class TitleScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Version text
-    this.add.text(w / 2, h * 0.92, 'v0.1.0 - Phase 1 Prototype', {
+    this.add.text(w / 2, h * 0.92, 'v0.4.0 - Look at me!', {
       fontSize: '11px',
       fontFamily: 'Arial',
       color: '#444444',
@@ -152,6 +188,10 @@ export default class TitleScene extends Phaser.Scene {
   }
 
   startGame() {
+    // Guard against click + SPACE stacking fade listeners
+    if (this.isStarting) return;
+    this.isStarting = true;
+
     this.cameras.main.fadeOut(400, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
       this.scene.start(SCENES.CHARACTER_SELECT);
