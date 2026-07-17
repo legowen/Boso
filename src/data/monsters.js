@@ -307,6 +307,47 @@ export const BOSS_TYPES = {
     fieldHug: { damage: 40, telegraphMs: 1700, safeRadius: 140 },
   },
 
+  // Tutorial boss (Shelter Isle) — the clinic's kindly doctor, whose
+  // check-ups always end in an inescapable hug. Shares the hug pattern
+  // set with the Hug Guardian via HugBossBase, scaled way down.
+  drEmbrace: {
+    name: 'Dr. Embrace',
+    hp: 320,
+    touchDamage: 8,
+    exp: 80,
+    drops: { treats: 50, items: { cookie: 1 } },
+    width: 90,
+    height: 120,
+    color: 0xFDFEFE,
+    walkSpeed: 20,
+    patrolRange: 100,
+    attackIntervalMin: 6000,
+    attackIntervalMax: 8500,
+    armSweep: { damage: 8, speed: 150, width: 110, height: 44 },
+    slam: { damage: 10, telegraphMs: 1100, radius: 130 },
+    fieldHug: { damage: 15, telegraphMs: 2300, safeRadius: 190 },
+  },
+
+  // Buddy House boss — the big dog who has always lived there.
+  // Territorial patterns; "defeating" him means becoming friends.
+  biggie: {
+    name: 'Biggie',
+    hp: 900,
+    touchDamage: 16,
+    exp: 220,
+    drops: { treats: 130, items: { cookie: 1, milk: 1 } },
+    width: 150,
+    height: 130,
+    color: 0x935116,
+    walkSpeed: 35,
+    patrolRange: 160,
+    attackIntervalMin: 4800,
+    attackIntervalMax: 6800,
+    barkWave: { damage: 12, telegraphMs: 700, speed: 260, maxRadius: 340 },
+    pounce: { damage: 18, telegraphMs: 900, radius: 130, jumpMs: 650 },
+    zoomies: { damage: 15, telegraphMs: 1000, speed: 420, passes: 3 },
+  },
+
   // Special hidden boss — the primal fear of every pet: the vacuum.
   vacuumKing: {
     name: 'Vacuum King',

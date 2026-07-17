@@ -24,5 +24,11 @@ export const STORY = {
   bossWarning: {
     hugGuardian: 'The Hug Guardian wants a BIG hug!',
     vacuumKing: 'The Vacuum King awakens!',
+    drEmbrace: 'Dr. Embrace has SO much love to give!',
+    biggie: 'Biggie guards this yard. Show him what you are made of!',
   },
+  biggieFriend: [
+    'Biggie stops... and wags his tail!',
+    'You made a friend!',
+  ],
 };
