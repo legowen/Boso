@@ -18,13 +18,15 @@ import {
 } from '../utils/constants.js';
 import Player from '../entities/Player.js';
 import HUD from '../ui/HUD.js';
-import { MAPS_DATA, START_MAP } from '../data/maps.js';
+import { MAPS_DATA, START_MAP, respawnMapFor } from '../data/maps.js';
 import { MONSTER_TYPES, BOSS_TYPES } from '../data/monsters.js';
-import { WORLD_MAP_LAYOUT } from '../data/worldmap.js';
+import { WORLD_MAP_LAYOUT, REGION_TITLES } from '../data/worldmap.js';
 import { ITEMS, ITEM_KEYS } from '../data/items.js';
 import { QUESTS } from '../data/quests.js';
 import { STORY } from '../data/story.js';
 import HugGuardian from '../entities/HugGuardian.js';
+import DrEmbrace from '../entities/DrEmbrace.js';
+import Biggie from '../entities/Biggie.js';
 import VacuumKing from '../entities/VacuumKing.js';
 import AudioManager from '../systems/AudioManager.js';
 import SaveManager from '../systems/SaveManager.js';
@@ -86,6 +88,8 @@ export default class GameScene extends Phaser.Scene {
     this.initMonsters();
     this.initPortals();
     this.initNPCs();
+    this.initCage();
+    this.initGuides();
     this.initBoss();
     this.initCamera();
     this.initControls();
@@ -343,9 +347,17 @@ export default class GameScene extends Phaser.Scene {
     this.renderDialogueLine();
   }
 
+  // The player's display name for {player} placeholders in dialogue
+  playerDisplayName() {
+    return this.characterData && this.characterData.name
+      ? this.characterData.name
+      : 'friend';
+  }
+
   renderDialogueLine() {
     if (!this.dialogue) return;
-    this.dialogue.lineText.setText(this.dialogue.lines[this.dialogue.index]);
+    const line = this.dialogue.lines[this.dialogue.index];
+    this.dialogue.lineText.setText(line.replace(/\{player\}/g, this.playerDisplayName()));
   }
 
   updateDialogue() {
@@ -414,8 +426,11 @@ export default class GameScene extends Phaser.Scene {
     panel.strokeRoundedRect(x0 - 20, y0 - 44, pw + 40, ph + 84, 12);
     container.add(panel);
 
+    // Only the current region's maps are shown (per-region chart)
+    const region = this.mapData.region;
+
     container.add(
-      this.add.text(w / 2, y0 - 24, 'HOUSE MAP', {
+      this.add.text(w / 2, y0 - 24, REGION_TITLES[region] || 'WORLD MAP', {
         fontSize: '20px',
         fontFamily: 'Arial Black, Arial',
         color: '#F39C12',
@@ -425,7 +440,8 @@ export default class GameScene extends Phaser.Scene {
     );
 
     const visible = (key) =>
-      key !== 'closet' || SaveManager.getFlag('hugGuardianDefeated');
+      MAPS_DATA[key].region === region &&
+      (key !== 'closet' || SaveManager.getFlag('hugGuardianDefeated'));
     const nodeX = (key) => x0 + WORLD_MAP_LAYOUT[key].x * pw;
     const nodeY = (key) => y0 + WORLD_MAP_LAYOUT[key].y * ph;
 
@@ -1400,11 +1416,17 @@ export default class GameScene extends Phaser.Scene {
         strokeThickness: 4,
       }).setOrigin(0.5).setDepth(DEPTH.UI + 11).setScrollFactor(0);
 
-      const restartText = this.add.text(w / 2, h / 2 + 30, 'Press Space to return to the backyard', {
-        fontSize: '16px',
-        fontFamily: UI.FONT_FAMILY,
-        color: '#95A5A6',
-      }).setOrigin(0.5).setDepth(DEPTH.UI + 11).setScrollFactor(0);
+      const respawnKey = respawnMapFor(this.currentMapKey);
+      const restartText = this.add.text(
+        w / 2,
+        h / 2 + 30,
+        `Press SPACE to wake up at ${MAPS[respawnKey].name}`,
+        {
+          fontSize: '16px',
+          fontFamily: UI.FONT_FAMILY,
+          color: '#95A5A6',
+        }
+      ).setOrigin(0.5).setDepth(DEPTH.UI + 11).setScrollFactor(0);
 
       this.tweens.add({
         targets: restartText,
@@ -1414,14 +1436,14 @@ export default class GameScene extends Phaser.Scene {
         repeat: -1,
       });
 
-      // Space to respawn at the starting map
+      // Space to respawn at the current region's home map
       this.input.keyboard.once('keydown-SPACE', () => {
         this.cameras.main.fadeOut(500, 0, 0, 0);
         this.cameras.main.once('camerafadeoutcomplete', () => {
           this.scene.restart({
-            mapKey: START_MAP,
-            spawnX: MAPS[START_MAP].spawnX,
-            spawnY: MAPS[START_MAP].spawnY,
+            mapKey: respawnKey,
+            spawnX: MAPS[respawnKey].spawnX,
+            spawnY: MAPS[respawnKey].spawnY,
             characterData: this.characterData,
           });
         });
@@ -1880,11 +1902,7 @@ export default class GameScene extends Phaser.Scene {
     this.loadMapState();
   }
 
-  initNPCs() {
-    this.npcSprites = [];
-
-    if (this.mapData.npcs.length === 0) return;
-
+  createNPCTextures() {
     if (!this.textures.exists('npc')) {
       const graphics = this.add.graphics();
       graphics.fillStyle(NPC.COLOR, 1);
@@ -1906,8 +1924,61 @@ export default class GameScene extends Phaser.Scene {
       graphics.destroy();
     }
 
+    // Owen - the Owner (human silhouette, same footprint as generic NPC)
+    if (!this.textures.exists('npc_owen')) {
+      const W = NPC.WIDTH;
+      const H = NPC.HEIGHT;
+      const g = this.add.graphics();
+
+      // Legs
+      g.fillStyle(0x34495E, 1);
+      g.fillRect(8, H - 16, 8, 16);
+      g.fillRect(W - 16, H - 16, 8, 16);
+      // Shoes
+      g.fillStyle(0x784212, 1);
+      g.fillRect(6, H - 4, 11, 4);
+      g.fillRect(W - 17, H - 4, 11, 4);
+
+      // Shirt
+      g.fillStyle(0x2E86C1, 1);
+      g.fillRect(5, 18, W - 10, 20);
+      // Arms
+      g.fillRect(1, 20, 5, 14);
+      g.fillRect(W - 6, 20, 5, 14);
+      g.fillStyle(0xF5CBA7, 1);
+      g.fillRect(1, 34, 5, 4);
+      g.fillRect(W - 6, 34, 5, 4);
+
+      // Head
+      g.fillStyle(0xF5CBA7, 1);
+      g.fillRect(9, 4, W - 18, 15);
+      // Hair
+      g.fillStyle(0x5D4037, 1);
+      g.fillRect(8, 0, W - 16, 6);
+      g.fillRect(8, 4, 4, 6);
+      // Eyes
+      g.fillStyle(0x1B2631, 1);
+      g.fillRect(14, 10, 3, 3);
+      g.fillRect(21, 10, 3, 3);
+      // Friendly smile
+      g.fillRect(16, 15, 6, 2);
+
+      g.generateTexture('npc_owen', W, H);
+      g.destroy();
+    }
+  }
+
+  initNPCs() {
+    this.npcSprites = [];
+
+    if (this.mapData.npcs.length === 0) return;
+
+    this.createNPCTextures();
+
     this.mapData.npcs.forEach((npcData) => {
-      const sprite = this.physics.add.staticSprite(npcData.x, npcData.y, 'npc');
+      const textureKey =
+        npcData.texture && this.textures.exists(npcData.texture) ? npcData.texture : 'npc';
+      const sprite = this.physics.add.staticSprite(npcData.x, npcData.y, textureKey);
       sprite.setDepth(DEPTH.NPCS);
 
       // NPC name tag
@@ -1936,6 +2007,81 @@ export default class GameScene extends Phaser.Scene {
       });
 
       this.npcSprites.push({ sprite, nameTag, questMarker, data: npcData });
+    });
+  }
+
+  // Travel cage prop (departure/arrival point for cage rides)
+  initCage() {
+    if (!this.mapData.cage) return;
+
+    if (!this.textures.exists('cage')) {
+      const W = 96;
+      const H = 76;
+      const g = this.add.graphics();
+
+      // Cage shell
+      g.fillStyle(0x9E6B2F, 1);
+      g.fillRoundedRect(0, 14, W, H - 14, 10);
+      g.fillStyle(0xB9814A, 1);
+      g.fillRoundedRect(4, 18, W - 8, H - 22, 8);
+
+      // Barred door
+      g.fillStyle(0x6E4A1F, 1);
+      g.fillRoundedRect(28, 24, 40, H - 28, 6);
+      g.lineStyle(3, 0xD5B895, 1);
+      for (let x = 34; x <= 62; x += 7) {
+        g.lineBetween(x, 26, x, H - 6);
+      }
+
+      // Air holes
+      g.fillStyle(0x6E4A1F, 1);
+      g.fillCircle(14, 34, 4);
+      g.fillCircle(14, 52, 4);
+      g.fillCircle(W - 14, 34, 4);
+      g.fillCircle(W - 14, 52, 4);
+
+      // Carry handle
+      g.lineStyle(5, 0x6E4A1F, 1);
+      g.beginPath();
+      g.arc(W / 2, 16, 14, Math.PI, 0, false);
+      g.strokePath();
+
+      // Travel sticker
+      g.fillStyle(0xF4D03F, 1);
+      g.fillRect(8, H - 20, 16, 10);
+
+      g.generateTexture('cage', W, H);
+      g.destroy();
+    }
+
+    const cage = this.add.sprite(this.mapData.cage.x, this.mapData.cage.y, 'cage');
+    cage.setOrigin(0.5, 1);
+    cage.setDepth(DEPTH.NPCS - 1);
+    this.cageSprite = cage;
+
+    // Gentle idle sway - it wants to go places
+    this.tweens.add({
+      targets: cage,
+      angle: { from: -1, to: 1 },
+      duration: 1400,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+  }
+
+  // Tutorial guide signs (floating hint panels from map data)
+  initGuides() {
+    (this.mapData.guides || []).forEach((guide) => {
+      this.add.text(guide.x, guide.y, guide.text, {
+        fontSize: '12px',
+        fontFamily: UI.FONT_FAMILY,
+        color: '#FDFEFE',
+        align: 'center',
+        backgroundColor: '#1A1A2ECC',
+        padding: { x: 8, y: 6 },
+        lineSpacing: 4,
+      }).setOrigin(0.5).setDepth(DEPTH.PORTALS).setAlpha(0.92);
     });
   }
 
@@ -2132,15 +2278,22 @@ export default class GameScene extends Phaser.Scene {
 
     if (bossData.id === 'hugGuardian') {
       this.boss = new HugGuardian(this, bossData.x, bossData.y);
-      // Hug Guardian walks on the ground
-      this.platforms.forEach((platform) => {
-        this.physics.add.collider(this.boss.sprite, platform);
-      });
+    } else if (bossData.id === 'drEmbrace') {
+      this.boss = new DrEmbrace(this, bossData.x, bossData.y);
+    } else if (bossData.id === 'biggie') {
+      this.boss = new Biggie(this, bossData.x, bossData.y);
     } else if (bossData.id === 'vacuumKing') {
       this.boss = new VacuumKing(this, bossData.x, bossData.y);
     }
 
     if (!this.boss) return;
+
+    // Ground bosses collide with platforms (the Vacuum King floats)
+    if (bossData.id !== 'vacuumKing') {
+      this.platforms.forEach((platform) => {
+        this.physics.add.collider(this.boss.sprite, platform);
+      });
+    }
 
     this.createBossHpBar();
     this.showBossWarning(STORY.bossWarning[bossData.id]);
@@ -2229,18 +2382,29 @@ export default class GameScene extends Phaser.Scene {
     }
     this.boss = null;
 
-    if (bossId === 'hugGuardian') {
-      // Reveal the secret portal to the Vacuum Closet
-      const hiddenPortal = this.mapData.portals.find((p) => p.hidden);
-      if (hiddenPortal) {
+    if (bossId === 'vacuumKing') {
+      SaveManager.setFlag('demoCleared');
+      this.startEndingSequence();
+    } else {
+      // Beating the tutorial doctor completes the tutorial
+      if (bossId === 'drEmbrace') {
+        SaveManager.setFlag('tutorialCompleted');
+      }
+      // Reveal any hidden portal this defeat just unlocked
+      const flag = `${bossId}Defeated`;
+      const unlocked = this.mapData.portals.filter(
+        (p) => p.hidden && p.requiresFlag === flag
+      );
+      unlocked.forEach((hiddenPortal) => {
         const sprite = this.spawnPortal(hiddenPortal);
         sprite.setAlpha(0);
         this.tweens.add({ targets: sprite, alpha: 1, duration: 900 });
-        this.showBossWarning(STORY.hiddenPortalHint);
+      });
+      if (unlocked.length > 0) {
+        this.showBossWarning(
+          bossId === 'hugGuardian' ? STORY.hiddenPortalHint : STORY.portalOpenedHint
+        );
       }
-    } else if (bossId === 'vacuumKing') {
-      SaveManager.setFlag('demoCleared');
-      this.startEndingSequence();
     }
   }
 

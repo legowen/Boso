@@ -21,6 +21,7 @@ export const STORY = {
     'DEMO CLEAR — Thanks for playing!',
   ],
   hiddenPortalHint: 'A strange humming comes from the closet...',
+  portalOpenedHint: 'A new path has opened!',
   bossWarning: {
     hugGuardian: 'The Hug Guardian wants a BIG hug!',
     vacuumKing: 'The Vacuum King awakens!',
