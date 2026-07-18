@@ -1,5 +1,53 @@
 # 적대적 검증 보고서
 
+## v0.7 튜토리얼 섬 + 케이지 이동 + 친구집 월드 업데이트
+
+### 전체 시나리오 체크리스트 (수동 플레이 검증 절차)
+1. **새 게임**: 타이틀 → 캐릭터 선택 (Brave Paw / Swift Paw / **Bomi** 3종,
+   저장된 레벨 표시) → 인트로 (셸터 프롤로그, `{player}` 이름 치환) →
+   `shelter_ward` 시작 (START_MAP)
+2. **이동 튜토리얼** (Recovery Ward): 가이드 표지판 확인 — 이동(←→)/점프(ALT)/
+   로프(↑↓)/하향 점프(↓+ALT)/포탈(↑). Nurse Mimsy 대화
+3. **전투 튜토리얼** (Clinic Hallway): Dust Mote(부유)·Lonesome(움찔 후퇴)·
+   Stray Kitten(연속 점프+돌진) 3종 고유 움직임 확인, CTRL 공격,
+   Keeper Tobi 퀘스트(Dust Busters 3마리) 수주→완료
+4. **튜토리얼 보스** (Shelter Yard): Dr. Embrace — armSweep/slam/fieldHug
+   축소판 패턴 (Hug Guardian과 공용 HugBossBase), 처치 시
+   `drEmbraceDefeated` + `tutorialCompleted` 플래그 저장 확인
+5. **Owen 대화 → 케이지 15초** (Route A): 탑승 페이지에서 SPACE 탑승
+   (걸어서 이탈 시 취소, 연타 방지 600ms), 케이지 내부 자유 이동,
+   HUD 카운트다운, 습격 없음, 종료 시 `high_table` 자동 도착
+6. **친구집 월드**: High Table Village 허브에서 5개 맵 순회 —
+   sofa_ridge(Sock Slinker 수축-이완/Yarn Roller 가속 구르기),
+   kitchen_floor(Crumb Hopper 다단 점프), hallway_run(RC Racer 드리프트
+   텔레그래프), bookshelf_cliffs(세로맵, Moth Circler 램프 궤도+이탈 돌진),
+   backyard_gate. Granny Tabby 퀘스트 체인(Sock Roundup → The Big Dog)
+7. **Biggie**: 짖음 충격파(원형 넉백 파동)/덮치기 점프(포물선 낙하 텔레그래프)/
+   Zoomies(좌우 왕복 질주, 접촉 데미지 증가). HP 0 → "친해짐" 연출
+   (하트+배너+퇴장), `biggieDefeated` 저장 → 숨은 지름길 포탈 개방 +
+   Owen 귀가 항로 잠금 해제 (이전에는 travelLockedLines)
+8. **60초 항로 습격** (Route B): Owen 대화 → 케이지 60초 —
+   Vroom(가장자리 텔레그래프 후 플레이어 높이 관통 돌진, 무적) /
+   Rumble(저속 압박 + 확산 진동 파동, 처치 가능·트릿/EXP 직접 보상)
+   윈도우 내 랜덤 타이밍 스폰 확인 → `yard` 도착 → 기존 하우스 스토리 진행
+9. **사망 규칙**: 지역별 홈 리스폰 (shelter→ward / buddy→village / house→yard,
+   사망 화면에 목적지 표기), 이동 중 사망 → 출발지 맵 풀피 복귀
+10. **구세이브 호환**: v1 세이브(버전 필드 없음) 로드 → version:2 마이그레이션,
+    기존 flags/characters 유실 없음, 기존 캐릭터 레벨/트릿/퀘스트 유지
+
+### 자동 검증
+- `npm run validate` — 1569 체크 통과. 신규 검사군: 여행 라우트 정합성
+  (from/to 실존, duration>0, bgm 키, ambush 타입/스폰 윈도우), 도달성 BFS에
+  케이지 라우트 엣지 포함(20/20), buddy 맵 마을(high_table) 기점 도달성,
+  지역 태그/REGION_HOME/월드맵 레이아웃·타이틀 커버리지, NPC travelRoute
+  참조(출발맵 일치/케이지 프롭 존재/잠금 대사), 가이드·케이지 배치,
+  몬스터 14종·보스 4종·ambush 텍스처 키 레지스트리 정합성,
+  보스 필수 배치 4곳(attic/closet/shelter_yard/backyard_gate)
+- `npm run build` — vite build 에러 0
+
+### 적대적 코드 리뷰
+- (진행 예정 — 서브에이전트 전체 델타 트레이스 후 본 섹션 갱신)
+
 ## v0.6 Treats & Tasks 업데이트 검증 패스
 - 자동 검증 976체크 통과 (기존 9그룹 + 신규: 퀘스트 무결성 — id 중복/
   실존 NPC giver/유효 타깃/보상 아이템 키, 드롭 테이블 — 범위/확률/아이템 키)
