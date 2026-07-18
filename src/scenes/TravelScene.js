@@ -336,7 +336,6 @@ export default class TravelScene extends Phaser.Scene {
 
     if (this.playerDead) return;
 
-    this.elapsedMs += delta;
     const route = this.route;
 
     this.player.update(this.cursors, this.keys);
@@ -347,12 +346,18 @@ export default class TravelScene extends Phaser.Scene {
     this.updateBarks();
     this.hud.update(this.player);
 
-    const remaining = Math.max(0, Math.ceil((route.durationSec * 1000 - this.elapsedMs) / 1000));
-    this.countdownText.setText(`${route.name}  -  arriving in ${remaining}s`);
-    this.countdownText.setPosition(this.scale.width / 2, 18);
+    // The ride clock only runs while the rider is alive: hp hits 0 a
+    // moment before the death screen, and that window must not be
+    // forgiven by an arrival (death always returns to the departure map)
+    if (this.player.hp > 0) {
+      this.elapsedMs += delta;
+      const remaining = Math.max(0, Math.ceil((route.durationSec * 1000 - this.elapsedMs) / 1000));
+      this.countdownText.setText(`${route.name}  -  arriving in ${remaining}s`);
+      this.countdownText.setPosition(this.scale.width / 2, 18);
 
-    if (this.elapsedMs >= route.durationSec * 1000) {
-      this.arrive();
+      if (this.elapsedMs >= route.durationSec * 1000) {
+        this.arrive();
+      }
     }
   }
 

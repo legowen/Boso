@@ -392,6 +392,8 @@ export default class Biggie {
       this.removeTelegraph(warn);
       if (this.defeated || !this.sprite.active) return;
 
+      // Stop the rev-up rattle before the sprint drives the position
+      this.scene.tweens.killTweensOf(this.sprite);
       this.sprite.clearTint();
       this.state = 'zoomies';
       this.zoomiesPassesLeft = cfg.passes;
@@ -526,10 +528,17 @@ export default class Biggie {
     this.defeated = true;
 
     this.cleanupEffects();
+    // Telegraph tweens (rattle/crouch) must not fight the befriend tweens
+    this.scene.tweens.killTweensOf(this.sprite);
     this.sprite.clearTint();
     this.sprite.setVelocity(0, 0);
     this.sprite.body.enable = false;
     this.state = 'patrol';
+
+    // A mid-pounce befriending lands first - never celebrate in mid-air
+    this.sprite.y = this.groundSurface() - this.cfg.height / 2;
+    this.sprite.setAngle(0);
+    this.sprite.setScale(1, 1);
 
     // Soft pink flush
     this.sprite.setTint(0xFFC9DE);

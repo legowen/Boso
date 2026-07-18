@@ -37,6 +37,12 @@ const MAP_SHELTER_YARD = {
       name: 'Owen',
       texture: 'npc_owen',
       travelRoute: 'shelter_to_buddy',
+      travelRequiresFlag: 'drEmbraceDefeated',
+      travelLockedLines: [
+        'There you are, {player}! I am Owen - I signed your adoption papers today.',
+        'We can leave as soon as Dr. Embrace clears you... but he is out in the yard, insisting on one last goodbye hug for every patient.',
+        'Show him you are strong enough for the big world, then come back to me!',
+      ],
       dialogue: [
         'There you are, {player}! I am Owen - I signed your adoption papers today.',
         'I have to leave on a long work trip right away... terrible timing, I know.',

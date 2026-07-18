@@ -226,6 +226,13 @@ export default class GameScene extends Phaser.Scene {
   }
 
   checkInteractions() {
+    // The dead don't chat, board cages, or wander into portals - the
+    // death sequence lands 1.5s after hp hits 0 and must not be escaped
+    if (this.player.hp <= 0) {
+      this.interactionHint.setVisible(false);
+      return;
+    }
+
     // Portal interaction check
     let nearPortal = false;
     this.portalZones.forEach((zone) => {
@@ -398,6 +405,12 @@ export default class GameScene extends Phaser.Scene {
   updateDialogue() {
     if (!this.dialogue) return;
 
+    // Dying mid-conversation ends it - no advancing, no boarding
+    if (this.player.hp <= 0) {
+      this.closeDialogue();
+      return;
+    }
+
     // Auto-close when the player walks away
     const npcSprite = this.dialogue.npcObj.sprite;
     const dist = Phaser.Math.Distance.Between(
@@ -435,7 +448,7 @@ export default class GameScene extends Phaser.Scene {
   // Fade out and hand over to TravelScene (cage ride)
   startTravel(routeKey) {
     const route = TRAVEL_ROUTES[routeKey];
-    if (!route || this.isTransitioning) return;
+    if (!route || this.isTransitioning || this.player.hp <= 0) return;
     this.isTransitioning = true;
 
     this.closeDialogue();
@@ -1703,6 +1716,9 @@ export default class GameScene extends Phaser.Scene {
       this.portalLockUntil += pausedMs;
       this.barkReadyAt += pausedMs;
       this.player.nextMpRegenAt += pausedMs;
+      if (this.dialogue) {
+        this.dialogue.boardingReadyAt += pausedMs;
+      }
       this.drops.forEach((drop) => {
         drop.pickupAt += pausedMs;
         drop.expiresAt += pausedMs;
@@ -2910,6 +2926,8 @@ export default class GameScene extends Phaser.Scene {
         if (monsterObj.moveState === 'flinch') {
           sprite.setVelocity(0, 0);
           if (now > monsterObj.stateUntil) {
+            // The flinch shake tween must not fight the retreat velocity
+            this.tweens.killTweensOf(sprite);
             monsterObj.moveState = 'retreat';
             monsterObj.stateUntil = now + cfg.retreatMs;
           }

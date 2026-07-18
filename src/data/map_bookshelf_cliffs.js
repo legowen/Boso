@@ -39,9 +39,12 @@ const MAP_BOOKSHELF_CLIFFS = {
     { x: 1380, y: 410, label: '↑ Backyard Window', targetMap: 'backyard_gate', spawnX: 160, spawnY: 680 },
   ],
   ropes: [
-    // Each rope hangs from a shelf down past the one below it
+    // Each rope hangs from a shelf down past the one below it.
+    // The first right-column rope reaches all the way down so every
+    // character (including low-jump Brave Paw) can start the climb
+    // from the ground on either column.
     { x: 320, topY: 1300, bottomY: 1430 },
-    { x: 820, topY: 1160, bottomY: 1290 },
+    { x: 820, topY: 1160, bottomY: 1420 },
     { x: 320, topY: 1020, bottomY: 1290 },
     { x: 820, topY: 880, bottomY: 1150 },
     { x: 320, topY: 740, bottomY: 1010 },
