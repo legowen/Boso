@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import { SCENES } from '../utils/constants.js';
 import SaveManager from '../systems/SaveManager.js';
 
-// Character definitions - two builds of Boso the dog
+// Character definitions - two builds of Boso the dog + Bomi the kitten
 const CHARACTERS = [
   {
     id: 'boso_brave',
@@ -22,6 +22,14 @@ const CHARACTERS = [
     color: 0xEDD9B5,
     desc: 'A nimble pup, light on his paws.\nFast, high jumps, sonic bark (X).',
     stats: { hp: 90, mp: 80, atk: 12, spd: 240, jumpPower: -540 },
+  },
+  {
+    id: 'bomi',
+    name: 'Bomi',
+    className: 'Tiny Whisker',
+    color: 0xF4F6F7,
+    desc: 'A curious shelter kitten.\nBalanced stats, springy jumps.',
+    stats: { hp: 110, mp: 60, atk: 15, spd: 200, jumpPower: -500 },
   },
 ];
 
@@ -119,30 +127,67 @@ export default class CharacterSelectScene extends Phaser.Scene {
       charGfx.fillRect(-3, -bodyH / 2 + 20, 4, 4);
       charGfx.fillRect(7, -bodyH / 2 + 20, 4, 4);
 
-      // Dog features (both are Boso - different coat/collar)
-      const earColor = charData.id === 'boso_brave' ? 0x8B5A2B : 0xC9B08A;
-      const collarColor = charData.id === 'boso_brave' ? 0xE74C3C : 0x3498DB;
+      if (charData.id === 'bomi') {
+        // Kitten features - pointy ears, whiskers, bell collar
+        const stripeColor = 0xB2BABB;
 
-      // Floppy ears
-      charGfx.fillStyle(earColor, 1);
-      charGfx.fillTriangle(-bodyW / 2 + 4, -bodyH / 2 + 6, -bodyW / 2 - 8, -bodyH / 2 + 24, -bodyW / 2 + 12, -bodyH / 2 + 18);
-      charGfx.fillTriangle(bodyW / 2 - 4, -bodyH / 2 + 6, bodyW / 2 + 8, -bodyH / 2 + 24, bodyW / 2 - 12, -bodyH / 2 + 18);
+        // Pointy ears
+        charGfx.fillStyle(charData.color, 1);
+        charGfx.fillTriangle(-bodyW / 2 + 4, -bodyH / 2 + 8, -bodyW / 2 + 7, -bodyH / 2 - 6, -bodyW / 2 + 14, -bodyH / 2 + 6);
+        charGfx.fillTriangle(bodyW / 2 - 4, -bodyH / 2 + 8, bodyW / 2 - 7, -bodyH / 2 - 6, bodyW / 2 - 14, -bodyH / 2 + 6);
+        charGfx.fillStyle(0xF5B7B1, 1);
+        charGfx.fillTriangle(-bodyW / 2 + 6, -bodyH / 2 + 6, -bodyW / 2 + 8, -bodyH / 2 - 3, -bodyW / 2 + 12, -bodyH / 2 + 5);
+        charGfx.fillTriangle(bodyW / 2 - 6, -bodyH / 2 + 6, bodyW / 2 - 8, -bodyH / 2 - 3, bodyW / 2 - 12, -bodyH / 2 + 5);
 
-      // Snout
-      charGfx.fillStyle(0xF5E6D3, 1);
-      charGfx.fillRoundedRect(-7, -bodyH / 2 + 26, 14, 10, 3);
-      charGfx.fillStyle(0x2C1810, 1);
-      charGfx.fillRect(-3, -bodyH / 2 + 26, 6, 5);
+        // Head stripes
+        charGfx.fillStyle(stripeColor, 1);
+        charGfx.fillRect(-5, -bodyH / 2 + 6, 3, 6);
+        charGfx.fillRect(2, -bodyH / 2 + 6, 3, 6);
 
-      // Collar with tag
-      charGfx.fillStyle(collarColor, 1);
-      charGfx.fillRect(-bodyW / 2 + 3, -bodyH / 2 + 40, bodyW - 6, 5);
-      charGfx.fillStyle(0xF1C40F, 1);
-      charGfx.fillCircle(0, -bodyH / 2 + 48, 4);
+        // Pink nose + whiskers
+        charGfx.fillStyle(0xE75480, 1);
+        charGfx.fillTriangle(-3, -bodyH / 2 + 28, 3, -bodyH / 2 + 28, 0, -bodyH / 2 + 32);
+        charGfx.lineStyle(1, 0x839192, 1);
+        charGfx.lineBetween(-bodyW / 2 - 6, -bodyH / 2 + 27, -4, -bodyH / 2 + 29);
+        charGfx.lineBetween(-bodyW / 2 - 6, -bodyH / 2 + 32, -4, -bodyH / 2 + 31);
+        charGfx.lineBetween(bodyW / 2 + 6, -bodyH / 2 + 27, 4, -bodyH / 2 + 29);
+        charGfx.lineBetween(bodyW / 2 + 6, -bodyH / 2 + 32, 4, -bodyH / 2 + 31);
 
-      // Wagging tail
-      charGfx.fillStyle(earColor, 1);
-      charGfx.fillTriangle(bodyW / 2 - 2, bodyH / 2 - 14, bodyW / 2 + 12, bodyH / 2 - 26, bodyW / 2 + 4, bodyH / 2 - 8);
+        // Bell collar
+        charGfx.fillStyle(0xE75480, 1);
+        charGfx.fillRect(-bodyW / 2 + 3, -bodyH / 2 + 40, bodyW - 6, 5);
+        charGfx.fillStyle(0xF1C40F, 1);
+        charGfx.fillCircle(0, -bodyH / 2 + 48, 4);
+
+        // Upright curled tail
+        charGfx.fillStyle(stripeColor, 1);
+        charGfx.fillTriangle(bodyW / 2 - 2, bodyH / 2 - 12, bodyW / 2 + 10, bodyH / 2 - 30, bodyW / 2 + 4, bodyH / 2 - 6);
+      } else {
+        // Dog features (both are Boso - different coat/collar)
+        const earColor = charData.id === 'boso_brave' ? 0x8B5A2B : 0xC9B08A;
+        const collarColor = charData.id === 'boso_brave' ? 0xE74C3C : 0x3498DB;
+
+        // Floppy ears
+        charGfx.fillStyle(earColor, 1);
+        charGfx.fillTriangle(-bodyW / 2 + 4, -bodyH / 2 + 6, -bodyW / 2 - 8, -bodyH / 2 + 24, -bodyW / 2 + 12, -bodyH / 2 + 18);
+        charGfx.fillTriangle(bodyW / 2 - 4, -bodyH / 2 + 6, bodyW / 2 + 8, -bodyH / 2 + 24, bodyW / 2 - 12, -bodyH / 2 + 18);
+
+        // Snout
+        charGfx.fillStyle(0xF5E6D3, 1);
+        charGfx.fillRoundedRect(-7, -bodyH / 2 + 26, 14, 10, 3);
+        charGfx.fillStyle(0x2C1810, 1);
+        charGfx.fillRect(-3, -bodyH / 2 + 26, 6, 5);
+
+        // Collar with tag
+        charGfx.fillStyle(collarColor, 1);
+        charGfx.fillRect(-bodyW / 2 + 3, -bodyH / 2 + 40, bodyW - 6, 5);
+        charGfx.fillStyle(0xF1C40F, 1);
+        charGfx.fillCircle(0, -bodyH / 2 + 48, 4);
+
+        // Wagging tail
+        charGfx.fillStyle(earColor, 1);
+        charGfx.fillTriangle(bodyW / 2 - 2, bodyH / 2 - 14, bodyW / 2 + 12, bodyH / 2 - 26, bodyW / 2 + 4, bodyH / 2 - 8);
+      }
 
       container.add(charGfx);
 
@@ -369,7 +414,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
     sign.fillRect(signX - 4, signY + sH, 8, 30);
 
     // Title text
-    this.add.text(signX, signY + sH / 2, 'CHOOSE YOUR PUP', {
+    this.add.text(signX, signY + sH / 2, 'CHOOSE YOUR PAL', {
       fontSize: '22px',
       fontFamily: 'Arial Black, Arial',
       color: '#FFF8DC',

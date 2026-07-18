@@ -6,12 +6,13 @@
 
 export const STORY = {
   intro: [
-    'Boso was the happiest pup in the whole house.',
-    'Belly rubs, fetch, long walks...\nuntil the day it all stopped.',
-    'The Owner locked himself in the attic laboratory,\nchasing the secrets of two rival toymakers —\nthe GEARISTS and the PLUSHISTS.',
-    'Now their runaway experiments\ncrawl through every room of the house...',
-    '"Look at me! It\'s me, BOSO!"',
-    'Cross the house. Reach the attic.\nWin back the Owner\'s heart.',
+    'A little one opens their eyes\nin a warm bed that smells of clean towels.',
+    'Paw Shelter Clinic — where lost paws rest\nuntil someone comes looking.',
+    '"Good morning, {player}.\nSomeone came looking for YOU today."',
+    'His name is Owen. But Owen leaves on a long trip,\nso a friend\'s house will be home for a while...',
+    'A big house. A high table above everything.\nAnd one VERY big dog.',
+    'And someday, a house of your own —\nwith an attic that never sleeps.',
+    'Little paws, big world.\nGo say hello!',
   ],
   ending: [
     'The whirring fades. Dust settles.',
