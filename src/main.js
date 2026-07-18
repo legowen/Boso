@@ -8,11 +8,12 @@ import TitleScene from './scenes/TitleScene.js';
 import CharacterSelectScene from './scenes/CharacterSelectScene.js';
 import StoryScene from './scenes/StoryScene.js';
 import GameScene from './scenes/GameScene.js';
+import TravelScene from './scenes/TravelScene.js';
 
 // Register scenes (first scene in array is launched first)
 const config = {
   ...gameConfig,
-  scene: [PreloadScene, TitleScene, CharacterSelectScene, StoryScene, GameScene]
+  scene: [PreloadScene, TitleScene, CharacterSelectScene, StoryScene, GameScene, TravelScene]
 };
 
 // Create game instance

@@ -103,6 +103,7 @@ export const SCENES = {
   CHARACTER_SELECT: 'CharacterSelectScene',
   STORY: 'StoryScene',
   GAME: 'GameScene',
+  TRAVEL: 'TravelScene',
 };
 
 // ===== Depth (z-order) =====

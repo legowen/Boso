@@ -24,6 +24,7 @@ import { WORLD_MAP_LAYOUT, REGION_TITLES } from '../data/worldmap.js';
 import { ITEMS, ITEM_KEYS } from '../data/items.js';
 import { QUESTS } from '../data/quests.js';
 import { STORY } from '../data/story.js';
+import { TRAVEL_ROUTES } from '../data/travel.js';
 import HugGuardian from '../entities/HugGuardian.js';
 import DrEmbrace from '../entities/DrEmbrace.js';
 import Biggie from '../entities/Biggie.js';
@@ -291,8 +292,19 @@ export default class GameScene extends Phaser.Scene {
 
     // Compose lines: base dialogue + quest offer/reminder/completion.
     // Quest state transitions happen when the conversation opens.
-    let lines = [...(npcObj.data.dialogue || [])];
-    const defs = QUESTS.filter((q) => q.giver === npcObj.data.name);
+    const npcData = npcObj.data;
+    let lines = [...(npcData.dialogue || [])];
+
+    // Gated travel: while the flag is missing, Owen only chats
+    const travelLocked =
+      !!npcData.travelRoute &&
+      !!npcData.travelRequiresFlag &&
+      !SaveManager.getFlag(npcData.travelRequiresFlag);
+    if (travelLocked) {
+      lines = [...(npcData.travelLockedLines || lines)];
+    }
+
+    const defs = QUESTS.filter((q) => q.giver === npcData.name);
     for (const quest of defs) {
       const st = this.player.quests[quest.id];
       if (st && st.state === 'ready') {
@@ -310,6 +322,17 @@ export default class GameScene extends Phaser.Scene {
     }
     this.refreshNPCMarkers();
     this.refreshQuestTracker();
+
+    // Boarding page comes last: SPACE on it starts the cage ride
+    let boardingRoute = null;
+    if (npcData.travelRoute && !travelLocked) {
+      boardingRoute = npcData.travelRoute;
+      const route = TRAVEL_ROUTES[boardingRoute];
+      lines = [
+        ...lines,
+        `Board the cage - "${route.name}" (~${route.durationSec}s ride)? SPACE to hop in, or walk away to stay.`,
+      ];
+    }
 
     const container = this.add.container(w / 2, h - 205).setDepth(DEPTH.UI + 8).setScrollFactor(0);
 
@@ -343,7 +366,19 @@ export default class GameScene extends Phaser.Scene {
     }).setOrigin(1, 0.5);
     container.add(hint);
 
-    this.dialogue = { npcObj, index: 0, container, lineText, lines };
+    this.dialogue = {
+      npcObj,
+      index: 0,
+      container,
+      lineText,
+      lines,
+      boardingRoute,
+      boardingReadyAt: 0,
+    };
+    // A one-page boarding dialogue is already on the boarding page
+    if (boardingRoute && lines.length === 1) {
+      this.dialogue.boardingReadyAt = Date.now() + 600;
+    }
     this.renderDialogueLine();
   }
 
@@ -377,13 +412,46 @@ export default class GameScene extends Phaser.Scene {
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.keys.space)) {
-      this.dialogue.index += 1;
-      if (this.dialogue.index >= this.dialogue.lines.length) {
+      const d = this.dialogue;
+      const atBoardingPage = d.boardingRoute && d.index === d.lines.length - 1;
+      if (atBoardingPage) {
+        // Brief lockout so mashing through the chat can't launch the ride
+        if (Date.now() < d.boardingReadyAt) return;
+        this.startTravel(d.boardingRoute);
+        return;
+      }
+      d.index += 1;
+      if (d.index >= d.lines.length) {
         this.closeDialogue();
       } else {
         this.renderDialogueLine();
+        if (d.boardingRoute && d.index === d.lines.length - 1) {
+          d.boardingReadyAt = Date.now() + 600;
+        }
       }
     }
+  }
+
+  // Fade out and hand over to TravelScene (cage ride)
+  startTravel(routeKey) {
+    const route = TRAVEL_ROUTES[routeKey];
+    if (!route || this.isTransitioning) return;
+    this.isTransitioning = true;
+
+    this.closeDialogue();
+    this.closeWorldMap();
+    this.closeBag();
+    this.saveMapState();
+
+    this.cameras.main.fadeOut(500, 0, 0, 0);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.start(SCENES.TRAVEL, {
+        routeKey,
+        characterData: this.characterData,
+        playerHp: this.player.hp,
+        playerMp: this.player.mp,
+      });
+    });
   }
 
   closeDialogue() {
