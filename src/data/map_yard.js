@@ -3,6 +3,7 @@
 
 const MAP_YARD = {
   name: 'Sunny Backyard',
+  region: 'house',
   width: 2400,
   height: 800,
   spawnX: 150,
@@ -53,7 +54,20 @@ const MAP_YARD = {
         'Lost? Press M to open the house map.',
       ],
     },
+    {
+      x: 1150,
+      y: 714,
+      name: 'Owen',
+      texture: 'npc_owen',
+      travelRoute: 'home_to_buddy',
+      dialogue: [
+        'Home sweet home, {player}... though the house is a bit of a mess.',
+        'The attic light never turns off anymore. Go see for yourself.',
+        'Missing Buddy House already? I can drive you back for a visit anytime.',
+      ],
+    },
   ],
+  cage: { x: 1250, y: 740 },
   monsters: [
     // Gentle tutorial bubbles
     { x: 900, y: 700, type: 'bangul' },

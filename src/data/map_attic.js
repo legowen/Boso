@@ -3,6 +3,7 @@
 
 const MAP_ATTIC = {
   name: 'Attic Laboratory',
+  region: 'house',
   width: 2400,
   height: 800,
   spawnX: 120,

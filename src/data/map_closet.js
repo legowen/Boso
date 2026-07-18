@@ -3,6 +3,7 @@
 
 const MAP_CLOSET = {
   name: 'Vacuum Closet',
+  region: 'house',
   width: 1600,
   height: 800,
   spawnX: 140,

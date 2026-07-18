@@ -4,6 +4,48 @@
 // MONSTER_TYPES key or a BOSS_TYPES key (kill-count objectives).
 
 export const QUESTS = [
+  // === Shelter Isle (tutorial) ===
+  {
+    id: 'dustBusters',
+    giver: 'Keeper Tobi',
+    title: 'Dust Busters',
+    offer: [
+      'Those dust motes make the patients sneeze all night.',
+      'Swat 3 of them for me? CTRL is all it takes.',
+    ],
+    reminder: 'Three dust motes. They drift around the hallway - CTRL!',
+    complete: ['Bless you, kitten! The ward can breathe again. Here, treats.'],
+    objective: { target: 'dustmote', count: 3 },
+    reward: { treats: 20, exp: 15, items: { cookie: 1 } },
+  },
+  // === Buddy House ===
+  {
+    id: 'sockRoundup',
+    giver: 'Granny Tabby',
+    title: 'Sock Roundup',
+    offer: [
+      'The laundry escaped again! Socks, slinking all over Sofa Ridge.',
+      'Flatten 4 of them before they nest in the cushions.',
+    ],
+    reminder: 'Four Sock Slinkers, dear. Sofa Ridge, west of the village.',
+    complete: ['Ha! Folded and filed. You earned every treat of this.'],
+    objective: { target: 'sockslinker', count: 4 },
+    reward: { treats: 90, exp: 70 },
+  },
+  {
+    id: 'makeFriends',
+    giver: 'Granny Tabby',
+    title: 'The Big Dog',
+    offer: [
+      'Biggie guards the backyard gate. He is not mean - just... enormous.',
+      'Go show him you belong here. Win him over!',
+    ],
+    reminder: 'Biggie waits past the Bookshelf Cliffs. Stand your ground!',
+    complete: ['Friends with Biggie! Now THAT is a first. Welcome home, dear.'],
+    objective: { target: 'biggie', count: 1 },
+    reward: { treats: 200, exp: 120, items: { milk: 1 } },
+  },
+  // === Home (original house) ===
   {
     id: 'popBubbles',
     giver: 'Miyo the Cat',

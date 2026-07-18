@@ -4,6 +4,7 @@
 
 const MAP_BASEMENT = {
   name: 'Basement Workshop',
+  region: 'house',
   width: 2800,
   height: 800,
   spawnX: 140,

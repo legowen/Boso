@@ -4,6 +4,7 @@
 
 const MAP_BEDROOM = {
   name: "Owner's Bedroom",
+  region: 'house',
   width: 2400,
   height: 800,
   spawnX: 160,
