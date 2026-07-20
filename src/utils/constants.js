@@ -29,11 +29,9 @@ export const PLATFORM = {
   PASS_THROUGH_DELAY: 200, // Collision ignore duration for drop-through (ms)
 };
 
-// ===== Monster settings (expand in Phase 3) =====
+// ===== Monster settings =====
+// Per-type stats/movement live in src/data/monsters.js (pure data).
 export const MONSTER = {
-  COLOR: 0xE74C3C,
-  WIDTH: 36,
-  HEIGHT: 44,
   RESPAWN_TIME: 10000,
 };
 
@@ -100,11 +98,12 @@ export const CAMERA = {
 
 // ===== Scene names =====
 export const SCENES = {
-  BOOT: 'BootScene',
+  PRELOAD: 'PreloadScene',
   MENU: 'MenuScene',
   CHARACTER_SELECT: 'CharacterSelectScene',
+  STORY: 'StoryScene',
   GAME: 'GameScene',
-  ENDING: 'EndingScene',
+  TRAVEL: 'TravelScene',
 };
 
 // ===== Depth (z-order) =====
@@ -115,6 +114,7 @@ export const DEPTH = {
   PORTALS: 15,
   NPCS: 20,
   MONSTERS: 25,
+  BOSS: 26,
   PLAYER: 30,
   EFFECTS: 40,
   UI: 100,
