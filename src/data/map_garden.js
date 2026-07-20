@@ -4,6 +4,7 @@
 
 const MAP_GARDEN = {
   name: 'Secret Garden',
+  region: 'house',
   width: 2400,
   height: 800,
   spawnX: 140,

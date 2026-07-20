@@ -3,6 +3,7 @@
 
 const MAP_HALLWAY = {
   name: 'Hallway & Stairs',
+  region: 'house',
   width: 1800,
   height: 1400,
   spawnX: 120,

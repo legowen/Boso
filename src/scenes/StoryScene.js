@@ -109,7 +109,9 @@ export default class StoryScene extends Phaser.Scene {
       this.fadeTween.stop();
       this.fadeTween = null;
     }
-    this.storyText.setText(STORY.intro[index]);
+    const playerName =
+      this.characterData && this.characterData.name ? this.characterData.name : 'little one';
+    this.storyText.setText(STORY.intro[index].replace(/\{player\}/g, playerName));
     this.storyText.setAlpha(0);
     this.fadeTween = this.tweens.add({
       targets: this.storyText,

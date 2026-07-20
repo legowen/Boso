@@ -71,13 +71,73 @@ export default class Player {
     const color = this.characterData ? this.characterData.color : PLAYER.COLOR;
     const charId = this.characterData ? this.characterData.id : 'default';
 
-    // Coat variants: brave = brown pup, swift = cream pup
-    const earColor = charId === 'boso_brave' ? 0x8B5A2B : 0xC9B08A;
-    const collarColor = charId === 'boso_brave' ? 0xE74C3C : 0x3498DB;
-
     const graphics = this.scene.add.graphics();
     const W = PLAYER.WIDTH;
     const H = PLAYER.HEIGHT;
+
+    // Bomi - the shelter kitten (pointy ears, whiskers, bell collar)
+    if (charId === 'bomi') {
+      const stripe = 0xB2BABB;
+
+      // Upright tail (left side - faces right by default)
+      graphics.fillStyle(stripe, 1);
+      graphics.fillTriangle(4, H - 20, 0, H - 40, 10, H - 14);
+
+      // Body
+      graphics.fillStyle(color, 1);
+      graphics.fillRect(6, 22, W - 12, H - 28);
+
+      // Head
+      graphics.fillRect(7, 6, W - 14, 20);
+
+      // Pointy ears with pink inner
+      graphics.fillTriangle(9, 8, 12, -2, 19, 6);
+      graphics.fillTriangle(W - 9, 8, W - 12, -2, W - 19, 6);
+      graphics.fillStyle(0xF5B7B1, 1);
+      graphics.fillTriangle(11, 5, 12.5, 0, 16, 4);
+      graphics.fillTriangle(W - 11, 5, W - 12.5, 0, W - 16, 4);
+
+      // Tabby head stripes
+      graphics.fillStyle(stripe, 1);
+      graphics.fillRect(16, 6, 3, 5);
+      graphics.fillRect(22, 6, 3, 5);
+
+      // Green cat eyes
+      graphics.fillStyle(0xFFFFFF, 1);
+      graphics.fillRect(13, 12, 7, 7);
+      graphics.fillRect(24, 12, 7, 7);
+      graphics.fillStyle(0x1E8449, 1);
+      graphics.fillRect(16, 14, 3, 4);
+      graphics.fillRect(27, 14, 3, 4);
+
+      // Pink nose + whiskers
+      graphics.fillStyle(0xE75480, 1);
+      graphics.fillTriangle(19, 20, 25, 20, 22, 24);
+      graphics.lineStyle(1, 0x839192, 1);
+      graphics.lineBetween(2, 19, 13, 21);
+      graphics.lineBetween(2, 24, 13, 23);
+      graphics.lineBetween(W - 2, 19, W - 13, 21);
+      graphics.lineBetween(W - 2, 24, W - 13, 23);
+
+      // Bell collar
+      graphics.fillStyle(0xE75480, 1);
+      graphics.fillRect(8, 28, W - 16, 5);
+      graphics.fillStyle(0xF1C40F, 1);
+      graphics.fillCircle(W / 2, 36, 3);
+
+      // Front paws
+      graphics.fillStyle(stripe, 1);
+      graphics.fillRect(10, H - 8, 8, 8);
+      graphics.fillRect(W - 18, H - 8, 8, 8);
+
+      graphics.generateTexture(texKey, W, H);
+      graphics.destroy();
+      return;
+    }
+
+    // Coat variants: brave = brown pup, swift = cream pup
+    const earColor = charId === 'boso_brave' ? 0x8B5A2B : 0xC9B08A;
+    const collarColor = charId === 'boso_brave' ? 0xE74C3C : 0x3498DB;
 
     // Tail (left side - dog faces right by default)
     graphics.fillStyle(earColor, 1);

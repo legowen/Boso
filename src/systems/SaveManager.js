@@ -6,12 +6,34 @@
 
 const SAVE_KEY = 'boso_save_v1';
 
+// Data-shape version stored inside the save (the storage key stays
+// 'boso_save_v1' so pre-versioning saves keep loading).
+// v1 (implicit): { flags }, later + characters
+// v2: adds an explicit `version` field; flags/characters normalized
+const SAVE_VERSION = 2;
+
 // Module-level in-memory fallback, used when localStorage is unavailable
 // or throws (e.g. privacy mode quota errors, Node without DOM globals).
 let memoryData = null;
 
 function defaultData() {
-  return { flags: {} };
+  return { version: SAVE_VERSION, flags: {}, characters: {} };
+}
+
+// Bring any older/partial save up to the current shape without losing
+// progress. Unknown extra fields are preserved as-is.
+function migrate(data) {
+  if (!data.flags || typeof data.flags !== 'object') {
+    data.flags = {};
+  }
+  if (!data.characters || typeof data.characters !== 'object') {
+    data.characters = {};
+  }
+  if (typeof data.version !== 'number' || data.version < SAVE_VERSION) {
+    // v1 -> v2: purely additive (nothing to rewrite), just stamp it
+    data.version = SAVE_VERSION;
+  }
+  return data;
 }
 
 function getStorage() {
@@ -35,10 +57,7 @@ export default class SaveManager {
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && typeof parsed === 'object') {
-            if (!parsed.flags || typeof parsed.flags !== 'object') {
-              parsed.flags = {};
-            }
-            return parsed;
+            return migrate(parsed);
           }
         }
       } catch (e) {
@@ -46,7 +65,7 @@ export default class SaveManager {
       }
     }
     if (memoryData) {
-      return memoryData;
+      return migrate(memoryData);
     }
     return defaultData();
   }

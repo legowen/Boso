@@ -3,6 +3,7 @@
 
 const MAP_KITCHEN = {
   name: 'Kitchen',
+  region: 'house',
   width: 3200,
   height: 800,
   spawnX: 120,

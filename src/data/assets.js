@@ -5,10 +5,16 @@
 // code skip procedural generation. Missing files 404 harmlessly.
 
 export const OPTIONAL_TEXTURES = [
-  'player_boso_brave', 'player_boso_swift', 'npc', 'portal', 'portal_hidden',
+  'player_boso_brave', 'player_boso_swift', 'player_bomi', 'npc', 'npc_owen', 'cage',
+  'portal', 'portal_hidden',
+  'ambush_vroom', 'ambush_rumble',
   'monster_bangul', 'monster_gong', 'monster_laser', 'monster_nabi', 'monster_pari',
   'monster_robo',
-  'boss_hug_guardian', 'boss_vacuum_king', 'proj_arm', 'proj_dust', 'proj_bark',
+  'monster_dustmote', 'monster_lonesome', 'monster_straykitten',
+  'monster_sockslinker', 'monster_yarnroller', 'monster_crumbhopper',
+  'monster_mothcircler', 'monster_rcracer',
+  'boss_hug_guardian', 'boss_vacuum_king', 'boss_dr_embrace', 'boss_biggie',
+  'proj_arm', 'proj_arm_dr', 'proj_dust', 'proj_bark',
   'drop_treat', 'drop_cookie', 'drop_milk',
 ];
 
