@@ -11,6 +11,8 @@
 import Phaser from 'phaser';
 import { PLAYER, DEPTH, UI, SCENES } from '../utils/constants.js';
 import Player from '../entities/Player.js';
+import { getCharacter } from '../data/characters.js';
+import { decoratePlatform } from '../systems/WorldArt.js';
 import HUD from '../ui/HUD.js';
 import { MAPS_DATA } from '../data/maps.js';
 import { TRAVEL_ROUTES, AMBUSH_TYPES } from '../data/travel.js';
@@ -21,8 +23,8 @@ const WORLD_W = 2400;
 const WORLD_H = 1400;
 const CAGE = { x: 700, y: 500, w: 1000, h: 640 };
 
-// Swift Paw's bark works during the ride too
-const BARK = { mpCost: 4, speed: 420, maxDist: 360, cooldownMs: 350 };
+// Seoli's wind gust works during the ride too
+const BARK = { mpCost: 4, speed: 420, maxDist: 280, cooldownMs: 350 };
 
 export default class TravelScene extends Phaser.Scene {
   constructor() {
@@ -32,7 +34,7 @@ export default class TravelScene extends Phaser.Scene {
   init(data) {
     this.routeKey = data && data.routeKey ? data.routeKey : 'shelter_to_buddy';
     this.route = TRAVEL_ROUTES[this.routeKey] || TRAVEL_ROUTES.shelter_to_buddy;
-    this.characterData = data && data.characterData ? data.characterData : null;
+    this.characterData = getCharacter(data?.characterData?.id);
     this.savedPlayerHp = data && data.playerHp !== undefined ? data.playerHp : null;
     this.savedPlayerMp = data && data.playerMp !== undefined ? data.playerMp : null;
   }
@@ -132,94 +134,28 @@ export default class TravelScene extends Phaser.Scene {
   // ===== Visuals =====
 
   createBackground() {
-    // Sky gradient
-    if (!this.textures.exists('travel_sky')) {
-      const g = this.add.graphics();
-      g.fillGradientStyle(0x87CEEB, 0x87CEEB, 0xF7DC6F, 0xF7DC6F, 1);
-      g.fillRect(0, 0, 64, 256);
-      g.generateTexture('travel_sky', 64, 256);
-      g.destroy();
-    }
-
-    // Passing scenery silhouettes (houses + trees)
-    if (!this.textures.exists('travel_mid')) {
-      const g = this.add.graphics();
-      g.fillStyle(0x1F618D, 0.55);
-      g.fillRect(30, 90, 90, 110);
-      g.fillTriangle(20, 90, 75, 40, 130, 90);
-      g.fillRect(210, 120, 70, 80);
-      g.fillTriangle(200, 120, 245, 80, 290, 120);
-      g.fillStyle(0x196F3D, 0.55);
-      g.fillRect(160, 150, 14, 50);
-      g.fillTriangle(140, 155, 167, 95, 194, 155);
-      g.fillRect(360, 140, 14, 60);
-      g.fillTriangle(340, 150, 367, 80, 394, 150);
-      g.fillStyle(0x1F618D, 0.55);
-      g.fillRect(430, 110, 60, 90);
-      g.generateTexture('travel_mid', 512, 200);
-      g.destroy();
-    }
-
-    // Road rushing by underneath
-    if (!this.textures.exists('travel_near')) {
-      const g = this.add.graphics();
-      g.fillStyle(0x424949, 1);
-      g.fillRect(0, 0, 512, 120);
-      g.fillStyle(0xF4D03F, 0.9);
-      for (let x = 0; x < 512; x += 128) {
-        g.fillRect(x, 52, 64, 10);
-      }
-      g.fillStyle(0x717D7E, 1);
-      g.fillRect(0, 0, 512, 8);
-      g.generateTexture('travel_near', 512, 120);
-      g.destroy();
-    }
-
-    // Screen-fixed layers so any viewport size stays covered
-    this.bgSky = this.add.tileSprite(0, 0, 10, 10, 'travel_sky')
-      .setOrigin(0, 0).setScrollFactor(0).setDepth(DEPTH.BACKGROUND);
-    this.bgMid = this.add.tileSprite(0, 0, 10, 10, 'travel_mid')
-      .setOrigin(0, 1).setScrollFactor(0).setDepth(DEPTH.BACKGROUND + 1);
-    this.bgNear = this.add.tileSprite(0, 0, 10, 10, 'travel_near')
-      .setOrigin(0, 1).setScrollFactor(0).setDepth(DEPTH.BACKGROUND + 2);
+    this.bgSky = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'bg_voyage')
+      .setOrigin(0).setScrollFactor(0).setDepth(DEPTH.BACKGROUND);
     this.layoutBackground();
   }
 
   layoutBackground() {
-    const w = this.scale.width;
-    const h = this.scale.height;
-    this.bgSky.setPosition(0, 0).setSize(w, h);
-    this.bgMid.setPosition(0, h - 90).setSize(w, 200);
-    this.bgNear.setPosition(0, h).setSize(w, 120);
+    this.bgSky.setSize(this.scale.width, this.scale.height);
+    this.bgSky.setTileScale(Math.max(1, this.scale.height / 512));
   }
 
   createCageFrame() {
-    const g = this.add.graphics().setDepth(DEPTH.PLATFORMS - 1);
-
-    // Cage shell behind the play area
-    g.fillStyle(0x9E6B2F, 0.35);
-    g.fillRoundedRect(CAGE.x - 30, CAGE.y - 40, CAGE.w + 60, CAGE.h + 50, 26);
-    g.lineStyle(10, 0x6E4A1F, 1);
-    g.strokeRoundedRect(CAGE.x - 30, CAGE.y - 40, CAGE.w + 60, CAGE.h + 50, 26);
-
-    // Carry handle on top
-    g.lineStyle(12, 0x6E4A1F, 1);
-    g.beginPath();
-    g.arc(CAGE.x + CAGE.w / 2, CAGE.y - 40, 70, Math.PI, 0, false);
-    g.strokePath();
-
-    // Bars in front of the play area (translucent, above entities)
-    const bars = this.add.graphics().setDepth(DEPTH.EFFECTS + 5);
-    bars.lineStyle(6, 0xD5B895, 0.28);
-    for (let x = CAGE.x + 40; x < CAGE.x + CAGE.w; x += 90) {
-      bars.lineBetween(x, CAGE.y - 30, x, CAGE.y + CAGE.h);
-    }
+    // The travel-carrier becomes an open-deck airship; actors stay in front.
+    // Source deck baseline is at roughly 72% of its height.
+    const deckY = CAGE.y + CAGE.h - 60;
+    this.add.image(CAGE.x + CAGE.w / 2, deckY - 570, 'travel_ship')
+      .setOrigin(0.5, 0).setDepth(DEPTH.PLATFORMS - 1);
   }
 
   createPlatforms() {
     this.platforms = [];
     this.mapData.platforms.forEach((platData) => {
-      const key = `plat_${platData.w}_${platData.h}`;
+      const key = `travel_plat_${platData.w}_${platData.h}`;
       if (!this.textures.exists(key)) {
         const graphics = this.add.graphics();
         if (platData.isGround) {
@@ -248,6 +184,7 @@ export default class TravelScene extends Phaser.Scene {
         platform.body.checkCollision.left = false;
         platform.body.checkCollision.right = false;
       }
+      decoratePlatform(this, platData, 'tile_wood');
       this.platforms.push(platform);
     });
   }
@@ -331,8 +268,7 @@ export default class TravelScene extends Phaser.Scene {
     if (this.arrived) return;
 
     // Background always scrolls - the ride goes on
-    this.bgMid.tilePositionX += delta * 0.12;
-    this.bgNear.tilePositionX += delta * 0.4;
+    this.bgSky.tilePositionX += delta * 0.12;
 
     if (this.playerDead) return;
 
@@ -369,12 +305,12 @@ export default class TravelScene extends Phaser.Scene {
       this.player.useItem('milk');
     }
 
-    // Bark (Swift Paw)
+    // Wind Gust (Seoli)
     if (
       this.characterData &&
-      this.characterData.id === 'boso_swift' &&
+      this.player.charId === 'seoli' &&
       this.keys.x.isDown &&
-      this.player.hp > 0
+      this.player.hp > 0 && !this.player.isClimbing && !this.player.isKnockedBack
     ) {
       const now = Date.now();
       if (now > this.barkReadyAt && this.player.mp >= BARK.mpCost) {
@@ -485,7 +421,7 @@ export default class TravelScene extends Phaser.Scene {
       if (!vroom.hitPlayer && player.hp > 0) {
         const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
           s.getBounds(),
-          player.sprite.getBounds()
+          player.getHurtBounds()
         );
         if (overlap) {
           vroom.hitPlayer = true;
@@ -574,20 +510,16 @@ export default class TravelScene extends Phaser.Scene {
       rumble.hpBar.fillRect(s.x - barW / 2, s.y - 48, barW * (rumble.hp / rumble.maxHp), 5);
 
       // Player melee
-      if (player.attackHitbox && !rumble.isHit && player.hp > 0) {
+      if (player.canHit(rumble)) {
         const hitbox = player.attackHitbox;
         const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
-          new Phaser.Geom.Rectangle(
-            hitbox.x - PLAYER.ATTACK_WIDTH / 2,
-            hitbox.y - PLAYER.ATTACK_HEIGHT / 2,
-            PLAYER.ATTACK_WIDTH,
-            PLAYER.ATTACK_HEIGHT
-          ),
+          hitbox.getBounds(),
           s.getBounds()
         );
         if (overlap) {
           rumble.isHit = true;
-          const damage = player.attackPower + Phaser.Math.Between(-3, 3);
+          player.registerHit(rumble);
+          const damage = player.attackDamage + Phaser.Math.Between(-3, 3);
           this.damageRumble(rumble, damage);
           this.time.delayedCall(PLAYER.ATTACK_DURATION + 50, () => {
             rumble.isHit = false;
@@ -598,7 +530,7 @@ export default class TravelScene extends Phaser.Scene {
       // Contact damage
       if (!rumble.contactCooldown && player.hp > 0 && s.active) {
         const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
-          player.sprite.getBounds(),
+          player.getHurtBounds(),
           s.getBounds()
         );
         if (overlap) {

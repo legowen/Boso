@@ -19,8 +19,8 @@ export default class TitleScene extends Phaser.Scene {
     AudioManager.play(this, 'bgm_title');
 
     // === Background image - cover entire screen (fallback gradient if missing) ===
-    if (this.textures.exists('title_bg')) {
-      this.bg = this.add.image(w / 2, h / 2, 'title_bg');
+    if (this.textures.exists('bg_garden')) {
+      this.bg = this.add.image(w / 2, h / 2, 'bg_garden');
       this.coverBackground(w, h);
 
       // Resize listener for responsive background (detached on shutdown -
@@ -80,15 +80,18 @@ export default class TitleScene extends Phaser.Scene {
       fontStyle: 'italic',
     }).setOrigin(0.5);
 
-    this.add.text(w / 2, h * 0.43, "A little dog's big adventure", {
+    this.add.text(w / 2, h * 0.43, "Two little cats. One big adventure.", {
       fontSize: '13px',
       fontFamily: 'Arial',
       color: '#95A5A6',
     }).setOrigin(0.5);
 
+    this.add.image(w / 2 - 56, h * 0.52, 'portrait_seoli').setDisplaySize(88, 88);
+    this.add.image(w / 2 + 56, h * 0.52, 'portrait_bomi').setDisplaySize(88, 88);
+
     // Demo-clear badge (persisted via SaveManager)
     if (SaveManager.getFlag('demoCleared')) {
-      const badge = this.add.text(w / 2, h * 0.49, '* DEMO CLEARED *', {
+      const badge = this.add.text(w / 2, h * 0.75, '* DEMO CLEARED *', {
         fontSize: '14px',
         fontFamily: 'Arial Black, Arial',
         color: '#F1C40F',
@@ -163,7 +166,7 @@ export default class TitleScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Version text
-    this.add.text(w / 2, h * 0.92, 'v0.4.0 - Look at me!', {
+    this.add.text(w / 2, h * 0.92, 'Seoli & Bomi - Pixel Adventure', {
       fontSize: '11px',
       fontFamily: 'Arial',
       color: '#444444',
@@ -172,7 +175,7 @@ export default class TitleScene extends Phaser.Scene {
 
   coverBackground(screenW, screenH) {
     // Get actual image dimensions
-    const tex = this.textures.get('title_bg');
+    const tex = this.textures.get('bg_garden');
     const imgW = tex.source[0].width;
     const imgH = tex.source[0].height;
     const imgRatio = imgW / imgH;

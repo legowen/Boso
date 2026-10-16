@@ -1,18 +1,21 @@
 {
   "name": "boso-game",
   "version": "1.0.0",
-  "description": "Look at me! - a MapleStory-inspired house adventure starring Boso the dog",
+  "description": "Look at me! - a MapleStory-inspired pixel adventure starring Seoli and Bomi",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "validate": "node scripts/validate.mjs"
+    "validate": "node scripts/validate.mjs",
+    "test": "node --experimental-vm-modules --test tests/*.test.mjs",
+    "art:build": "node scripts/prepare-art.cjs"
   },
   "dependencies": {
     "phaser": "^3.80.1"
   },
   "devDependencies": {
+    "sharp": "^0.35.5",
     "vite": "^5.0.0"
   }
 }

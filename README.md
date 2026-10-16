@@ -1,10 +1,24 @@
 # Boso — "Look at me!"
 
 A 2D pixel action RPG built with **Phaser 3 + Vite**, inspired by MapleStory.
-Start as a shelter kitten (or pup), ride the travel cage between worlds, and
+Play as Seoli or Bomi, two cats. Ride the travel airship between worlds and
 work your way home to the Owner locked away in the attic laboratory.
 
 ## World
+
+**Seoli** is a white cat with gray markings/tail, deep emerald eyes and pink
+ears/nose/paw pads. **Bomi** is black with a small white chest tuft, emerald
+eyes, pink inner ears, and black nose/pads. Boso is the game title.
+
+Seoli has faster movement and reaching wind claws; Bomi has more HP and
+stronger, shorter-range paw attacks. Hold **CTRL** for a three-hit combo,
+**ALT** to jump, **DOWN** to crouch, **DOWN + ALT** to drop through ledges,
+and **UP/DOWN** to climb ropes. **X** fires Seoli's MP-powered gust.
+
+Each cat has a 16-frame sheet covering idle/blink, four running poses,
+jump/fall, crouch, three strikes, two climbing poses, hurt and portrait.
+The visual direction follows the approved cat concept, with original
+pixel art inspired by classic side-scrolling RPGs.
 
 | Region | Maps | Notes |
 |---|---|---|
@@ -24,11 +38,20 @@ npm run dev       # Start dev server
 npm run build     # Production build to /dist
 npm run preview   # Preview production build
 npm run validate  # Node data validator (maps/portals/ropes/monsters/travel/bgm)
+npm test          # Combat, animation, save migration and asset regression checks
+npm run art:build # Repack the retained generated sources (requires dev dependencies)
 ```
 
 ## Replacing placeholder art (texture keys)
 
-All visuals are procedurally generated placeholders. Drop a PNG at
+Animated player sheets live in `public/assets/images/cats/` (384×384 PNG,
+4×4 cells of 96×96). The 20 maps use nine themed backgrounds and eight
+terrain textures in `public/assets/images/world/`. Source PNGs and generation
+prompts are retained in `art/`; `npm run art:build` repacks them without
+calling an image service. See `docs/PIXEL_ART.md` for the frame map and tuning.
+
+Generated pixel art is bundled for both cats, all 20 maps, monsters, bosses,
+NPCs, items, and the travel airship. Replace a PNG at
 `public/assets/images/tex/<key>.png` and it replaces the placeholder
 automatically (no code changes). Sprites face RIGHT by default.
 
@@ -36,9 +59,8 @@ automatically (no code changes). Sprites face RIGHT by default.
 
 | Key | Size (px) | What it is |
 |---|---|---|
-| `player_boso_brave` | 40 x 56 | Boso (Brave Paw) — brown pup |
-| `player_boso_swift` | 40 x 56 | Boso (Swift Paw) — cream pup |
-| `player_bomi` | 40 x 56 | Bomi (Tiny Whisker) — shelter kitten |
+| `player_seoli` | 40 x 56 | Static fallback; animated Seoli uses the cat sheet below |
+| `player_bomi` | 40 x 56 | Static fallback for black Bomi |
 | `npc` | 36 x 52 | Generic NPC (cats, hounds, guild members) |
 | `npc_owen` | 36 x 52 | Owen — the Owner (human) |
 | `cage` | 96 x 76 | Travel cage prop (departure/arrival point) |
@@ -75,7 +97,7 @@ automatically (no code changes). Sprites face RIGHT by default.
 | `proj_arm` | 120 x 50 | Hug Guardian's sweeping plush arm |
 | `proj_arm_dr` | 110 x 44 | Dr. Embrace's sweeping coat sleeve |
 | `proj_dust` | 20 x 20 | Vacuum King's dust ball |
-| `proj_bark` | 26 x 18 | Swift Paw's sonic bark |
+| `proj_bark` | 26 x 18 | Seoli's wind gust (legacy texture key) |
 | `ambush_vroom` | 96 x 40 | Vroom — travel ambush car streak |
 | `ambush_rumble` | 76 x 64 | Rumble — travel ambush engine tanker |
 
@@ -83,7 +105,7 @@ automatically (no code changes). Sprites face RIGHT by default.
 
 | Key | Size (px) | What it is |
 |---|---|---|
-| `drop_treat` | 16 x 16 | Treat currency (golden bone) |
+| `drop_treat` | 16 x 16 | Treat currency (golden fish) |
 | `drop_cookie` | 16 x 16 | Cookie item (+40 HP) |
 | `drop_milk` | 14 x 18 | Milk item (+30 MP) |
 

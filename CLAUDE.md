@@ -2,7 +2,7 @@
 
 ## Project Overview
 Boso is a 2D pixel RPG built with Phaser 3 + Vite. "Look at me!" — start as a
-shelter kitten (Bomi) or pup (Boso), ride the travel cage between worlds, and
+shelter cat (Seoli or Bomi), ride the travel airship between worlds, and
 come home to the Owner locked away in the attic laboratory.
 MapleStory-inspired gameplay (platforms, ropes, portals, combat, ship-style
 cage voyages) with a Magatia-homage story: two rival toy-alchemist guilds
@@ -20,13 +20,15 @@ npm run dev       # Start dev server
 npm run build     # Production build to /dist
 npm run preview   # Preview production build
 npm run validate  # Node data validator (maps/portals/ropes/monsters/travel/bgm)
+npm test          # Combat, animation, save migration and asset regression checks
+npm run art:build # Repack the retained generated sources (requires dev dependencies)
 ```
 
 ## Project Structure
 ```
 boso-rpg/
 ├── public/assets/
-│   ├── images/               # title_bg.png + optional tex/<key>.png overrides
+│   ├── images/               # cats/ animation sheets + tex/ sprites + world/ scenery
 │   └── bgm/                  # optional BGM files (see docs/ASSETS.md)
 ├── docs/
 │   ├── STORY.md              # Story bible (Korean, design doc)
@@ -49,7 +51,7 @@ boso-rpg/
 │   │   ├── story.js          # Intro/ending/warning/befriend text ({player} placeholders)
 │   │   └── assets.js         # Optional texture override registry
 │   ├── entities/
-│   │   ├── Player.js         # Player (movement, ropes, combat, knockback; dog + kitten art)
+│   │   ├── Player.js         # Player (movement, ropes, combat, knockback; animated Seoli + Bomi)
 │   │   ├── HugBossBase.js    # Shared hug-pattern boss logic (armSweep/slam/fieldHug)
 │   │   ├── HugGuardian.js    # Field boss (Zakum homage) - HugBossBase subclass
 │   │   ├── DrEmbrace.js      # Tutorial boss - scaled-down HugBossBase subclass
@@ -58,13 +60,13 @@ boso-rpg/
 │   ├── scenes/
 │   │   ├── PreloadScene.js   # Optional-asset loader (texture/bgm overrides)
 │   │   ├── TitleScene.js     # Title (key: MenuScene)
-│   │   ├── CharacterSelectScene.js  # Choose your pal (Brave/Swift Paw, Bomi)
+│   │   ├── CharacterSelectScene.js  # Choose Seoli (speed) or Bomi (power)
 │   │   ├── StoryScene.js     # Intro text sequence ({player} substitution)
 │   │   ├── GameScene.js      # Main game (multi-map, monster AI, bosses, travel boarding)
 │   │   └── TravelScene.js    # Cage rides (scrolling world, countdown, ambushes)
 │   ├── systems/
 │   │   ├── AudioManager.js   # Key-based BGM, silent when files missing
-│   │   └── SaveManager.js    # localStorage 'boso_save_v1', version:2 + migrate()
+│   │   └── SaveManager.js    # localStorage 'boso_save_v1', version:3 + migrate()
 │   ├── ui/HUD.js             # HP/MP bars + map name
 │   └── utils/constants.js    # Global constants (PLAYER, SCENES, DEPTH...)
 ├── index.html
@@ -117,7 +119,7 @@ PreloadScene → TitleScene (MENU) → CharacterSelectScene → StoryScene → G
 - Boarding: Owen NPCs carry `travelRoute`; dialogue ends on a boarding page
   (SPACE = board, walk away = stay, 600ms anti-mash lockout).
   `travelRequiresFlag` + `travelLockedLines` gate a route behind a save flag.
-- TravelScene: cage interior with free movement/attack/potions/bark, parallax
+- TravelScene: cage interior with free movement/combos/potions/wind gust, scenery
   scroll, countdown text; timer accumulates frame delta (no wall clock).
 - AMBUSH_TYPES: `vroom` (dasher: edge telegraph → streak across the player's
   lane, invulnerable) and `rumble` (tanker: slow advance + expanding
@@ -169,14 +171,19 @@ Optional `alpha` renders a type translucent (lonesome, dustmote).
   levelUp (+12 HP, +6 MP, +2 ATK, full heal); expToNext = 30 + level*25.
   Progress persists per character id (MapleStory-style: survives new games).
   HUD shows Lv + EXP bar + Treats; CharacterSelect shows saved level.
-- **Characters**: boso_brave (tanky), boso_swift (fast + bark X), bomi
-  (balanced kitten). Player.createTexture branches dog/kitten art.
+- **Characters**: only `seoli` (fast, wind claws + X gust) and `bomi`
+  (high HP/ATK, short-range paws). Canonical definitions and animation frames
+  live in `src/data/characters.js`. Boso is the game name, never a playable dog.
+  Both use 96px frames at 0.75 scale with foot-aligned physics bodies.
+  Holding CTRL cycles three strikes (1x / 1.15x / 1.5x ATK); each swing hits a
+  target once. DOWN crouches and reduces hurt height from 56px to 28px.
+  Wind claws travel outward; Bomi's melee stays close. Damage/rope grabs cancel swings.
 - **Drops**: MONSTER_TYPES.drops = { treatsMin/Max, items: [{key, chance}] };
   killMonster spawns physical pickups (bounce, auto-collect on touch,
   15s despawn with blink). Bosses and travel ambushes award drops directly.
 - **Items**: src/data/items.js; hotkeys 1 (Cookie +40 HP), 2 (Milk +30 MP);
   bag overlay on I. MP regenerates +2/2s naturally. Both work mid-ride.
-- **Bark (Swift Paw)**: X key fires 'proj_bark' (4 MP, 350ms cd, 360px range,
+- **Wind Gust (Seoli)**: X key fires 'proj_bark' (retained internal key; 4 MP, 350ms cd, 280px range,
   0.8x ATK); hits monsters, bosses, and Rumble ambushers.
 - **Quests**: src/data/quests.js kill-count quests; NPC markers (! available,
   ? ready); accept/turn-in on dialogue open; per-NPC quests chain in order.
@@ -184,9 +191,11 @@ Optional `alpha` renders a type translucent (lonesome, dustmote).
 - **NPC dialogue**: SPACE near an NPC opens a dialogue box; SPACE advances,
   auto-closes when walking away. `{player}` in lines is replaced with the
   character name. Owen NPCs append a travel boarding page.
-- **SaveManager**: localStorage key `boso_save_v1`, `{ version: 2, flags: {},
+- **SaveManager**: localStorage key `boso_save_v1`, `{ version: 3, flags: {},
   characters: { <charId>: { level, exp, treats, items, quests } } }`;
-  migrate() upgrades older saves additively (never drops data). Node-safe.
+  migrate() upgrades older saves additively. Swift progress maps to Seoli;
+  Brave maps to Bomi if it is more advanced. All old records are retained;
+  replaced Bomi progress is archived as `legacy_bomi`. Node-safe.
   Flags: tutorialCompleted, drEmbraceDefeated, biggieDefeated,
   hugGuardianDefeated, vacuumKingDefeated, demoCleared.
 - **AudioManager**: `play(scene, key)` / `stop()`. Missing audio file = silent
@@ -201,7 +210,8 @@ Optional `alpha` renders a type translucent (lonesome, dustmote).
 |--------|-----|
 | Move | ← → |
 | Jump | ALT |
-| Attack | CTRL |
+| Three-hit combo | CTRL (hold or repeat) |
+| Crouch | ↓ on ground |
 | Drop through platform | ↓ + ALT |
 | Grab rope (up) | ↑ near rope |
 | Grab rope (down) | ↓ near rope top |
@@ -209,7 +219,7 @@ Optional `alpha` renders a type translucent (lonesome, dustmote).
 | Jump off rope | ALT (+ optional ← →) |
 | Enter portal | ↑ near portal |
 | Talk to NPC / advance dialogue / board cage | SPACE |
-| Bark (Swift Paw only) | X |
+| Wind Gust (Seoli only) | X |
 | Use Cookie / Milk | 1 / 2 |
 | Bag & quest log | I |
 | World map (current region) | M |
@@ -270,5 +280,5 @@ Optional `alpha` renders a type translucent (lonesome, dustmote).
 - Shop NPC (spend Treats)
 - More quest types (fetch/escort), quest chains across regions
 - Real BGM files (keys ready — see docs/ASSETS.md)
-- Character/monster art replacement via texture overrides
+- More in-between animation frames and individual NPC variants
 - Tutorial skip for players with `tutorialCompleted`

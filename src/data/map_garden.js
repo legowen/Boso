@@ -65,7 +65,7 @@ const MAP_GARDEN = {
       name: 'Haku the Hedgehog',
       dialogue: [
         'Psst... this garden connects straight to the kitchen back door.',
-        'The bugs here sting harder than the house bubbles. Watch yourself, pup.',
+        'The bugs here sting harder than the house bubbles. Watch yourself, little whisker.',
       ],
     },
   ],

@@ -45,7 +45,7 @@ const MAP_SHELTER_WARD = {
   ],
   monsters: [],
   guides: [
-    { x: 180, y: 560, text: '← → Move   ALT Jump' },
+    { x: 180, y: 560, text: '← → Move   ALT Jump   ↓ Crouch'  },
     { x: 600, y: 480, text: '↑ near a rope to grab it,\n↑ / ↓ to climb, ALT to hop off' },
     { x: 620, y: 640, text: 'Jump up through platforms!\n↓ + ALT drops back down' },
     { x: 1080, y: 560, text: 'Stand on a portal\nand press ↑ to enter' },

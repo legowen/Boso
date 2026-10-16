@@ -1,13 +1,13 @@
 // src/scenes/PreloadScene.js
-// Loads OPTIONAL assets with a progress bar: the title background,
-// texture override PNGs, and BGM tracks. Every asset here may be missing —
-// load errors are swallowed and the game falls back to procedural
-// textures and silence.
+// Loads bundled cat animations and world art with a progress bar.
+// Texture overrides retain procedural fallbacks; absent BGM stays silent.
 
 import Phaser from 'phaser';
 import { SCENES, UI } from '../utils/constants.js';
 import { OPTIONAL_TEXTURES, textureOverridePath } from '../data/assets.js';
 import { BGM_KEYS, bgmFilePaths } from '../data/audio.js';
+import { CHARACTERS, CAT_FRAME_SIZE, CAT_ANIMATIONS } from '../data/characters.js';
+import { EXTRA_TEXTURES, WORLD_TEXTURES } from '../data/worldArt.js';
 
 export default class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -39,18 +39,23 @@ export default class PreloadScene extends Phaser.Scene {
       fill.fillRect(w / 2 - barW / 2 + 2, h / 2 + 2, (barW - 4) * value, barH - 4);
     });
 
-    // All assets below are optional — missing files 404 harmlessly.
+    // BGM and legacy texture overrides can be absent. Cat/world art is bundled.
     this.load.on('loaderror', () => {});
-
-    // Title screen background
-    this.load.image('title_bg', 'assets/images/title_bg.png');
 
     // Texture overrides: a PNG that loads here pre-fills the texture key,
     // so the `textures.exists(key)` guards in entity code skip procedural
     // generation. This is the image-swap mechanism.
-    OPTIONAL_TEXTURES.forEach((key) => {
+    [...OPTIONAL_TEXTURES, ...EXTRA_TEXTURES].forEach((key) => {
       this.load.image(key, textureOverridePath(key));
     });
+
+    CHARACTERS.forEach(({ id }) => {
+      this.load.spritesheet(`cat_${id}`, `assets/images/cats/${id}.png`, {
+        frameWidth: CAT_FRAME_SIZE, frameHeight: CAT_FRAME_SIZE,
+      });
+      this.load.image(`portrait_${id}`, `assets/images/cats/${id}-portrait.png`);
+    });
+    WORLD_TEXTURES.forEach((key) => this.load.image(key, `assets/images/world/${key}.png`));
 
     // BGM tracks (mp3/ogg candidates per key)
     BGM_KEYS.forEach((key) => {
@@ -59,6 +64,15 @@ export default class PreloadScene extends Phaser.Scene {
   }
 
   create() {
+    CHARACTERS.forEach(({ id }) => {
+      Object.entries(CAT_ANIMATIONS).forEach(([state, definition]) => {
+        const key = `${id}_${state}`;
+        if (!this.anims.exists(key)) this.anims.create({
+          key, frames: this.anims.generateFrameNumbers(`cat_${id}`, { frames: definition.frames }),
+          frameRate: definition.frameRate, repeat: definition.repeat,
+        });
+      });
+    });
     this.scene.start(SCENES.MENU);
   }
 }

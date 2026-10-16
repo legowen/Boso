@@ -52,10 +52,11 @@
   끌어당김 — 도망치면 느리게 밀리고 서 있으면 끌려감) / 먼지뭉치 투사체.
 
 ## 엔딩 훅
-Vacuum King 처치 → "The Owner finally turns around... 'BOSO!'" (데모 클리어)
+Vacuum King 처치 → "The Owner finally turns around... '{player}!'" (선택한 고양이 이름, 데모 클리어)
 - 타이틀 화면에 ★ DEMO CLEARED ★ 배지 표시 (localStorage 영속)
 
 ## 플레이어블
-보소 두 빌드 (커스텀 이미지 후속 교체 예정 — docs/ASSETS.md 참고):
-- **Boso — Brave Paw**: HP 150 / ATK 20 / 근접 강타형
-- **Boso — Swift Paw**: SPD 240 / 점프 강화 / 스피드형
+보소는 게임 이름이며, 플레이어블은 고양이 설이와 보미다.
+- **Seoli — Wind Whisker (설이)**: 흰 털, 회색 무늬와 꼬리, 짙은 에메랄드 눈, 분홍 귀·코·젤리. HP 100 / MP 80 / ATK 14 / SPD 250. 스피드형이며 바람 효과가 앞으로 뻗는 공격을 사용한다.
+- **Bomi — Mighty Paw (보미)**: 검은 털, 가슴의 작은 흰 무늬, 에메랄드 눈, 분홍 귀, 검은 코·젤리. HP 160 / MP 40 / ATK 24 / SPD 190. 체력과 힘이 높으며 공격 사거리가 짧다.
+- 두 고양이 모두 달리기, 점프·낙하, 앉기, 3연타, 줄타기, 피격 도트 동작을 사용한다. 에셋 규격과 후속 수정은 docs/PIXEL_ART.md 참고.
