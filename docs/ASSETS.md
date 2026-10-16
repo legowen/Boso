@@ -1,20 +1,33 @@
 # Boso Asset Guide — drop-in images & BGM (no code changes needed)
 
-All visuals are procedurally generated placeholders. Every texture has a
+Generated pixel art is now bundled for both cats and the world. Every entity texture has a
 **fixed key**. If you drop a PNG at the override path, `PreloadScene` loads it
 under that key and the procedural placeholder is skipped automatically.
 
 ## Texture overrides
 
+Animated players use `cats/seoli.png` and `cats/bomi.png`, each a 4×4 sheet
+of 96×96 cells. Their exact frame order, identity, combat tuning and rebuild
+workflow are documented in [PIXEL_ART.md](PIXEL_ART.md). The static player
+keys below are retained for compatibility; they do not animate the player.
+
+World textures live in `public/assets/images/world/`: nine `bg_*` themes,
+eight `tile_*` terrain textures, `travel_ship.png`, and `bg_voyage.png`.
+Every map has an explicit theme in `src/data/worldArt.js`.
+
 Put PNG files here: `public/assets/images/tex/<key>.png`
 
 | Key | Recommended size (px) | What it is |
 |---|---|---|
-| `player_boso_brave` | 40 x 56 | Boso (Brave Paw) — brown pup, red collar |
-| `player_boso_swift` | 40 x 56 | Boso (Swift Paw) — cream pup, blue collar |
-| `player_bomi` | 40 x 56 | Bomi (Tiny Whisker) — white shelter kitten, bell collar |
+| `player_seoli` | 40 x 56 | Static fallback for white/gray Seoli |
+| `player_bomi` | 40 x 56 | Static fallback for black Bomi |
 | `npc` | 36 x 52 | Generic NPC (cats, hounds, guild members) |
 | `npc_owen` | 36 x 52 | Owen — the Owner (human, blue shirt) |
+| `npc_nurse` | 36 x 52 | Nurse Mimsy |
+| `npc_gear` | 36 x 52 | Gearist Tinkerer / Apprentice Bolt |
+| `npc_plush` | 36 x 52 | Plushist Sewmaster |
+| `npc_hound` | 36 x 52 | Old Bell, the elderly dog |
+| `npc_hedgehog` | 36 x 52 | Haku the Hedgehog |
 | `cage` | 96 x 76 | Travel cage prop (departure/arrival point) |
 | `portal` | 48 x 64 | Normal portal |
 | `portal_hidden` | 48 x 64 | Golden secret portal |
@@ -39,17 +52,20 @@ Put PNG files here: `public/assets/images/tex/<key>.png`
 | `proj_arm` | 120 x 50 | Hug Guardian's sweeping plush arm |
 | `proj_arm_dr` | 110 x 44 | Dr. Embrace's sweeping coat sleeve |
 | `proj_dust` | 20 x 20 | Vacuum King's dust ball projectile |
-| `proj_bark` | 26 x 18 | Swift Paw's sonic bark projectile |
+| `proj_bark` | 26 x 18 | Seoli's wind gust (legacy texture key) projectile |
 | `ambush_vroom` | 96 x 40 | Vroom — travel ambush car streak (TravelScene) |
 | `ambush_rumble` | 76 x 64 | Rumble — travel ambush engine tanker (TravelScene) |
-| `drop_treat` | 16 x 16 | Treat currency drop (golden bone) |
+| `drop_treat` | 16 x 16 | Treat currency drop (golden fish) |
 | `drop_cookie` | 16 x 16 | Cookie item drop (+40 HP) |
 | `drop_milk` | 14 x 18 | Milk item drop (+30 MP) |
+| `fx_wind` | 88 x 52 | Seoli wind-claw effect |
+| `fx_paw` | 64 x 52 | Bomi heavy-paw effect |
+| `fx_hit` | 28 x 28 | Impact sparkle |
 
 Notes:
 - Sprites face RIGHT by default (the game flips them with `flipX`).
 - Sizes other than recommended work, but physics bodies are tuned to these.
-- `public/assets/images/title_bg.png` is the title screen background (already present).
+- The title screen now uses `world/bg_garden.png`; the legacy title image is retained but not loaded.
 
 ## BGM
 

@@ -10,7 +10,8 @@ const SAVE_KEY = 'boso_save_v1';
 // 'boso_save_v1' so pre-versioning saves keep loading).
 // v1 (implicit): { flags }, later + characters
 // v2: adds an explicit `version` field; flags/characters normalized
-const SAVE_VERSION = 2;
+// v3: maps legacy playable characters to Seoli and Bomi, retaining originals
+const SAVE_VERSION = 3;
 
 // Module-level in-memory fallback, used when localStorage is unavailable
 // or throws (e.g. privacy mode quota errors, Node without DOM globals).
@@ -30,7 +31,16 @@ function migrate(data) {
     data.characters = {};
   }
   if (typeof data.version !== 'number' || data.version < SAVE_VERSION) {
-    // v1 -> v2: purely additive (nothing to rewrite), just stamp it
+    // v3: retain legacy records and copy progress to the corrected cats.
+    if (!data.characters.seoli && data.characters.boso_swift) {
+      data.characters.seoli = { ...data.characters.boso_swift };
+    }
+    const brave = data.characters.boso_brave;
+    const bomi = data.characters.bomi;
+    if (brave && (!bomi || brave.level > bomi.level || (brave.level === bomi.level && (brave.exp || 0) > (bomi.exp || 0)))) {
+      if (bomi) data.characters.legacy_bomi = { ...bomi };
+      data.characters.bomi = { ...brave };
+    }
     data.version = SAVE_VERSION;
   }
   return data;

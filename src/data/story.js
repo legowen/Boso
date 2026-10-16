@@ -1,6 +1,6 @@
 // src/data/story.js
 // Pure data — story text (no Phaser imports).
-// "Look at me!" — Boso the dog crosses the house to reach the Owner,
+// "Look at me!" — Seoli or Bomi crosses the house to reach the Owner,
 // who is locked away in the attic laboratory. Magatia homage:
 // two rival toy-alchemist guilds, the Gearists and the Plushists.
 
@@ -18,7 +18,7 @@ export const STORY = {
     'The whirring fades. Dust settles.',
     'Footsteps... coming down the attic stairs.',
     'The Owner finally turns around...',
-    '"...BOSO!"',
+    '"...{player}!"',
     'DEMO CLEAR — Thanks for playing!',
   ],
   hiddenPortalHint: 'A strange humming comes from the closet...',

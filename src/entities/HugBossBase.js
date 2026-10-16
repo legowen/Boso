@@ -159,7 +159,7 @@ export default class HugBossBase {
       if (!arm.hitPlayer && player.hp > 0) {
         const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
           arm.getBounds(),
-          player.sprite.getBounds()
+          player.getHurtBounds()
         );
         if (overlap) {
           arm.hitPlayer = true;
@@ -317,22 +317,18 @@ export default class HugBossBase {
   handleTakingDamage() {
     const player = this.scene.player;
     // A dead player's lingering hitbox must not land the killing blow
-    if (!player.attackHitbox || this.isHit || player.hp <= 0) return;
+    if (!player.canHit(this)) return;
 
     const hitbox = player.attackHitbox;
     const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
-      new Phaser.Geom.Rectangle(
-        hitbox.x - PLAYER.ATTACK_WIDTH / 2,
-        hitbox.y - PLAYER.ATTACK_HEIGHT / 2,
-        PLAYER.ATTACK_WIDTH,
-        PLAYER.ATTACK_HEIGHT
-      ),
+      hitbox.getBounds(),
       this.sprite.getBounds()
     );
     if (!overlap) return;
 
     this.isHit = true;
-    const damage = player.attackPower + Phaser.Math.Between(-3, 3);
+    player.registerHit(this);
+    const damage = player.attackDamage + Phaser.Math.Between(-3, 3);
     this.applyDamage(damage);
 
     this.scene.time.delayedCall(PLAYER.ATTACK_DURATION + 50, () => {
@@ -364,7 +360,7 @@ export default class HugBossBase {
   handleContactDamage(player) {
     if (this.defeated || this.contactCooldown || player.hp <= 0) return;
     const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
-      player.sprite.getBounds(),
+      player.getHurtBounds(),
       this.sprite.getBounds()
     );
     if (!overlap) return;

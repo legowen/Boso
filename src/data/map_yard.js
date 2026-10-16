@@ -1,5 +1,5 @@
 // src/data/map_yard.js
-// Sunny Backyard - starting town where Boso wakes up
+// Sunny Backyard - starting town where the cats arrive
 
 const MAP_YARD = {
   name: 'Sunny Backyard',
@@ -40,7 +40,7 @@ const MAP_YARD = {
       y: 714,
       name: 'Miyo the Cat',
       dialogue: [
-        "Meow... Boso? The Owner hasn't come down for days.",
+        "Meow... {player}? The Owner hasn't come down for days.",
         'The toy creatures escaped from the attic lab. Be careful out there!',
       ],
     },

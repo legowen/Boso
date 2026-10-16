@@ -17,6 +17,9 @@ import {
   ROPE,
 } from '../utils/constants.js';
 import Player from '../entities/Player.js';
+import { getCharacter } from '../data/characters.js';
+import { npcTexture } from '../data/worldArt.js';
+import { addWorldBackground, decoratePlatform } from '../systems/WorldArt.js';
 import HUD from '../ui/HUD.js';
 import { MAPS_DATA, START_MAP, respawnMapFor } from '../data/maps.js';
 import { MONSTER_TYPES, BOSS_TYPES } from '../data/monsters.js';
@@ -35,8 +38,8 @@ import SaveManager from '../systems/SaveManager.js';
 // Map registry lives in src/data/maps.js (pure data, Node-validatable)
 const MAPS = MAPS_DATA;
 
-// Swift Paw's ranged bark attack
-const BARK = { mpCost: 4, speed: 420, maxDist: 360, cooldownMs: 350 };
+// Seoli's ranged wind attack
+const BARK = { mpCost: 4, speed: 420, maxDist: 280, cooldownMs: 350 };
 
 // Persistent map state across portal transitions
 const MAP_STATE = {};
@@ -71,6 +74,7 @@ export default class GameScene extends Phaser.Scene {
     if (data && data.characterData) {
       this.characterData = data.characterData;
     }
+    this.characterData = getCharacter(this.characterData?.id);
     // Preserve HP/MP across map transitions
     this.savedPlayerHp = (data && data.playerHp !== undefined) ? data.playerHp : null;
     this.savedPlayerMp = (data && data.playerMp !== undefined) ? data.playerMp : null;
@@ -185,13 +189,13 @@ export default class GameScene extends Phaser.Scene {
       this.toggleWorldMap();
     }
 
-    // Bark (Swift Paw's ranged attack, X key)
+    // Wind Gust (Seoli's ranged attack, X key)
     if (
       this.characterData &&
-      this.characterData.id === 'boso_swift' &&
+      this.player.charId === 'seoli' &&
       this.keys.x.isDown &&
       this.player.hp > 0 &&
-      !this.player.isClimbing
+      !this.player.isClimbing && !this.player.isKnockedBack
     ) {
       const now = Date.now();
       if (now > this.barkReadyAt && this.player.mp >= BARK.mpCost) {
@@ -648,7 +652,7 @@ export default class GameScene extends Phaser.Scene {
 
     if (!this.textures.exists('proj_bark')) {
       const g = this.add.graphics();
-      // Sonic bark - three expanding arcs
+      // Wind Gust fallback - three expanding arcs
       g.lineStyle(3, 0xFFFFFF, 0.95);
       g.beginPath();
       g.arc(3, 9, 5, -0.9, 0.9);
@@ -712,7 +716,7 @@ export default class GameScene extends Phaser.Scene {
   updateDrops() {
     if (this.drops.length === 0) return;
     const now = Date.now();
-    const playerBounds = this.player.hp > 0 ? this.player.sprite.getBounds() : null;
+    const playerBounds = this.player.hp > 0 ? this.player.getHurtBounds() : null;
 
     this.drops = this.drops.filter((drop) => {
       if (!drop.sprite.active) return false;
@@ -778,7 +782,7 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  // ===== Bark projectile (Swift Paw) =====
+  // ===== Wind Gust projectile (Seoli) =====
 
   fireBark(now) {
     this.player.mp -= BARK.mpCost;
@@ -1533,35 +1537,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   initBackground() {
-    // Set world bounds to map size
-    this.physics.world.setBounds(0, 0, this.mapData.width, this.mapData.height);
-
-    const colors = this.mapData.bgColors;
-
-    // Sky background (gradient)
-    const bg = this.add.graphics().setDepth(DEPTH.BACKGROUND);
-
-    // Upper gradient
-    bg.fillGradientStyle(colors.top[0], colors.top[0], colors.top[1], colors.top[1], 1);
-    bg.fillRect(0, 0, this.mapData.width, this.mapData.height / 2);
-
-    // Lower gradient
-    bg.fillGradientStyle(colors.bottom[0], colors.bottom[0], colors.bottom[1], colors.bottom[1], 1);
-    bg.fillRect(0, this.mapData.height / 2, this.mapData.width, this.mapData.height / 2);
-
-    // Distant mountain silhouettes (parallax feel)
-    const mountains = this.add.graphics().setDepth(DEPTH.BACKGROUND + 1);
-    mountains.fillStyle(colors.mountain, 0.6);
-    for (let i = 0; i < 8; i++) {
-      const mx = i * 450 + 100;
-      const mw = Phaser.Math.Between(200, 400);
-      const mh = Phaser.Math.Between(150, 300);
-      mountains.fillTriangle(
-        mx, this.mapData.height - 60,
-        mx + mw / 2, this.mapData.height - 60 - mh,
-        mx + mw, this.mapData.height - 60
-      );
-    }
+    addWorldBackground(this, this.currentMapKey);
   }
 
   initCamera() {
@@ -2061,7 +2037,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.mapData.npcs.forEach((npcData) => {
       const textureKey =
-        npcData.texture && this.textures.exists(npcData.texture) ? npcData.texture : 'npc';
+        this.textures.exists(npcTexture(npcData)) ? npcTexture(npcData) : 'npc';
       const sprite = this.physics.add.staticSprite(npcData.x, npcData.y, textureKey);
       sprite.setDepth(DEPTH.NPCS);
 
@@ -2239,7 +2215,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.mapData.platforms.forEach((platData) => {
       // Generate texture
-      const key = `plat_${platData.w}_${platData.h}`;
+      const key = `plat_${platData.isGround ? "ground" : "ledge"}_${platData.w}_${platData.h}`;
       if (!this.textures.exists(key)) {
         const graphics = this.add.graphics();
         if (platData.isGround) {
@@ -2276,6 +2252,7 @@ export default class GameScene extends Phaser.Scene {
         platform.body.checkCollision.right = false;
       }
 
+      decoratePlatform(this, platData, this.artTheme.terrain);
       this.platforms.push(platform);
     });
   }
@@ -2518,7 +2495,7 @@ export default class GameScene extends Phaser.Scene {
         STORY.ending.forEach((line, i) => {
           this.time.delayedCall(600 + i * 2200, () => {
             const isLast = i === STORY.ending.length - 1;
-            const lineText = this.add.text(w / 2, h * 0.3 + i * 54, line, {
+            const lineText = this.add.text(w / 2, h * 0.3 + i * 54, line.replaceAll('{player}', this.playerDisplayName()), {
               fontSize: isLast ? '20px' : '22px',
               fontFamily: isLast ? 'Arial' : 'Arial Black, Arial',
               color: isLast ? '#B9770E' : '#4A3728',
@@ -2598,21 +2575,17 @@ export default class GameScene extends Phaser.Scene {
       monsterObj.hpBar.fillRect(barX, barY, barWidth * hpRatio, barHeight);
 
       // Check collision with player attack hitbox
-      if (this.player.attackHitbox && !monsterObj.isHit) {
+      if (this.player.canHit(monsterObj)) {
         const hitbox = this.player.attackHitbox;
         const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
-          new Phaser.Geom.Rectangle(
-            hitbox.x - PLAYER.ATTACK_WIDTH / 2,
-            hitbox.y - PLAYER.ATTACK_HEIGHT / 2,
-            PLAYER.ATTACK_WIDTH,
-            PLAYER.ATTACK_HEIGHT
-          ),
+          hitbox.getBounds(),
           monsterObj.sprite.getBounds()
         );
 
         if (overlap) {
           monsterObj.isHit = true;
-          const damage = this.player.attackPower + Phaser.Math.Between(-3, 3);
+          this.player.registerHit(monsterObj);
+          const damage = this.player.attackDamage + Phaser.Math.Between(-3, 3);
           monsterObj.hp -= damage;
 
           // Show damage number
@@ -2624,8 +2597,8 @@ export default class GameScene extends Phaser.Scene {
           );
 
           // Knockback (AI resteers after the knock window)
-          const knockDir = this.player.facingRight ? 1 : -1;
-          monsterObj.sprite.setVelocityX(200 * knockDir);
+          const knockDir = this.player.attackDirection;
+          monsterObj.sprite.setVelocityX(this.player.combat.knockback * knockDir);
           monsterObj.knockedUntil = now + 250;
 
           // A hit staggers a winding-up charger (and kills its rattle
@@ -2659,7 +2632,7 @@ export default class GameScene extends Phaser.Scene {
 
       // Monster-player contact damage (skip corpses and dying monsters)
       if (monsterObj.sprite.active && !monsterObj.isDying && this.player.hp > 0) {
-        const playerBounds = this.player.sprite.getBounds();
+        const playerBounds = this.player.getHurtBounds();
         const monsterBounds = monsterObj.sprite.getBounds();
         if (Phaser.Geom.Intersects.RectangleToRectangle(playerBounds, monsterBounds)) {
           if (!monsterObj.hasContactDamage) {

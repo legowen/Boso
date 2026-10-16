@@ -5,6 +5,7 @@ import Phaser from 'phaser';
 import { PLAYER, DEPTH, DAMAGE_TEXT, ROPE } from '../utils/constants.js';
 import SaveManager from '../systems/SaveManager.js';
 import { ITEMS } from '../data/items.js';
+import { getCharacter, COMBO_MULTIPLIERS, COMBO_RESET_MS } from '../data/characters.js';
 
 // Stat growth per level (MapleStory-style persistent progression)
 const LEVEL_GROWTH = { hp: 12, mp: 6, atk: 2 };
@@ -16,15 +17,16 @@ const MP_REGEN_INTERVAL_MS = 2000;
 export default class Player {
   constructor(scene, x, y, characterData) {
     this.scene = scene;
-    this.characterData = characterData || null;
+    this.characterData = getCharacter(characterData?.id);
 
     // Create player sprite with character-specific appearance
     this.createTexture();
     this.sprite = scene.physics.add.sprite(x, y, this.textureKey);
     this.sprite.setDepth(DEPTH.PLAYER);
     this.sprite.setCollideWorldBounds(true);
-    this.sprite.setBounce(0);
-    this.sprite.body.setSize(PLAYER.WIDTH - 8, PLAYER.HEIGHT);
+    this.sprite.setBounce(0).setScale(0.75);
+    this.isCrouching = false;
+    this.setCrouching(false);
 
     // Level, EXP, treats, items, quests (persisted per character id)
     this.charId = this.characterData ? this.characterData.id : 'default';
@@ -59,130 +61,61 @@ export default class Player {
 
     // Attack hitbox
     this.attackHitbox = null;
+    this.attackEffect = null;
+    this.comboStep = -1;
+    this.lastAttackAt = -Infinity;
+    this.hitTargets = new Set();
+    this.combat = this.characterData.combat;
   }
 
   createTexture() {
-    // Use character-specific texture key
-    const texKey = this.characterData ? `player_${this.characterData.id}` : 'player';
-    this.textureKey = texKey;
+    this.textureKey = `cat_${this.characterData.id}`;
+  }
 
-    if (this.scene.textures.exists(texKey)) return;
+  setCrouching(crouching) {
+    this.isCrouching = crouching;
+    const scale = 0.75;
+    const width = (PLAYER.WIDTH - 8) / scale;
+    const height = (crouching ? 28 : PLAYER.HEIGHT) / scale;
+    this.sprite.body.setSize(width, height, false);
+    this.sprite.body.setOffset((96 - width) / 2, 88 - height);
+  }
 
-    const color = this.characterData ? this.characterData.color : PLAYER.COLOR;
-    const charId = this.characterData ? this.characterData.id : 'default';
+  getHurtBounds() {
+    const body = this.sprite.body;
+    return new Phaser.Geom.Rectangle(body.x, body.y, body.width, body.height);
+  }
 
-    const graphics = this.scene.add.graphics();
-    const W = PLAYER.WIDTH;
-    const H = PLAYER.HEIGHT;
+  canHit(target) {
+    return !!this.attackHitbox && this.hp > 0 && !this.hitTargets.has(target);
+  }
 
-    // Bomi - the shelter kitten (pointy ears, whiskers, bell collar)
-    if (charId === 'bomi') {
-      const stripe = 0xB2BABB;
-
-      // Upright tail (left side - faces right by default)
-      graphics.fillStyle(stripe, 1);
-      graphics.fillTriangle(4, H - 20, 0, H - 40, 10, H - 14);
-
-      // Body
-      graphics.fillStyle(color, 1);
-      graphics.fillRect(6, 22, W - 12, H - 28);
-
-      // Head
-      graphics.fillRect(7, 6, W - 14, 20);
-
-      // Pointy ears with pink inner
-      graphics.fillTriangle(9, 8, 12, -2, 19, 6);
-      graphics.fillTriangle(W - 9, 8, W - 12, -2, W - 19, 6);
-      graphics.fillStyle(0xF5B7B1, 1);
-      graphics.fillTriangle(11, 5, 12.5, 0, 16, 4);
-      graphics.fillTriangle(W - 11, 5, W - 12.5, 0, W - 16, 4);
-
-      // Tabby head stripes
-      graphics.fillStyle(stripe, 1);
-      graphics.fillRect(16, 6, 3, 5);
-      graphics.fillRect(22, 6, 3, 5);
-
-      // Green cat eyes
-      graphics.fillStyle(0xFFFFFF, 1);
-      graphics.fillRect(13, 12, 7, 7);
-      graphics.fillRect(24, 12, 7, 7);
-      graphics.fillStyle(0x1E8449, 1);
-      graphics.fillRect(16, 14, 3, 4);
-      graphics.fillRect(27, 14, 3, 4);
-
-      // Pink nose + whiskers
-      graphics.fillStyle(0xE75480, 1);
-      graphics.fillTriangle(19, 20, 25, 20, 22, 24);
-      graphics.lineStyle(1, 0x839192, 1);
-      graphics.lineBetween(2, 19, 13, 21);
-      graphics.lineBetween(2, 24, 13, 23);
-      graphics.lineBetween(W - 2, 19, W - 13, 21);
-      graphics.lineBetween(W - 2, 24, W - 13, 23);
-
-      // Bell collar
-      graphics.fillStyle(0xE75480, 1);
-      graphics.fillRect(8, 28, W - 16, 5);
-      graphics.fillStyle(0xF1C40F, 1);
-      graphics.fillCircle(W / 2, 36, 3);
-
-      // Front paws
-      graphics.fillStyle(stripe, 1);
-      graphics.fillRect(10, H - 8, 8, 8);
-      graphics.fillRect(W - 18, H - 8, 8, 8);
-
-      graphics.generateTexture(texKey, W, H);
-      graphics.destroy();
-      return;
+  registerHit(target) {
+    this.hitTargets.add(target);
+    if (this.scene.textures.exists('fx_hit')) {
+      const sprite = target.sprite || target;
+      const spark = this.scene.add.image(sprite.x, sprite.y, 'fx_hit').setDepth(DEPTH.EFFECTS + 1);
+      this.scene.tweens.add({ targets: spark, alpha: 0, scale: 1.4, duration: 180, onComplete: () => spark.destroy() });
     }
+  }
 
-    // Coat variants: brave = brown pup, swift = cream pup
-    const earColor = charId === 'boso_brave' ? 0x8B5A2B : 0xC9B08A;
-    const collarColor = charId === 'boso_brave' ? 0xE74C3C : 0x3498DB;
+  getAttackBounds() {
+    return this.attackHitbox?.getBounds() || new Phaser.Geom.Rectangle(0, 0, 0, 0);
+  }
 
-    // Tail (left side - dog faces right by default)
-    graphics.fillStyle(earColor, 1);
-    graphics.fillTriangle(6, H - 22, 0, H - 34, 10, H - 14);
-
-    // Body (upright pup)
-    graphics.fillStyle(color, 1);
-    graphics.fillRect(6, 20, W - 12, H - 26);
-
-    // Head
-    graphics.fillStyle(color, 1);
-    graphics.fillRect(8, 4, W - 16, 22);
-
-    // Floppy ears
-    graphics.fillStyle(earColor, 1);
-    graphics.fillTriangle(8, 4, 2, 18, 14, 12);
-    graphics.fillTriangle(W - 8, 4, W - 2, 18, W - 14, 12);
-
-    // Eyes
-    graphics.fillStyle(0xFFFFFF, 1);
-    graphics.fillRect(16, 10, 7, 7);
-    graphics.fillRect(26, 10, 7, 7);
-    graphics.fillStyle(0x000000, 1);
-    graphics.fillRect(19, 12, 4, 4);
-    graphics.fillRect(29, 12, 4, 4);
-
-    // Snout + nose
-    graphics.fillStyle(0xF5E6D3, 1);
-    graphics.fillRect(17, 18, 14, 8);
-    graphics.fillStyle(0x2C1810, 1);
-    graphics.fillRect(21, 18, 6, 4);
-
-    // Collar with gold tag
-    graphics.fillStyle(collarColor, 1);
-    graphics.fillRect(8, 26, W - 16, 5);
-    graphics.fillStyle(0xF1C40F, 1);
-    graphics.fillCircle(W / 2 + 4, 34, 3);
-
-    // Front paws
-    graphics.fillStyle(earColor, 1);
-    graphics.fillRect(10, H - 8, 8, 8);
-    graphics.fillRect(W - 18, H - 8, 8, 8);
-
-    graphics.generateTexture(texKey, W, H);
-    graphics.destroy();
+  updateAnimation() {
+    if (!this.scene.anims.exists(`${this.charId}_idle`)) return;
+    const grounded = this.sprite.body.blocked.down || this.sprite.body.touching.down;
+    let state = 'idle';
+    if (this.isKnockedBack || this.hp <= 0) state = 'hurt';
+    else if (this.isAttacking) state = `attack${this.comboStep + 1}`;
+    else if (this.isClimbing) state = 'climb';
+    else if (!grounded) state = this.sprite.body.velocity.y < 0 ? 'jump' : 'fall';
+    else if (this.isCrouching) state = 'crouch';
+    else if (Math.abs(this.sprite.body.velocity.x) > 10) state = 'run';
+    this.sprite.play(`${this.charId}_${state}`, true);
+    if (state === 'climb' && Math.abs(this.sprite.body.velocity.y) < 1) this.sprite.anims.pause();
+    else if (this.sprite.anims.isPaused) this.sprite.anims.resume();
   }
 
   update(cursors, keys) {
@@ -192,6 +125,8 @@ export default class Player {
 
     this.handleMovement(cursors, keys);
     this.handleAttack(keys);
+    this.updateAttackEffect();
+    this.updateAnimation();
 
     // Natural MP regeneration
     const now = Date.now();
@@ -213,19 +148,25 @@ export default class Player {
 
     const onGround = this.sprite.body.blocked.down || this.sprite.body.touching.down;
 
+    const crouching = cursors.down.isDown && onGround && !this.isDroppingThrough;
+    if (crouching !== this.isCrouching) this.setCrouching(crouching);
+    const speed = this.isAttacking ? this.moveSpeed * 0.4 : this.moveSpeed;
+    // Crouching is stationary; DOWN + ALT and ropes remain available.
+    if (crouching) this.sprite.setVelocityX(0);
     // Left/right movement
-    if (cursors.left.isDown) {
-      this.sprite.setVelocityX(-this.moveSpeed);
+    if (!crouching && cursors.left.isDown) {
+      this.sprite.setVelocityX(-speed);
       this.facingRight = false;
       this.sprite.setFlipX(true);
-    } else if (cursors.right.isDown) {
-      this.sprite.setVelocityX(this.moveSpeed);
+    } else if (!crouching && cursors.right.isDown) {
+      this.sprite.setVelocityX(speed);
       this.facingRight = true;
       this.sprite.setFlipX(false);
     } else {
       this.sprite.setVelocityX(0);
     }
 
+    if (this.isAttacking) this.sprite.setFlipX(this.attackDirection < 0);
     // Jump (ALT key, but not when pressing DOWN)
     if (keys.alt.isDown && !cursors.down.isDown && onGround && !this.isDroppingThrough) {
       this.sprite.setVelocityY(this.jumpPower);
@@ -342,6 +283,8 @@ export default class Player {
   }
 
   grabRope(rope) {
+    this.clearAttack();
+    this.setCrouching(false);
     this.isClimbing = true;
     this.currentRope = rope;
 
@@ -369,7 +312,7 @@ export default class Player {
     // Don't drop through the ground
     if (this.scene.groundPlatform) {
       const groundTop = this.scene.groundPlatform.y - this.scene.groundPlatform.height / 2;
-      if (this.sprite.y + PLAYER.HEIGHT / 2 >= groundTop - 5) {
+      if (this.sprite.body.bottom >= groundTop - 5) {
         return;
       }
     }
@@ -386,50 +329,53 @@ export default class Player {
   }
 
   handleAttack(keys) {
-    // Attack with CTRL key
-    if (keys.ctrl.isDown && this.canAttack && !this.isAttacking) {
+    if (keys.ctrl.isDown && this.canAttack && !this.isAttacking && !this.isClimbing && !this.isKnockedBack) {
       this.performAttack();
     }
   }
 
   performAttack() {
+    if (this.hp <= 0 || this.isClimbing || this.isKnockedBack || !this.canAttack) return;
+    const now = this.scene.time.now;
+    this.comboStep = now - this.lastAttackAt < COMBO_RESET_MS ? (this.comboStep + 1) % 3 : 0;
+    this.lastAttackAt = now;
     this.isAttacking = true;
     this.canAttack = false;
-
-    // Create attack hitbox
-    const offsetX = this.facingRight ? PLAYER.ATTACK_RANGE : -PLAYER.ATTACK_RANGE;
-    const attackX = this.sprite.x + offsetX;
-    const attackY = this.sprite.y;
-
-    this.attackHitbox = this.scene.add.zone(attackX, attackY, PLAYER.ATTACK_WIDTH, PLAYER.ATTACK_HEIGHT);
-    this.scene.physics.add.existing(this.attackHitbox, true);
-    this.attackHitbox.setDepth(DEPTH.EFFECTS);
-
-    // Attack effect (prototype: semi-transparent rectangle)
-    const effectGraphics = this.scene.add.graphics();
-    effectGraphics.fillStyle(0xFFFFFF, 0.5);
-    effectGraphics.fillRect(
-      attackX - PLAYER.ATTACK_WIDTH / 2,
-      attackY - PLAYER.ATTACK_HEIGHT / 2,
-      PLAYER.ATTACK_WIDTH,
-      PLAYER.ATTACK_HEIGHT
-    );
-    effectGraphics.setDepth(DEPTH.EFFECTS);
-
-    // Remove hitbox & effect after duration
-    this.scene.time.delayedCall(PLAYER.ATTACK_DURATION, () => {
-      if (this.attackHitbox) {
-        this.attackHitbox.destroy();
-        this.attackHitbox = null;
-      }
-      effectGraphics.destroy();
-      this.isAttacking = false;
-    });
-
-    // Attack cooldown
-    this.scene.time.delayedCall(PLAYER.ATTACK_COOLDOWN, () => {
+    this.attackDirection = this.facingRight ? 1 : -1;
+    this.attackDamage = Math.round(this.attackPower * COMBO_MULTIPLIERS[this.comboStep]);
+    this.hitTargets.clear();
+    const cfg = this.combat;
+    this.attackHitbox = this.scene.add.zone(this.sprite.x, this.sprite.y, cfg.width, cfg.height);
+    this.attackEffect = this.scene.add.image(this.sprite.x, this.sprite.y, cfg.effect)
+      .setDepth(DEPTH.EFFECTS).setFlipX(this.attackDirection < 0);
+    this.attackEffect.setDisplaySize(cfg.width * (1 + this.comboStep * 0.13), cfg.height * (1 + this.comboStep * 0.1));
+    this.updateAttackEffect();
+    if (this.comboStep === 2) {
+      this.showFloatingText('3 HIT!', this.charId === 'seoli' ? '#8DE5D3' : '#FFD08E');
+    }
+    this.scene.time.delayedCall(cfg.duration, () => this.clearAttack());
+    this.scene.time.delayedCall(cfg.cooldown + (this.comboStep === 2 ? 70 : 0), () => {
       this.canAttack = true;
     });
+  }
+
+  updateAttackEffect() {
+    if (!this.attackHitbox) return;
+    const progress = Phaser.Math.Clamp((this.scene.time.now - this.lastAttackAt) / this.combat.duration, 0, 1);
+    // Seoli's wind claw travels outwards; Bomi's heavy paw stays close.
+    const reach = this.charId === 'seoli' ? 28 + progress * (this.combat.reach - 28) : this.combat.reach;
+    const x = this.sprite.x + this.attackDirection * reach;
+    const y = this.sprite.y + (this.isCrouching ? 14 : 0);
+    this.attackHitbox.setPosition(x, y);
+    this.attackEffect?.setPosition(x, y).setAlpha(1 - progress * 0.65);
+  }
+
+  clearAttack() {
+    this.attackHitbox?.destroy();
+    this.attackEffect?.destroy();
+    this.attackHitbox = null;
+    this.attackEffect = null;
+    this.isAttacking = false;
   }
 
   // EXP needed to advance from the current level
@@ -519,6 +465,8 @@ export default class Player {
     // Already dead - no further damage, knockback, or repeated die() calls
     if (this.hp <= 0) return;
 
+    this.clearAttack();
+    this.setCrouching(false);
     this.hp = Math.max(0, this.hp - amount);
 
     // Knockback: push player away from damage source
@@ -550,6 +498,8 @@ export default class Player {
   }
 
   die() {
+    this.clearAttack();
+    this.updateAnimation();
     this.sprite.setTint(0x555555);
     this.sprite.setVelocity(0, 0);
     this.sprite.body.enable = false;

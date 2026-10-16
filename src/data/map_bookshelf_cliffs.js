@@ -41,7 +41,7 @@ const MAP_BOOKSHELF_CLIFFS = {
   ropes: [
     // Each rope hangs from a shelf down past the one below it.
     // The first right-column rope reaches all the way down so every
-    // character (including low-jump Brave Paw) can start the climb
+    // character (including lower-jump Bomi) can start the climb
     // from the ground on either column.
     { x: 320, topY: 1300, bottomY: 1430 },
     { x: 820, topY: 1160, bottomY: 1420 },
