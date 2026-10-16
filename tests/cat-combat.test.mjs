@@ -28,7 +28,8 @@ function object(x = 0, y = 0, width = 0, height = 0) {
   return {
     x, y, width, height, active: true, anims: { isPaused: false, pause() {}, resume() {} },
     setDepth() { return this; }, setFlipX(v) { this.flipX = v; return this; },
-    setOrigin() { return this; }, setScale() { return this; }, setBounce() { return this; },
+    setOrigin(x, y = x) { this.originX = x; this.originY = y; return this; },
+    setScale(value) { this.scaleX = value; this.scaleY = value; return this; }, setBounce() { return this; },
     setCollideWorldBounds() { return this; }, setDisplaySize() { return this; },
     setAlpha() { return this; }, setTint() { return this; },
     setPosition(x, y) { Object.assign(this, { x, y }); return this; },
@@ -52,7 +53,7 @@ function fixture(id = 'seoli') {
       sprite.body = {
         blocked: { down: true }, touching: { down: false }, velocity: { x: 0, y: 0 },
         checkCollision: { down: true, up: true },
-        setSize(w, h) { this.width = w * 0.75; this.height = h * 0.75; return this; },
+        setSize(w, h) { this.width = w * sprite.scaleX; this.height = h * sprite.scaleY; return this; },
         setOffset(x, y) { this.offset = { x, y }; return this; },
         setAllowGravity(allowed) { this.allowGravity = allowed; },
       };
@@ -121,15 +122,19 @@ test('Seoli wind reaches farther; Bomi stays close and attack direction is stabl
 
 test('crouch keeps the foot anchor, reduces the hurt body, and permits a low attack', () => {
   const { player: p } = fixture();
-  const foot = () => p.sprite.body.offset.y * 0.75 + p.sprite.body.height;
+  const foot = () => (p.sprite.body.offset.y - p.sprite.originY * 96) * p.sprite.scaleY + p.sprite.body.height;
   const before = foot(), height = p.sprite.body.height;
+  assert.ok(p.sprite.scaleX > 0.75);
+  assert.ok(Math.abs(before - 30) < 1e-9, 'visual scaling keeps the old world foot anchor');
+  assert.equal(height, 56);
+  assert.equal(p.sprite.body.width, 32);
   p.setCrouching(true);
   assert.equal(p.sprite.body.height, 28);
   assert.ok(p.sprite.body.height < height);
-  assert.equal(foot(), before);
+  assert.ok(Math.abs(foot() - before) < 1e-9);
   p.performAttack(); assert.equal(p.attackHitbox.y, p.sprite.y + 14);
   p.clearAttack(); p.updateAnimation(); assert.equal(p.sprite.animation, 'seoli_crouch');
-  p.setCrouching(false); assert.equal(foot(), before); assert.equal(p.sprite.body.height, height);
+  p.setCrouching(false); assert.ok(Math.abs(foot() - before) < 1e-9); assert.equal(p.sprite.body.height, height);
 });
 
 test('damage and rope grabs cancel active attacks; climbing and death block new ones', () => {

@@ -23,6 +23,10 @@ export function getCharacter(id) {
 export const COMBO_MULTIPLIERS = [1, 1.15, 1.5];
 export const COMBO_RESET_MS = 850;
 export const CAT_FRAME_SIZE = 96;
+export const CAT_DISPLAY_SCALE = 1.125;
+export const CAT_FOOT_Y = 88;
+// Keep the existing physics/rope/attack reference point while enlarging the art.
+export const CAT_FEET_OFFSET = 30;
 export const CAT_ANIMATIONS = {
   idle: { frames: [0, 0, 0, 1], frameRate: 3, repeat: -1 },
   run: { frames: [2, 3, 4, 5], frameRate: 11, repeat: -1 },

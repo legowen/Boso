@@ -17,7 +17,9 @@ After an 850ms break, the next attack starts at strike one. A target can be
 hit only once per swing. Damage or grabbing a rope cancels the active swing.
 
 The PNG sheets are 384×384 with sixteen 96×96 cells, row-major. Sprite feet
-align at source y=88. Display scale is 0.75; the standing physics body is
+align at source y=88. Display scale is 1.125 (50% larger than the first pass);
+the origin keeps the existing world foot anchor 30px below the sprite position,
+so movement, rope alignment and attack coordinates stay unchanged. The standing physics body is
 32×56 world pixels and crouching height is 28. Do not use full image bounds
 for damage: padding and raised tails are intentionally outside the hurt body.
 
@@ -44,6 +46,11 @@ shelter, garden, living room, kitchen, library, workshop, attic laboratory,
 bedroom/rooftop and cellar/closet. `WorldArt.js` places the scenery and terrain
 over existing collision geometry. Ledge highlights distinguish walkable
 surfaces from decorative background objects.
+
+Portals are displayed at 72×96, with their base anchored to the nearest
+supporting platform below the map's portal point. Labels and interaction hints
+follow the displayed height. Alpha pulsing replaces the old squash/stretch,
+so stone frames stay planted on the ground.
 
 Travel keeps the three existing routes and timings. An open-deck airship
 replaces the cage interior, with scrolling voyage scenery and the original

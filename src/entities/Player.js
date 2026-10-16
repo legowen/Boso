@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import { PLAYER, DEPTH, DAMAGE_TEXT, ROPE } from '../utils/constants.js';
 import SaveManager from '../systems/SaveManager.js';
 import { ITEMS } from '../data/items.js';
-import { getCharacter, COMBO_MULTIPLIERS, COMBO_RESET_MS } from '../data/characters.js';
+import { getCharacter, COMBO_MULTIPLIERS, COMBO_RESET_MS, CAT_FRAME_SIZE, CAT_DISPLAY_SCALE, CAT_FOOT_Y, CAT_FEET_OFFSET } from '../data/characters.js';
 
 // Stat growth per level (MapleStory-style persistent progression)
 const LEVEL_GROWTH = { hp: 12, mp: 6, atk: 2 };
@@ -24,7 +24,8 @@ export default class Player {
     this.sprite = scene.physics.add.sprite(x, y, this.textureKey);
     this.sprite.setDepth(DEPTH.PLAYER);
     this.sprite.setCollideWorldBounds(true);
-    this.sprite.setBounce(0).setScale(0.75);
+    this.sprite.setBounce(0).setScale(CAT_DISPLAY_SCALE);
+    this.sprite.setOrigin(0.5, (CAT_FOOT_Y - CAT_FEET_OFFSET / CAT_DISPLAY_SCALE) / CAT_FRAME_SIZE);
     this.isCrouching = false;
     this.setCrouching(false);
 
@@ -74,11 +75,11 @@ export default class Player {
 
   setCrouching(crouching) {
     this.isCrouching = crouching;
-    const scale = 0.75;
+    const scale = CAT_DISPLAY_SCALE;
     const width = (PLAYER.WIDTH - 8) / scale;
     const height = (crouching ? 28 : PLAYER.HEIGHT) / scale;
     this.sprite.body.setSize(width, height, false);
-    this.sprite.body.setOffset((96 - width) / 2, 88 - height);
+    this.sprite.body.setOffset((CAT_FRAME_SIZE - width) / 2, CAT_FOOT_Y - height);
   }
 
   getHurtBounds() {

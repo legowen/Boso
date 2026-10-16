@@ -39,6 +39,7 @@ export const MONSTER = {
 export const PORTAL = {
   WIDTH: 48,
   HEIGHT: 64,
+  DISPLAY_SCALE: 1.5,
   COLOR: 0x8E44AD,
   GLOW_COLOR: 0xBB8FCE,
   ACTIVATE_DISTANCE: 50,

@@ -18,7 +18,7 @@ import {
 } from '../utils/constants.js';
 import Player from '../entities/Player.js';
 import { getCharacter } from '../data/characters.js';
-import { npcTexture } from '../data/worldArt.js';
+import { npcTexture, portalLayout } from '../data/worldArt.js';
 import { addWorldBackground, decoratePlatform } from '../systems/WorldArt.js';
 import HUD from '../ui/HUD.js';
 import { MAPS_DATA, START_MAP, respawnMapFor } from '../data/maps.js';
@@ -244,12 +244,12 @@ export default class GameScene extends Phaser.Scene {
         this.player.sprite.x,
         this.player.sprite.y,
         zone.x,
-        zone.y
+        zone.interactionY
       );
       if (distance < PORTAL.ACTIVATE_DISTANCE) {
         nearPortal = true;
         this.interactionHint.setText('↑ Enter Portal');
-        this.interactionHint.setPosition(zone.x, zone.y - 80);
+        this.interactionHint.setPosition(zone.x, zone.hintY);
         this.interactionHint.setVisible(true);
 
         // Enter portal with UP arrow (locked briefly after entering a map)
@@ -2295,17 +2295,22 @@ export default class GameScene extends Phaser.Scene {
 
   spawnPortal(portalData) {
     const textureKey = portalData.hidden ? 'portal_hidden' : 'portal';
-    const sprite = this.add.sprite(portalData.x, portalData.y, textureKey);
+    const layout = portalLayout(portalData, this.mapData.platforms);
+    this.add.ellipse(portalData.x, layout.groundY - 1, PORTAL.WIDTH * PORTAL.DISPLAY_SCALE * 0.9, 8, 0x17202B, 0.25)
+      .setDepth(DEPTH.PORTALS - 1);
+    const sprite = this.add.sprite(portalData.x, layout.groundY, textureKey)
+      .setOrigin(0.5, 1).setScale(PORTAL.DISPLAY_SCALE);
     sprite.setDepth(DEPTH.PORTALS);
 
     // Store portal transition data on the sprite
     sprite.portalData = portalData;
+    sprite.interactionY = layout.centerY;
+    sprite.hintY = layout.hintY;
 
-    // Portal pulse animation
+    // Breathe the glow without stretching the stone frame or lifting its base.
     this.tweens.add({
       targets: sprite,
-      scaleX: 1.05,
-      scaleY: 0.95,
+      alpha: 0.84,
       duration: 1000,
       yoyo: true,
       repeat: -1,
@@ -2313,7 +2318,7 @@ export default class GameScene extends Phaser.Scene {
     });
 
     // Portal label
-    this.add.text(portalData.x, portalData.y - 50, portalData.label, {
+    this.add.text(portalData.x, layout.labelY, portalData.label, {
       fontSize: '12px',
       fontFamily: UI.FONT_FAMILY,
       color: portalData.hidden ? '#F1C40F' : '#BB8FCE',

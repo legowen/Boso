@@ -4,7 +4,8 @@ import fs from 'node:fs/promises';
 import sharp from 'sharp';
 import SaveManager from '../src/systems/SaveManager.js';
 import { MAPS_DATA } from '../src/data/maps.js';
-import { MAP_ART, WORLD_THEMES, WORLD_TEXTURES, EXTRA_TEXTURES } from '../src/data/worldArt.js';
+import { MAP_ART, WORLD_THEMES, WORLD_TEXTURES, EXTRA_TEXTURES, portalLayout } from '../src/data/worldArt.js';
+import { PORTAL } from '../src/utils/constants.js';
 import { OPTIONAL_TEXTURES } from '../src/data/assets.js';
 import { MONSTER_TYPES } from '../src/data/monsters.js';
 import { CAT_FRAME_SIZE, CAT_ANIMATIONS } from '../src/data/characters.js';
@@ -31,6 +32,19 @@ test('old saves migrate to both cats without losing inventory, quests, flags, or
 });
 
 const imageRoot = new URL('../public/assets/images/', import.meta.url);
+
+test('portals sit on their supporting platform and remain reachable from the ground', () => {
+  for (const [key, map] of Object.entries(MAPS_DATA)) for (const portal of map.portals) {
+    const layout = portalLayout(portal, map.platforms);
+    assert.ok(map.platforms.some(p => p.y === layout.groundY && portal.x >= p.x && portal.x <= p.x + p.w), key);
+    const playerCenterY = layout.groundY - 30;
+    assert.ok(Math.abs(playerCenterY - layout.centerY) < PORTAL.ACTIVATE_DISTANCE, key);
+    assert.ok(layout.hintY < layout.labelY && layout.labelY < layout.groundY - layout.height, key);
+  }
+  assert.equal(portalLayout({ x: 100, y: 200 }, [
+    { x: 0, y: 700, w: 300 }, { x: 50, y: 250, w: 100 },
+  ]).groundY, 250, 'an elevated portal uses its ledge instead of the map floor');
+});
 async function png(relative) {
   const data = await fs.readFile(new URL(relative, imageRoot));
   assert.equal(data.subarray(1, 4).toString(), 'PNG', relative);
