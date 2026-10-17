@@ -1,3 +1,5 @@
+import { PORTAL } from '../utils/constants.js';
+
 // All twenty maps share a themed art family; collision geometry stays in map data.
 export const WORLD_THEMES = {
   shelter: { background: 'bg_shelter', terrain: 'tile_shelter', color: 0xB9DACD },
@@ -38,4 +40,13 @@ export function npcTexture(npc) {
   if (/plush|stitch|sew/i.test(npc.name)) return 'npc_plush';
   if (/hound|dog|old bell/i.test(npc.name)) return 'npc_hound';
   return 'npc';
+}
+
+export function portalLayout(portal, platforms) {
+  const surfaces = platforms.filter(platform => portal.x >= platform.x &&
+    portal.x <= platform.x + platform.w && platform.y >= portal.y);
+  const groundY = surfaces.length ? Math.min(...surfaces.map(platform => platform.y)) : portal.y + PORTAL.HEIGHT / 2;
+  const height = PORTAL.HEIGHT * PORTAL.DISPLAY_SCALE;
+  return { groundY, height, centerY: groundY - height / 2,
+    labelY: groundY - height - 14, hintY: groundY - height - 40 };
 }

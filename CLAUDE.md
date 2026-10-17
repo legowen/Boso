@@ -174,7 +174,9 @@ Optional `alpha` renders a type translucent (lonesome, dustmote).
 - **Characters**: only `seoli` (fast, wind claws + X gust) and `bomi`
   (high HP/ATK, short-range paws). Canonical definitions and animation frames
   live in `src/data/characters.js`. Boso is the game name, never a playable dog.
-  Both use 96px frames at 0.75 scale with foot-aligned physics bodies.
+  Both use 96px frames at 1.125 scale, preserving the original physics footprint
+  and foot anchor through a custom origin. Portals are 72x96 and stand on their
+  supporting platform; label and interaction positions follow their art.
   Holding CTRL cycles three strikes (1x / 1.15x / 1.5x ATK); each swing hits a
   target once. DOWN crouches and reduces hurt height from 56px to 28px.
   Wind claws travel outward; Bomi's melee stays close. Damage/rope grabs cancel swings.
