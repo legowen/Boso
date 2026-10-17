@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import sharp from 'sharp';
-import { BOSS_TYPES } from '../src/data/monsters.js';
+import { BOSS_TYPES, MONSTER_TYPES } from '../src/data/monsters.js';
+import { AMBUSH_TYPES } from '../src/data/travel.js';
 import { MAPS_DATA } from '../src/data/maps.js';
 import { NPC } from '../src/utils/constants.js';
 import { npcTexture } from '../src/data/worldArt.js';
 import { ENTITY_ART_BOUNDS } from '../src/data/entityArtBounds.js';
-import { applyBossArt, bossCombatBounds, entityArtLayout } from '../src/systems/EntityArt.js';
+import { applyBossArt, bossCombatBounds, entityArtLayout, applyEntityArt, entityCombatBounds } from '../src/systems/EntityArt.js';
 
 // Exercise the installed Phaser physics body without needing a browser renderer.
 const require = createRequire(import.meta.url);
@@ -79,5 +80,39 @@ test('visible bounds match committed pixels, including wide padded bosses', asyn
       }
     }
     assert.deepEqual(bounds, { top: rows[0], bottom: rows.at(-1) + 1 }, key);
+  }
+});
+
+test('all 14 monsters and both ambushers share cat proportions and retain physics through AI squashes', () => {
+  const types = [
+    ...Object.entries(MONSTER_TYPES).map(([id, cfg]) => [`monster_${id}`, cfg, 6, 2]),
+    ...Object.entries(AMBUSH_TYPES).map(([id, cfg]) => [`ambush_${id}`, cfg, 0, 0]),
+  ];
+  for (const [key, cfg, ix, iy] of types) {
+    const centered = ['flyerDash', 'sineGlider', 'jitter', 'floater', 'shyGhost', 'lampOrbit', 'roller'].includes(cfg.movement) || key === 'ambush_vroom';
+    const sprite = spriteFor(key, cfg), original = spriteFor(key, cfg);
+    original.body.setSize(cfg.width - ix, cfg.height - iy);
+    const art = applyEntityArt(sprite, cfg, cfg.width - ix, cfg.height - iy, centered);
+    const bounds = ENTITY_ART_BOUNDS[key];
+    near((bounds.bottom - bounds.top) * art.scale, cfg.height * 1.5);
+    if (centered) near(((bounds.bottom + bounds.top) / 2 - sprite.displayOriginY) * art.scale, 0);
+    for (const [sx, sy] of [[1, 1], [1.25, 0.75], [0.72, 1.18], [1, 1]]) {
+      sprite.setScale(art.scale * sx, art.scale * sy); original.setScale(sx, sy);
+      sprite.body.updateFromGameObject(); original.body.updateFromGameObject();
+      for (const prop of ['x', 'y', 'width', 'height']) near(sprite.body[prop], original.body[prop]);
+      if (!centered) near(sprite.y + (bounds.bottom - sprite.displayOriginY) * sprite.scaleY, sprite.body.bottom);
+      for (const angle of [0, Math.PI / 4, Math.PI / 2]) {
+        sprite.rotation = angle;
+        const actual = entityCombatBounds({ cfg, sprite, art });
+        const corners = [-1, 1].flatMap(x => [-1, 1].map(y => ({
+          x: sprite.x + x * cfg.width * sx / 2 * Math.cos(angle) - y * cfg.height * sy / 2 * Math.sin(angle),
+          y: sprite.y + x * cfg.width * sx / 2 * Math.sin(angle) + y * cfg.height * sy / 2 * Math.cos(angle),
+        })));
+        near(actual.x, Math.min(...corners.map(p => p.x)));
+        near(actual.right, Math.max(...corners.map(p => p.x)));
+        near(actual.y, Math.min(...corners.map(p => p.y)));
+        near(actual.bottom, Math.max(...corners.map(p => p.y)));
+      }
+    }
   }
 });

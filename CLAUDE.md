@@ -182,6 +182,9 @@ Optional `alpha` renders a type translucent (lonesome, dustmote).
   boss combat bounds retain their original sizes; use `bossCombatBounds()`
   instead of sprite image bounds. Boss tweens/reset scales must include
   `this.art.scale`. NPC labels and hints follow the visible top edge.
+  Regular monsters and ship ambushers use that same visible-height ratio via
+  `applyEntityArt()`; use `entityCombatBounds()` for damage, and multiply all
+  AI squash/stretch/respawn scales by the entity's `art.scale`.
   Holding CTRL cycles three strikes (1x / 1.15x / 1.5x ATK); each swing hits a
   target once. DOWN crouches and reduces hurt height from 56px to 28px.
   Wind claws travel outward; Bomi's melee stays close. Damage/rope grabs cancel swings.
@@ -213,6 +216,15 @@ Optional `alpha` renders a type translucent (lonesome, dustmote).
   (every generator is guarded by `textures.exists`). See docs/ASSETS.md.
 
 ### Controls
+Touch-capable devices also get `ui/TouchControls.js`: a four-way pad, HIT,
+JUMP, Seoli WIND, TALK/NEXT and CONTINUE. The extra-controls button exposes
+HP/MP and (on maps) BAG/MAP/MENU. `systems/ControlState.js` merges keyboard
+and independent pointer holds; do not synthesize browser key events. Every
+scene must destroy its touch UI and clear held pointers on shutdown. Use
+`touchControls.waitForContinue()` for death/ending so phones cannot get stuck
+at a keyboard-only prompt. Mobile HUD sits at the top; camera padding keeps
+the player above the pad, and MAP/BAG provide map/quest details.
+
 | Action | Key |
 |--------|-----|
 | Move | ← → |

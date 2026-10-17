@@ -6,6 +6,7 @@
 import Phaser from 'phaser';
 import { SCENES, UI } from '../utils/constants.js';
 import { STORY } from '../data/story.js';
+import { usesTouchControls } from '../ui/TouchControls.js';
 import { START_MAP } from '../data/maps.js';
 
 export default class StoryScene extends Phaser.Scene {
@@ -42,7 +43,7 @@ export default class StoryScene extends Phaser.Scene {
     }).setOrigin(0.5).setAlpha(0);
 
     // === Controls hint ===
-    this.hintText = this.add.text(w / 2, h - 50, 'SPACE / click — next      ESC — skip', {
+    this.hintText = this.add.text(w / 2, h - 50, usesTouchControls() ? 'Tap anywhere to continue' : 'SPACE / click — next      ESC — skip', {
       fontSize: '14px',
       fontFamily: UI.FONT_FAMILY,
       color: '#7F8C8D',

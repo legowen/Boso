@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import { SCENES } from '../utils/constants.js';
 import { CHARACTERS } from '../data/characters.js';
 import SaveManager from '../systems/SaveManager.js';
+import { usesTouchControls } from '../ui/TouchControls.js';
 
 export default class CharacterSelectScene extends Phaser.Scene {
   constructor() { super(SCENES.CHARACTER_SELECT); }
@@ -17,7 +18,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
     this.add.rectangle(0, 0, w, h, 0x141D20, 0.65).setOrigin(0);
     const font = 'Georgia, serif';
     this.add.text(w / 2, h * 0.09, 'CHOOSE YOUR COMPANION', {
-      fontFamily: font, fontSize: `${Math.min(30, w / 25)}px`, color: '#FFF4D9',
+      fontFamily: font, fontSize: `${Math.min(30, w / 18)}px`, color: '#FFF4D9',
       stroke: '#2C2728', strokeThickness: 3,
     }).setOrigin(0.5);
     this.add.text(w / 2, h * 0.15, 'Two little cats. One way home.', {
@@ -39,13 +40,13 @@ export default class CharacterSelectScene extends Phaser.Scene {
       const className = this.add.text(0, -cardH / 2 + 53, character.className.toUpperCase(), {
         fontFamily: 'monospace', fontSize: '11px', color: accent,
       }).setOrigin(0.5);
-      const portraitSize = Math.min(142, cardH * 0.34);
-      const portrait = this.add.image(0, -cardH * 0.13, `portrait_${character.id}`)
+      const portraitSize = Math.min(142, cardW - 20, cardH * 0.30);
+      const portrait = this.add.image(0, -cardH * (cardH < 310 ? 0.06 : 0.13), `portrait_${character.id}`)
         .setDisplaySize(portraitSize, portraitSize);
       const progress = SaveManager.getCharacter(character.id);
       const desc = this.add.text(0, cardH * 0.12, character.desc, {
         fontFamily: 'monospace', fontSize: `${Math.max(9, Math.min(12, cardW / 24))}px`,
-        color: '#DAE2D9', align: 'center', lineSpacing: 6,
+        color: '#DAE2D9', align: 'center', lineSpacing: 4, wordWrap: { width: cardW - 14 },
       }).setOrigin(0.5);
       const stats = this.add.text(0, cardH * 0.28,
         `HP ${character.stats.hp}   ATK ${character.stats.atk}\nSPD ${character.stats.spd}   Lv.${progress?.level || 1}`, {
@@ -54,6 +55,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
       const tag = this.add.text(0, cardH / 2 - 22, index === 0 ? 'SPEED / WIND CLAWS' : 'POWER / CLOSE COMBAT', {
         fontFamily: 'monospace', fontSize: '10px', color: '#AABCB1',
       }).setOrigin(0.5);
+      if (cardH < 310) { desc.setVisible(false); tag.setVisible(false); }
       card.add([panel, name, className, portrait, desc, stats, tag]);
       return { card, panel, portrait };
     });
@@ -67,7 +69,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
     button.on('pointerdown', () => this.launchGame());
     button.on('pointerover', () => button.setFillStyle(0xCA9B58));
     button.on('pointerout', () => button.setFillStyle(0xB88849));
-    this.add.text(w / 2, h * 0.94, 'ARROWS select  /  ENTER start  /  CTRL attack  /  ALT jump', {
+    this.add.text(w / 2, h * 0.94, usesTouchControls() ? 'Tap a cat, then PLAY. Landscape recommended.' : 'ARROWS select  /  ENTER start  /  CTRL attack  /  ALT jump', {
       fontFamily: 'monospace', fontSize: `${Math.min(12, w / 58)}px`, color: '#DDD9CA',
     }).setOrigin(0.5);
     this.input.keyboard.on('keydown-LEFT', () => { this.selectedIndex = 0; this.updateSelection(); });

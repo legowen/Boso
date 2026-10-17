@@ -42,6 +42,14 @@ export default class HUD {
     const w = this.scene.scale.width;
     const h = this.scene.scale.height;
 
+    if (this.scene.isTouch) {
+      const scale = Math.min(0.72, (w - 20) / HUD_WIDTH);
+      this.container.setScale(scale).setPosition((w - HUD_WIDTH * scale) / 2, 10);
+      this.mapNameText.setVisible(false);
+      this.treatsText.setVisible(false);
+      return;
+    }
+
     // Center horizontally, anchor to bottom
     const hudX = (w - HUD_WIDTH) / 2;
     const hudY = h - HUD_HEIGHT - BOTTOM_MARGIN;

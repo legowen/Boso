@@ -12,8 +12,10 @@ import Phaser from 'phaser';
 import { PLAYER, DEPTH, UI, SCENES } from '../utils/constants.js';
 import Player from '../entities/Player.js';
 import { getCharacter } from '../data/characters.js';
+import { applyEntityArt, entityCombatBounds } from '../systems/EntityArt.js';
 import { decoratePlatform } from '../systems/WorldArt.js';
 import HUD from '../ui/HUD.js';
+import TouchControls, { usesTouchControls } from '../ui/TouchControls.js';
 import { MAPS_DATA } from '../data/maps.js';
 import { TRAVEL_ROUTES, AMBUSH_TYPES } from '../data/travel.js';
 import AudioManager from '../systems/AudioManager.js';
@@ -40,6 +42,7 @@ export default class TravelScene extends Phaser.Scene {
   }
 
   create() {
+    this.isTouch = usesTouchControls();
     const route = this.route;
     this.elapsedMs = 0;
     this.arrived = false;
@@ -97,6 +100,8 @@ export default class TravelScene extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.ALT,
       Phaser.Input.Keyboard.KeyCodes.CTRL,
     ]);
+
+    this.touchControls = new TouchControls(this, { travel: true });
 
     // HUD + countdown
     this.hud = new HUD(this);
@@ -289,7 +294,8 @@ export default class TravelScene extends Phaser.Scene {
       this.elapsedMs += delta;
       const remaining = Math.max(0, Math.ceil((route.durationSec * 1000 - this.elapsedMs) / 1000));
       this.countdownText.setText(`${route.name}  -  arriving in ${remaining}s`);
-      this.countdownText.setPosition(this.scale.width / 2, 18);
+      this.countdownText.setPosition(this.scale.width / 2, this.isTouch ? 78 : 18);
+      this.countdownText.setFontSize(this.isTouch ? 12 : 18);
 
       if (this.elapsedMs >= route.durationSec * 1000) {
         this.arrive();
@@ -395,11 +401,12 @@ export default class TravelScene extends Phaser.Scene {
       if (this.arrived || this.playerDead) return;
 
       const sprite = this.physics.add.sprite(edgeX, laneY, 'ambush_vroom');
+      const art = applyEntityArt(sprite, cfg, cfg.width, cfg.height, true);
       sprite.setDepth(DEPTH.MONSTERS);
       sprite.body.setAllowGravity(false);
       sprite.setFlipX(!fromLeft);
       sprite.setVelocityX(fromLeft ? cfg.speed : -cfg.speed);
-      this.vrooms.push({ sprite, hitPlayer: false });
+      this.vrooms.push({ sprite, cfg, art, hitPlayer: false });
       this.cameras.main.shake(150, 0.006);
     });
   }
@@ -420,7 +427,7 @@ export default class TravelScene extends Phaser.Scene {
 
       if (!vroom.hitPlayer && player.hp > 0) {
         const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
-          s.getBounds(),
+          entityCombatBounds(vroom),
           player.getHurtBounds()
         );
         if (overlap) {
@@ -442,6 +449,7 @@ export default class TravelScene extends Phaser.Scene {
     this.showAmbushWarning('SOMETHING RUMBLES BELOW...', '#F39C12');
 
     const sprite = this.physics.add.sprite(x, CAGE.y + CAGE.h - 100, 'ambush_rumble');
+    const art = applyEntityArt(sprite, cfg, cfg.width, cfg.height);
     sprite.setDepth(DEPTH.MONSTERS);
     sprite.setCollideWorldBounds(true);
     this.platforms.forEach((platform) => {
@@ -449,7 +457,7 @@ export default class TravelScene extends Phaser.Scene {
     });
 
     this.rumbles.push({
-      sprite,
+      sprite, cfg, art,
       hp: cfg.hp,
       maxHp: cfg.hp,
       isHit: false,
@@ -462,7 +470,7 @@ export default class TravelScene extends Phaser.Scene {
     this.cameras.main.shake(220, 0.008);
     this.tweens.add({
       targets: sprite,
-      scaleY: { from: 0.6, to: 1 },
+      scaleY: { from: art.scale * 0.6, to: art.scale },
       duration: 250,
       ease: 'Back.easeOut',
     });
@@ -505,16 +513,16 @@ export default class TravelScene extends Phaser.Scene {
       const barW = 46;
       rumble.hpBar.clear();
       rumble.hpBar.fillStyle(0x333333, 0.8);
-      rumble.hpBar.fillRect(s.x - barW / 2, s.y - 48, barW, 5);
+      rumble.hpBar.fillRect(s.x - barW / 2, s.getBounds().top - 10, barW, 5);
       rumble.hpBar.fillStyle(0xE74C3C, 1);
-      rumble.hpBar.fillRect(s.x - barW / 2, s.y - 48, barW * (rumble.hp / rumble.maxHp), 5);
+      rumble.hpBar.fillRect(s.x - barW / 2, s.getBounds().top - 10, barW * (rumble.hp / rumble.maxHp), 5);
 
       // Player melee
       if (player.canHit(rumble)) {
         const hitbox = player.attackHitbox;
         const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
           hitbox.getBounds(),
-          s.getBounds()
+          entityCombatBounds(rumble)
         );
         if (overlap) {
           rumble.isHit = true;
@@ -531,7 +539,7 @@ export default class TravelScene extends Phaser.Scene {
       if (!rumble.contactCooldown && player.hp > 0 && s.active) {
         const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
           player.getHurtBounds(),
-          s.getBounds()
+          entityCombatBounds(rumble)
         );
         if (overlap) {
           rumble.contactCooldown = true;
@@ -597,8 +605,8 @@ export default class TravelScene extends Phaser.Scene {
       this.tweens.add({
         targets: rumble.sprite,
         alpha: 0,
-        scaleX: 0.1,
-        scaleY: 0.1,
+        scaleX: rumble.art.scale * 0.1,
+        scaleY: rumble.art.scale * 0.1,
         angle: 40,
         duration: 350,
         onComplete: () => rumble.sprite.destroy(),
@@ -620,7 +628,7 @@ export default class TravelScene extends Phaser.Scene {
         if (!rumble.sprite.active || rumble.hp <= 0) continue;
         const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
           bark.getBounds(),
-          rumble.sprite.getBounds()
+          entityCombatBounds(rumble)
         );
         if (overlap) {
           const damage =
@@ -707,11 +715,12 @@ export default class TravelScene extends Phaser.Scene {
       const restartText = this.add.text(
         w / 2,
         h / 2 + 30,
-        `Press SPACE to wake up back at ${from.name}`,
+        `${this.isTouch ? 'Tap CONTINUE' : 'Press SPACE'} to wake up back at ${from.name}`,
         {
           fontSize: '16px',
           fontFamily: UI.FONT_FAMILY,
           color: '#95A5A6',
+          wordWrap: { width: w - 32 }, align: 'center',
         }
       ).setOrigin(0.5).setDepth(DEPTH.UI + 11).setScrollFactor(0);
       this.tweens.add({
@@ -723,7 +732,7 @@ export default class TravelScene extends Phaser.Scene {
       });
 
       // Back to the departure map, full-heal respawn (no HP/MP passed)
-      this.input.keyboard.once('keydown-SPACE', () => {
+      this.touchControls.waitForContinue(() => {
         this.cameras.main.fadeOut(500, 0, 0, 0);
         this.cameras.main.once('camerafadeoutcomplete', () => {
           this.scene.start(SCENES.GAME, {

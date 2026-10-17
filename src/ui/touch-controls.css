@@ -1,0 +1,78 @@
+.touch-controls {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  --pad-size: 46px;
+  --action-size: 56px;
+  --edge: max(10px, env(safe-area-inset-bottom));
+}
+.touch-controls button {
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  border: 2px solid #c6d8c4aa;
+  border-radius: 14px;
+  background: #152922c9;
+  color: #fff7dc;
+  font: bold 12px system-ui, sans-serif;
+  min-width: 44px;
+  min-height: 44px;
+  box-shadow: 0 3px 0 #07191099;
+}
+.touch-controls button.pressed { background: #547952ee; transform: translateY(2px); }
+.touch-controls button:disabled { opacity: .35; }
+.touch-pad {
+  position: absolute;
+  left: max(10px, env(safe-area-inset-left));
+  bottom: var(--edge);
+  display: grid;
+  grid-template: repeat(3, var(--pad-size)) / repeat(3, var(--pad-size));
+  gap: 3px;
+}
+.touch-pad button { font-size: 25px; }
+.touch-pad [data-action=up] { grid-area: 1 / 2; }
+.touch-pad [data-action=left] { grid-area: 2 / 1; }
+.touch-pad [data-action=right] { grid-area: 2 / 3; }
+.touch-pad [data-action=down] { grid-area: 3 / 2; }
+.touch-actions {
+  position: absolute;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: calc(var(--edge) + 12px);
+  display: grid;
+  grid-template: repeat(2, var(--action-size)) / repeat(2, var(--action-size));
+  gap: 8px;
+}
+.touch-actions [data-action=space] { grid-area: 1 / 1; font-size: 10px; }
+.touch-actions [data-action=x] { grid-area: 1 / 2; }
+.touch-actions [data-action=ctrl] { grid-area: 2 / 1; background: #79532edb; }
+.touch-actions [data-action=alt] { grid-area: 2 / 2; background: #38606cdb; }
+.touch-more {
+  position: absolute;
+  bottom: var(--edge);
+  left: 50%;
+  transform: translateX(-50%);
+}
+.touch-tools {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--edge) + 155px);
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 14px;
+  background: #0c1a18e8;
+}
+.touch-tools[hidden] { display: none; }
+@media (min-width: 600px) and (min-height: 500px) {
+  .touch-controls { --pad-size: 52px; --action-size: 64px; }
+  .touch-tools { bottom: calc(var(--edge) + 175px); }
+}
+
+.touch-controls.overlay-open .touch-pad,
+.touch-controls.overlay-open .touch-actions,
+.touch-controls.overlay-open .touch-more { visibility: hidden; }
+.touch-controls.overlay-open .touch-tools { display: flex; bottom: var(--edge); }

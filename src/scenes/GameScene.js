@@ -20,8 +20,9 @@ import Player from '../entities/Player.js';
 import { getCharacter } from '../data/characters.js';
 import { npcTexture, portalLayout } from '../data/worldArt.js';
 import { addWorldBackground, decoratePlatform } from '../systems/WorldArt.js';
-import { entityArtLayout, bossCombatBounds } from '../systems/EntityArt.js';
+import { entityArtLayout, bossCombatBounds, applyEntityArt, entityCombatBounds } from '../systems/EntityArt.js';
 import HUD from '../ui/HUD.js';
+import TouchControls, { usesTouchControls } from '../ui/TouchControls.js';
 import { MAPS_DATA, START_MAP, respawnMapFor } from '../data/maps.js';
 import { MONSTER_TYPES, BOSS_TYPES } from '../data/monsters.js';
 import { WORLD_MAP_LAYOUT, REGION_TITLES } from '../data/worldmap.js';
@@ -82,6 +83,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   create() {
+    this.isTouch = usesTouchControls();
     this.mapData = MAPS[this.currentMapKey] || MAPS[START_MAP];
     this.isTransitioning = false;
     // Brief portal lock so a held UP key cannot ping-pong between maps
@@ -249,7 +251,7 @@ export default class GameScene extends Phaser.Scene {
       );
       if (distance < PORTAL.ACTIVATE_DISTANCE) {
         nearPortal = true;
-        this.interactionHint.setText('↑ Enter Portal');
+        this.interactionHint.setText(this.isTouch ? 'Tap ↑ to enter' : '↑ Enter Portal');
         this.interactionHint.setPosition(zone.x, zone.hintY);
         this.interactionHint.setVisible(true);
 
@@ -271,7 +273,7 @@ export default class GameScene extends Phaser.Scene {
       );
       if (distance < NPC.INTERACT_DISTANCE) {
         nearNPC = true;
-        this.interactionHint.setText('[SPACE] Talk');
+        this.interactionHint.setText(this.isTouch ? 'Tap TALK' : '[SPACE] Talk');
         this.interactionHint.setPosition(npcObj.sprite.x, npcObj.hintY);
         this.interactionHint.setVisible(true);
 
@@ -299,8 +301,8 @@ export default class GameScene extends Phaser.Scene {
   openDialogue(npcObj) {
     const w = this.scale.width;
     const h = this.scale.height;
-    const boxW = Math.min(560, w - 60);
-    const boxH = 96;
+    const boxW = Math.min(560, w - 24);
+    const boxH = this.isTouch && w < 600 ? 156 : 112;
 
     // Compose lines: base dialogue + quest offer/reminder/completion.
     // Quest state transitions happen when the conversation opens.
@@ -342,11 +344,11 @@ export default class GameScene extends Phaser.Scene {
       const route = TRAVEL_ROUTES[boardingRoute];
       lines = [
         ...lines,
-        `Board the cage - "${route.name}" (~${route.durationSec}s ride)? SPACE to hop in, or walk away to stay.`,
+        `Board the cage - "${route.name}" (~${route.durationSec}s ride)? ${this.isTouch ? 'NEXT' : 'SPACE'} to hop in, or walk away to stay.`,
       ];
     }
 
-    const container = this.add.container(w / 2, h - 205).setDepth(DEPTH.UI + 8).setScrollFactor(0);
+    const container = this.add.container(w / 2, Math.max(72, h - (this.isTouch ? 170 : 110) - boxH)).setDepth(DEPTH.UI + 8).setScrollFactor(0);
 
     const bg = this.add.graphics();
     bg.fillStyle(0x1A1A2E, 0.92);
@@ -371,7 +373,7 @@ export default class GameScene extends Phaser.Scene {
     });
     container.add(lineText);
 
-    const hint = this.add.text(boxW / 2 - 14, boxH - 18, 'SPACE >', {
+    const hint = this.add.text(boxW / 2 - 14, boxH - 14, this.isTouch ? 'NEXT >' : 'SPACE >', {
       fontSize: '11px',
       fontFamily: UI.FONT_FAMILY,
       color: '#7F8C8D',
@@ -504,7 +506,7 @@ export default class GameScene extends Phaser.Scene {
     const x0 = w * 0.08;
     const y0 = h * 0.12;
     const pw = w * 0.84;
-    const ph = h * 0.74;
+    const ph = h * (this.isTouch ? 0.60 : 0.74);
     const panel = this.add.graphics();
     panel.fillStyle(0x10101E, 0.95);
     panel.fillRoundedRect(x0 - 20, y0 - 44, pw + 40, ph + 84, 12);
@@ -829,7 +831,7 @@ export default class GameScene extends Phaser.Scene {
         if (!monsterObj.sprite.active || monsterObj.isDying) continue;
         const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
           barkBounds,
-          monsterObj.sprite.getBounds()
+          entityCombatBounds(monsterObj)
         );
         if (!overlap) continue;
 
@@ -886,6 +888,7 @@ export default class GameScene extends Phaser.Scene {
       strokeThickness: 2,
       lineSpacing: 4,
     }).setScrollFactor(0).setDepth(DEPTH.UI + 5);
+    this.questTracker.setVisible(!this.isTouch);
     this.refreshQuestTracker();
   }
 
@@ -1081,12 +1084,13 @@ export default class GameScene extends Phaser.Scene {
       }
     ));
 
-    container.add(this.add.text(0, boxH / 2 - 18, 'I - Close', {
+    container.add(this.add.text(0, boxH / 2 - 18, this.isTouch ? 'Tap BAG to close' : 'I - Close', {
       fontSize: '11px',
       fontFamily: UI.FONT_FAMILY,
       color: '#7F8C8D',
     }).setOrigin(0.5));
 
+    if (this.isTouch) container.setScale(Math.min(1, (w - 24) / boxW, (h - 100) / boxH));
     this.bag = container;
   }
 
@@ -1506,11 +1510,12 @@ export default class GameScene extends Phaser.Scene {
       const restartText = this.add.text(
         w / 2,
         h / 2 + 30,
-        `Press SPACE to wake up at ${MAPS[respawnKey].name}`,
+        `${this.isTouch ? 'Tap CONTINUE' : 'Press SPACE'} to wake up at ${MAPS[respawnKey].name}`,
         {
           fontSize: '16px',
           fontFamily: UI.FONT_FAMILY,
           color: '#95A5A6',
+          wordWrap: { width: w - 32 }, align: 'center',
         }
       ).setOrigin(0.5).setDepth(DEPTH.UI + 11).setScrollFactor(0);
 
@@ -1523,7 +1528,7 @@ export default class GameScene extends Phaser.Scene {
       });
 
       // Space to respawn at the current region's home map
-      this.input.keyboard.once('keydown-SPACE', () => {
+      this.touchControls.waitForContinue(() => {
         this.cameras.main.fadeOut(500, 0, 0, 0);
         this.cameras.main.once('camerafadeoutcomplete', () => {
           this.scene.restart({
@@ -1542,7 +1547,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   initCamera() {
-    this.cameras.main.setBounds(0, 0, this.mapData.width, this.mapData.height);
+    this.cameras.main.setBounds(0, 0, this.mapData.width, this.mapData.height + (this.isTouch ? 100 : 0));
     this.cameras.main.startFollow(this.player.sprite, true, CAMERA.LERP, CAMERA.LERP);
     this.cameras.main.setDeadzone(CAMERA.DEADZONE_WIDTH, CAMERA.DEADZONE_HEIGHT);
   }
@@ -1568,6 +1573,8 @@ export default class GameScene extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.CTRL,
     ]);
 
+    this.touchControls = new TouchControls(this);
+
     // ESC key for pause menu
     this.isPaused = false;
     this.pauseMenu = null;
@@ -1583,6 +1590,7 @@ export default class GameScene extends Phaser.Scene {
 
   openPauseMenu() {
     this.isPaused = true;
+    this.touchControls.reset();
     this.pauseStartedAt = Date.now();
     this.physics.pause();
     // Freeze clocks and tweens too - boss telegraphs and respawn timers
@@ -1753,7 +1761,7 @@ export default class GameScene extends Phaser.Scene {
     // Container (fixed to camera)
     this.minimap.container = this.add.container(this.minimap.x, this.minimap.y);
     this.minimap.container.setDepth(DEPTH.UI + 5);
-    this.minimap.container.setScrollFactor(0);
+    this.minimap.container.setScrollFactor(0).setVisible(!this.isTouch);
 
     // Background
     const bg = this.add.graphics();
@@ -1900,7 +1908,7 @@ export default class GameScene extends Phaser.Scene {
 
       const sprite = this.physics.add.sprite(monsterData.x, monsterData.y, `monster_${type}`);
       sprite.setDepth(DEPTH.MONSTERS);
-      sprite.body.setSize(cfg.width - 6, cfg.height - 2);
+      const art = applyEntityArt(sprite, cfg, cfg.width - 6, cfg.height - 2, flying || cfg.movement === 'roller');
       sprite.setBounce(0);
       sprite.setCollideWorldBounds(true);
       // Translucent types (ghosts, dust) carry a per-type base alpha
@@ -1920,6 +1928,7 @@ export default class GameScene extends Phaser.Scene {
         sprite: sprite,
         type: type,
         cfg: cfg,
+        art,
         hp: cfg.hp,
         maxHp: cfg.hp,
         startX: monsterData.x,
@@ -2373,7 +2382,7 @@ export default class GameScene extends Phaser.Scene {
     const w = this.scale.width;
     const barWidth = Math.min(480, w - 80);
 
-    const container = this.add.container(w / 2, 24).setDepth(DEPTH.UI + 6).setScrollFactor(0);
+    const container = this.add.container(w / 2, this.isTouch ? 80 : 24).setDepth(DEPTH.UI + 6).setScrollFactor(0);
 
     const nameText = this.add.text(0, 0, this.boss.name, {
       fontSize: '15px',
@@ -2400,6 +2409,8 @@ export default class GameScene extends Phaser.Scene {
 
   updateBossHpBar() {
     if (!this.bossBar || !this.boss) return;
+    this.bossBar.container.setX(this.scale.width / 2);
+    this.bossBar.container.setScale(Math.min(1, (this.scale.width - 24) / this.bossBar.barWidth));
     const ratio = Math.max(0, this.boss.hp / this.boss.maxHp);
     const bw = this.bossBar.barWidth;
     this.bossBar.fill.clear();
@@ -2514,7 +2525,7 @@ export default class GameScene extends Phaser.Scene {
 
             if (isLast) {
               this.time.delayedCall(1200, () => {
-                const hint = this.add.text(w / 2, h * 0.8, 'Press SPACE to return to the title', {
+                const hint = this.add.text(w / 2, h * 0.8, this.isTouch ? 'Tap CONTINUE to return to the title' : 'Press SPACE to return to the title', {
                   fontSize: '14px',
                   fontFamily: UI.FONT_FAMILY,
                   color: '#7D6608',
@@ -2526,7 +2537,7 @@ export default class GameScene extends Phaser.Scene {
                   yoyo: true,
                   repeat: -1,
                 });
-                this.input.keyboard.once('keydown-SPACE', () => {
+                this.touchControls.waitForContinue(() => {
                   this.scene.start(SCENES.MENU);
                 });
               });
@@ -2572,7 +2583,7 @@ export default class GameScene extends Phaser.Scene {
       const barWidth = 36;
       const barHeight = 4;
       const barX = monsterObj.sprite.x - barWidth / 2;
-      const barY = monsterObj.sprite.y - monsterObj.monsterHeight / 2 - 10;
+      const barY = monsterObj.sprite.getBounds().top - 10;
 
       monsterObj.hpBarBg.clear();
       monsterObj.hpBarBg.fillStyle(0x333333, 0.8);
@@ -2588,7 +2599,7 @@ export default class GameScene extends Phaser.Scene {
         const hitbox = this.player.attackHitbox;
         const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
           hitbox.getBounds(),
-          monsterObj.sprite.getBounds()
+          entityCombatBounds(monsterObj)
         );
 
         if (overlap) {
@@ -2642,7 +2653,7 @@ export default class GameScene extends Phaser.Scene {
       // Monster-player contact damage (skip corpses and dying monsters)
       if (monsterObj.sprite.active && !monsterObj.isDying && this.player.hp > 0) {
         const playerBounds = this.player.getHurtBounds();
-        const monsterBounds = monsterObj.sprite.getBounds();
+        const monsterBounds = entityCombatBounds(monsterObj);
         if (Phaser.Geom.Intersects.RectangleToRectangle(playerBounds, monsterBounds)) {
           if (!monsterObj.hasContactDamage) {
             monsterObj.hasContactDamage = true;
@@ -2706,8 +2717,8 @@ export default class GameScene extends Phaser.Scene {
             // Just landed - squash
             this.tweens.add({
               targets: sprite,
-              scaleX: 1.25,
-              scaleY: 0.75,
+              scaleX: monsterObj.art.scale * 1.25,
+              scaleY: monsterObj.art.scale * 0.75,
               duration: 90,
               yoyo: true,
             });
@@ -2729,8 +2740,8 @@ export default class GameScene extends Phaser.Scene {
             // Stretch on takeoff
             this.tweens.add({
               targets: sprite,
-              scaleX: 0.8,
-              scaleY: 1.2,
+              scaleX: monsterObj.art.scale * 0.8,
+              scaleY: monsterObj.art.scale * 1.2,
               duration: 120,
               yoyo: true,
             });
@@ -2975,8 +2986,8 @@ export default class GameScene extends Phaser.Scene {
           if (!monsterObj.onGroundLast) {
             this.tweens.add({
               targets: sprite,
-              scaleX: 1.2,
-              scaleY: 0.8,
+              scaleX: monsterObj.art.scale * 1.2,
+              scaleY: monsterObj.art.scale * 0.8,
               duration: 70,
               yoyo: true,
             });
@@ -2994,8 +3005,8 @@ export default class GameScene extends Phaser.Scene {
               sprite.setVelocity(dir * cfg.pounceVelocityX, cfg.pounceVelocityY);
               this.tweens.add({
                 targets: sprite,
-                scaleX: 0.75,
-                scaleY: 1.25,
+                scaleX: monsterObj.art.scale * 0.75,
+                scaleY: monsterObj.art.scale * 1.25,
                 duration: 110,
                 yoyo: true,
               });
@@ -3045,8 +3056,8 @@ export default class GameScene extends Phaser.Scene {
             monsterObj.stateUntil = now + cfg.contractMs;
             this.tweens.add({
               targets: sprite,
-              scaleX: 0.72,
-              scaleY: 1.18,
+              scaleX: monsterObj.art.scale * 0.72,
+              scaleY: monsterObj.art.scale * 1.18,
               duration: cfg.contractMs * 0.8,
             });
           }
@@ -3058,8 +3069,8 @@ export default class GameScene extends Phaser.Scene {
           monsterObj.stateUntil = now + cfg.contractMs;
           this.tweens.add({
             targets: sprite,
-            scaleX: 0.72,
-            scaleY: 1.18,
+            scaleX: monsterObj.art.scale * 0.72,
+            scaleY: monsterObj.art.scale * 1.18,
             duration: cfg.contractMs * 0.8,
           });
           break;
@@ -3081,8 +3092,8 @@ export default class GameScene extends Phaser.Scene {
           sprite.setVelocityX(cfg.crawlBurstSpeed * monsterObj.direction);
           this.tweens.add({
             targets: sprite,
-            scaleX: 1.25,
-            scaleY: 0.9,
+            scaleX: monsterObj.art.scale * 1.25,
+            scaleY: monsterObj.art.scale * 0.9,
             duration: cfg.extendMs * 0.6,
           });
         }
@@ -3134,8 +3145,8 @@ export default class GameScene extends Phaser.Scene {
           if (!monsterObj.onGroundLast) {
             this.tweens.add({
               targets: sprite,
-              scaleY: 0.8,
-              scaleX: 1.15,
+              scaleY: monsterObj.art.scale * 0.8,
+              scaleX: monsterObj.art.scale * 1.15,
               duration: 60,
               yoyo: true,
             });
@@ -3375,7 +3386,7 @@ export default class GameScene extends Phaser.Scene {
     monsterObj.sprite.setVisible(true);
     monsterObj.sprite.body.enable = true;
     monsterObj.sprite.setAlpha(baseAlpha);
-    monsterObj.sprite.setScale(1, 1);
+    monsterObj.sprite.setScale(monsterObj.art.scale);
     monsterObj.sprite.setRotation(0);
 
     // Show HP bars again
