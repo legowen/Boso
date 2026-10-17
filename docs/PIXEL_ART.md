@@ -59,6 +59,17 @@ the dog, and Haku the hedgehog. Several NPCs share an appropriate art family.
 All fourteen monster types, four bosses, two travel ambushers, drops, portals
 and attack/projectile textures are included at their configured sizes.
 
+Boss and NPC display heights use the original configured height multiplied
+by the same 1.5 enlargement applied to the cats. `systems/EntityArt.js` measures
+the visible height using `data/entityArtBounds.js`, so wide poses and transparent
+padding cannot shrink a character. NPCs appear 78px tall; Dr. Embrace 180px,
+Biggie 195px, Vacuum King 225px and Hug Guardian 240px. Source aspect ratios stay
+intact. Boss art is anchored to the physics feet, with the original movement,
+platform body and combat bounds retained. NPC names, quest markers and talk
+hints sit above the art; dialogue still uses the original map coordinates.
+Boss squash/stretch and Biggie's pounce/befriend resets retain the display scale.
+The art rebuild refreshes the bounds metadata alongside the PNGs.
+
 ## Editing and rebuilding
 
 1. Install dependencies with `npm ci` (Node 20.19+ or 22.12+).
@@ -83,6 +94,8 @@ Automated checks cover combo sequencing/reset, one hit per target, range and
 direction, crouch anchor, damage/rope cancellation, animation selection, save
 migration, map coverage and texture dimensions. The data validator also checks
 world connectivity and spawn/platform/portal/rope consistency.
+Entity proportion tests exercise the installed Phaser Arcade Body to compare
+physics geometry before and after display scaling, including squash/stretch.
 
 Browser play verification is still pending: the managed preview ran, but the
 available browser blocked its URL with `ERR_BLOCKED_BY_CLIENT`. Before merging,

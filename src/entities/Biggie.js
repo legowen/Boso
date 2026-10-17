@@ -7,6 +7,7 @@
 // off - no death animation.
 
 import Phaser from 'phaser';
+import { applyBossArt, bossCombatBounds } from '../systems/EntityArt.js';
 import { BOSS_TYPES } from '../data/monsters.js';
 import { STORY } from '../data/story.js';
 import { PLAYER, DEPTH } from '../utils/constants.js';
@@ -38,7 +39,7 @@ export default class Biggie {
     this.sprite = scene.physics.add.sprite(x, y, 'boss_biggie');
     this.sprite.setDepth(DEPTH.BOSS);
     this.sprite.setCollideWorldBounds(true);
-    this.sprite.body.setSize(this.cfg.width - 30, this.cfg.height - 10);
+    this.art = applyBossArt(this.sprite, this.cfg, this.cfg.width - 30, this.cfg.height - 10);
 
     this.nextAttackAt = Date.now() + Phaser.Math.Between(2500, 4000);
   }
@@ -192,12 +193,12 @@ export default class Biggie {
     this.sprite.setTint(0xFFD1A3);
     this.scene.tweens.add({
       targets: this.sprite,
-      scaleY: 1.12,
-      scaleX: 0.94,
+      scaleY: this.art.scale * 1.12,
+      scaleX: this.art.scale * 0.94,
       duration: cfg.telegraphMs * 0.5,
       yoyo: true,
     });
-    const woof = this.scene.add.text(this.sprite.x, this.sprite.y - this.cfg.height / 2 - 24, 'WOOF!', {
+    const woof = this.scene.add.text(this.sprite.x, this.sprite.y + this.art.top - 24, 'WOOF!', {
       fontSize: '24px',
       fontFamily: 'Arial Black, Arial',
       color: '#F5B041',
@@ -291,8 +292,8 @@ export default class Biggie {
     // Crouch telegraph
     this.scene.tweens.add({
       targets: this.sprite,
-      scaleY: 0.85,
-      scaleX: 1.1,
+      scaleY: this.art.scale * 0.85,
+      scaleX: this.art.scale * 1.1,
       duration: cfg.telegraphMs * 0.6,
     });
 
@@ -303,7 +304,7 @@ export default class Biggie {
       // Launch: solve the parabola for jumpMs of airtime
       const t = cfg.jumpMs / 1000;
       const gravity = this.scene.physics.world.gravity.y || 900;
-      this.sprite.setScale(1, 1);
+      this.sprite.setScale(this.art.scale);
       this.sprite.setVelocityX((this.pounceTargetX - this.sprite.x) / t);
       this.sprite.setVelocityY(-gravity * t * 0.5);
       this.sprite.setFlipX(this.pounceTargetX < this.sprite.x);
@@ -323,8 +324,8 @@ export default class Biggie {
       this.scene.cameras.main.shake(240, 0.014);
       this.scene.tweens.add({
         targets: this.sprite,
-        scaleY: 0.8,
-        scaleX: 1.18,
+        scaleY: this.art.scale * 0.8,
+        scaleX: this.art.scale * 1.18,
         duration: 110,
         yoyo: true,
       });
@@ -460,7 +461,7 @@ export default class Biggie {
     const hitbox = player.attackHitbox;
     const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
       hitbox.getBounds(),
-      this.sprite.getBounds()
+      bossCombatBounds(this)
     );
     if (!overlap) return;
 
@@ -498,7 +499,7 @@ export default class Biggie {
     if (this.defeated || this.contactCooldown || player.hp <= 0) return;
     const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
       player.getHurtBounds(),
-      this.sprite.getBounds()
+      bossCombatBounds(this)
     );
     if (!overlap) return;
 
@@ -532,9 +533,9 @@ export default class Biggie {
     this.state = 'patrol';
 
     // A mid-pounce befriending lands first - never celebrate in mid-air
-    this.sprite.y = this.groundSurface() - this.cfg.height / 2;
+    this.sprite.y = this.groundSurface() - this.art.feetOffset;
     this.sprite.setAngle(0);
-    this.sprite.setScale(1, 1);
+    this.sprite.setScale(this.art.scale);
 
     // Soft pink flush
     this.sprite.setTint(0xFFC9DE);

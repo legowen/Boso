@@ -5,6 +5,7 @@
 // suction pull stacks on top of the player's input velocity.
 
 import Phaser from 'phaser';
+import { applyBossArt, bossCombatBounds } from '../systems/EntityArt.js';
 import { BOSS_TYPES } from '../data/monsters.js';
 import { PLAYER, DEPTH } from '../utils/constants.js';
 
@@ -37,7 +38,7 @@ export default class VacuumKing {
     this.sprite.setDepth(DEPTH.BOSS);
     this.sprite.setCollideWorldBounds(true);
     this.sprite.body.setAllowGravity(false);
-    this.sprite.body.setSize(this.cfg.width - 20, this.cfg.height - 10);
+    this.art = applyBossArt(this.sprite, this.cfg, this.cfg.width - 20, this.cfg.height - 10);
   }
 
   createTextures() {
@@ -276,7 +277,7 @@ export default class VacuumKing {
     const hitbox = player.attackHitbox;
     const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
       hitbox.getBounds(),
-      this.sprite.getBounds()
+      bossCombatBounds(this)
     );
     if (!overlap) return;
 
@@ -317,7 +318,7 @@ export default class VacuumKing {
     if (this.defeated || this.contactCooldown || player.hp <= 0) return;
     const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
       player.getHurtBounds(),
-      this.sprite.getBounds()
+      bossCombatBounds(this)
     );
     if (!overlap) return;
 
@@ -345,8 +346,8 @@ export default class VacuumKing {
       y: this.sprite.y + 120,
       angle: 35,
       alpha: 0,
-      scaleX: 0.2,
-      scaleY: 0.2,
+      scaleX: this.art.scale * 0.2,
+      scaleY: this.art.scale * 0.2,
       duration: 1100,
       ease: 'Quad.easeIn',
       onComplete: () => {
