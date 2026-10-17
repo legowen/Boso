@@ -5,6 +5,7 @@ import Phaser from 'phaser';
 import { SCENES } from '../utils/constants.js';
 import AudioManager from '../systems/AudioManager.js';
 import SaveManager from '../systems/SaveManager.js';
+import { usesTouchControls } from '../ui/TouchControls.js';
 
 export default class TitleScene extends Phaser.Scene {
   constructor() {
@@ -12,8 +13,10 @@ export default class TitleScene extends Phaser.Scene {
   }
 
   create() {
+    this.isStarting = false;
     const w = this.scale.width;
     const h = this.scale.height;
+    const compact = h < 500;
 
     // Title BGM (silent if no file was dropped into public/assets/bgm)
     AudioManager.play(this, 'bgm_title');
@@ -25,12 +28,7 @@ export default class TitleScene extends Phaser.Scene {
 
       // Resize listener for responsive background (detached on shutdown -
       // scale is game-global and would keep dead references otherwise)
-      const resizeHandler = (gameSize) => {
-        const nw = gameSize.width;
-        const nh = gameSize.height;
-        this.bg.setPosition(nw / 2, nh / 2);
-        this.coverBackground(nw, nh);
-      };
+      const resizeHandler = () => { if (!this.isStarting) this.scene.restart(); };
       this.scale.on('resize', resizeHandler);
       this.events.once('shutdown', () => {
         this.scale.off('resize', resizeHandler);
@@ -48,14 +46,14 @@ export default class TitleScene extends Phaser.Scene {
 
     // === Title text ===
     // "BOSO" main title with glow effect
-    const titleShadow = this.add.text(w / 2 + 3, h * 0.28 + 3, 'BOSO', {
-      fontSize: '72px',
+    const titleShadow = this.add.text(w / 2 + 3, h * (compact ? 0.17 : 0.28) + 3, 'BOSO', {
+      fontSize: compact ? '48px' : '72px',
       fontFamily: 'Arial Black, Arial',
       color: '#000000',
     }).setOrigin(0.5).setAlpha(0.4);
 
-    const title = this.add.text(w / 2, h * 0.28, 'BOSO', {
-      fontSize: '72px',
+    const title = this.add.text(w / 2, h * (compact ? 0.17 : 0.28), 'BOSO', {
+      fontSize: compact ? '48px' : '72px',
       fontFamily: 'Arial Black, Arial',
       color: '#F39C12',
       stroke: '#E67E22',
@@ -73,21 +71,21 @@ export default class TitleScene extends Phaser.Scene {
     });
 
     // Subtitle
-    this.add.text(w / 2, h * 0.38, '"Look at me!"', {
+    this.add.text(w / 2, h * (compact ? 0.29 : 0.38), '"Look at me!"', {
       fontSize: '20px',
       fontFamily: 'Arial',
       color: '#F7DC6F',
       fontStyle: 'italic',
     }).setOrigin(0.5);
 
-    this.add.text(w / 2, h * 0.43, "Two little cats. One big adventure.", {
+    this.add.text(w / 2, h * (compact ? 0.36 : 0.43), "Two little cats. One big adventure.", {
       fontSize: '13px',
       fontFamily: 'Arial',
       color: '#95A5A6',
     }).setOrigin(0.5);
 
-    this.add.image(w / 2 - 56, h * 0.52, 'portrait_seoli').setDisplaySize(88, 88);
-    this.add.image(w / 2 + 56, h * 0.52, 'portrait_bomi').setDisplaySize(88, 88);
+    this.add.image(w / 2 - 56, h * (compact ? 0.48 : 0.52), 'portrait_seoli').setDisplaySize(compact ? 60 : 88, compact ? 60 : 88);
+    this.add.image(w / 2 + 56, h * (compact ? 0.48 : 0.52), 'portrait_bomi').setDisplaySize(compact ? 60 : 88, compact ? 60 : 88);
 
     // Demo-clear badge (persisted via SaveManager)
     if (SaveManager.getFlag('demoCleared')) {
@@ -111,7 +109,7 @@ export default class TitleScene extends Phaser.Scene {
     const btnW = 220;
     const btnH = 50;
     const btnX = w / 2 - btnW / 2;
-    const btnY = h * 0.58;
+    const btnY = h * (compact ? 0.62 : 0.60);
 
     const btnBg = this.add.graphics();
     btnBg.fillStyle(0xF39C12, 1);
@@ -159,7 +157,7 @@ export default class TitleScene extends Phaser.Scene {
     this.input.keyboard.once('keydown-SPACE', () => this.startGame());
 
     // "Press SPACE" hint
-    this.add.text(w / 2, h * 0.72, 'or press SPACE', {
+    this.add.text(w / 2, h * (compact ? 0.84 : 0.72), usesTouchControls() ? 'Tap PRESS START' : 'or press SPACE', {
       fontSize: '13px',
       fontFamily: 'Arial',
       color: '#666666',

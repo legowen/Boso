@@ -70,6 +70,43 @@ hints sit above the art; dialogue still uses the original map coordinates.
 Boss squash/stretch and Biggie's pounce/befriend resets retain the display scale.
 The art rebuild refreshes the bounds metadata alongside the PNGs.
 
+All fourteen regular monsters and both ship ambushers use the same visible
+height rule (configured height × 1.5). Ground enemies anchor to their physics
+feet; flying enemies and the rotating Yarn Roller keep a centered origin.
+HP bars follow the enlarged art. Squash/stretch, death and respawn preserve
+the display scale, while `entityCombatBounds()` retains the original damage
+ranges, including rotation. No source PNG enlargement is required.
+
+## Mobile controls
+
+Touch-capable devices automatically show a pad and action buttons in both
+GameScene and TravelScene. Landscape is recommended; portrait also works.
+Desktop keyboard controls remain available, including on hybrid touch laptops.
+
+| Touch control | Action |
+|---|---|
+| Left / right | Move while held |
+| Up / down | Climb ropes; up enters portals; down crouches |
+| HIT | Hold for the three-hit combo |
+| JUMP | Jump; down + JUMP drops through a platform |
+| WIND | Seoli's ranged gust |
+| TALK / NEXT | Open/advance dialogue and board the ship |
+| CONTINUE | Respawn or return from the ending |
+| ••• | HP/MP items; on maps, BAG, MAP and MENU |
+
+`ControlState.js` merges real keys with per-pointer touch state. Short taps
+survive until the next frame; simultaneous fingers can move, jump and attack.
+Controls release on cancellation, focus loss, rotation, pause and scene exit.
+`TouchControls.js` owns and removes its DOM listeners/buttons per scene.
+Mobile HUD placement and camera floor padding keep the play area above the pad.
+Map/quest details remain available through MAP/BAG; the desktop minimap and
+quest tracker are hidden on touch screens to keep the top HUD readable.
+
+Phone acceptance check: tap through title/selection/story, move + jump + HIT,
+climb a rope, enter a portal, talk/board, use an item, die and CONTINUE, then
+rotate and switch away/back while holding a direction. Confirm no stuck input
+or duplicate controls after map changes and ship travel.
+
 ## Editing and rebuilding
 
 1. Install dependencies with `npm ci` (Node 20.19+ or 22.12+).

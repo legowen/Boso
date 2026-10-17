@@ -6,7 +6,7 @@ export async function measureEntityArt() {
   const root = new URL('../public/assets/images/tex/', import.meta.url);
   const bounds = {};
   for (const file of (await fs.readdir(root)).sort()) {
-    if (!/^(boss_|npc(?:_|\.))/.test(file) || !file.endsWith('.png')) continue;
+    if (!/^(boss_|monster_|ambush_|npc(?:_|\.))/.test(file) || !file.endsWith('.png')) continue;
     const { data, info } = await sharp(await fs.readFile(new URL(file, root)))
       .ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     let top = info.height, bottom = 0;
