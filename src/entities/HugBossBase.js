@@ -7,6 +7,7 @@
 // BOSS_TYPES cfg, and texture keys to the constructor.
 
 import Phaser from 'phaser';
+import { applyBossArt, bossCombatBounds } from '../systems/EntityArt.js';
 import { PLAYER, DEPTH } from '../utils/constants.js';
 
 export default class HugBossBase {
@@ -35,7 +36,7 @@ export default class HugBossBase {
     this.sprite = scene.physics.add.sprite(x, y, this.textureKey);
     this.sprite.setDepth(DEPTH.BOSS);
     this.sprite.setCollideWorldBounds(true);
-    this.sprite.body.setSize(this.cfg.width - 24, this.cfg.height - 8);
+    this.art = applyBossArt(this.sprite, this.cfg, this.cfg.width - 24, this.cfg.height - 8);
 
     this.nextAttackAt = Date.now() + Phaser.Math.Between(2000, 3500);
   }
@@ -132,7 +133,7 @@ export default class HugBossBase {
     // Wind-up flourish on the boss
     this.scene.tweens.add({
       targets: this.sprite,
-      scaleX: 1.08,
+      scaleX: this.art.scale * 1.08,
       duration: 200,
       yoyo: true,
     });
@@ -197,8 +198,8 @@ export default class HugBossBase {
       // Impact: squash the boss, shake the room
       this.scene.tweens.add({
         targets: this.sprite,
-        scaleY: 0.8,
-        scaleX: 1.15,
+        scaleY: this.art.scale * 0.8,
+        scaleX: this.art.scale * 1.15,
         duration: 110,
         yoyo: true,
       });
@@ -322,7 +323,7 @@ export default class HugBossBase {
     const hitbox = player.attackHitbox;
     const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
       hitbox.getBounds(),
-      this.sprite.getBounds()
+      bossCombatBounds(this)
     );
     if (!overlap) return;
 
@@ -361,7 +362,7 @@ export default class HugBossBase {
     if (this.defeated || this.contactCooldown || player.hp <= 0) return;
     const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
       player.getHurtBounds(),
-      this.sprite.getBounds()
+      bossCombatBounds(this)
     );
     if (!overlap) return;
 
@@ -391,8 +392,8 @@ export default class HugBossBase {
     this.scene.tweens.add({
       targets: this.sprite,
       alpha: 0,
-      scaleX: 0.1,
-      scaleY: 0.1,
+      scaleX: this.art.scale * 0.1,
+      scaleY: this.art.scale * 0.1,
       angle: 25,
       duration: 900,
       onComplete: () => {

@@ -20,6 +20,7 @@ import Player from '../entities/Player.js';
 import { getCharacter } from '../data/characters.js';
 import { npcTexture, portalLayout } from '../data/worldArt.js';
 import { addWorldBackground, decoratePlatform } from '../systems/WorldArt.js';
+import { entityArtLayout, bossCombatBounds } from '../systems/EntityArt.js';
 import HUD from '../ui/HUD.js';
 import { MAPS_DATA, START_MAP, respawnMapFor } from '../data/maps.js';
 import { MONSTER_TYPES, BOSS_TYPES } from '../data/monsters.js';
@@ -271,7 +272,7 @@ export default class GameScene extends Phaser.Scene {
       if (distance < NPC.INTERACT_DISTANCE) {
         nearNPC = true;
         this.interactionHint.setText('[SPACE] Talk');
-        this.interactionHint.setPosition(npcObj.sprite.x, npcObj.sprite.y - 70);
+        this.interactionHint.setPosition(npcObj.sprite.x, npcObj.hintY);
         this.interactionHint.setVisible(true);
 
         // Start a conversation (SPACE) - updateDialogue consumed the key
@@ -859,7 +860,7 @@ export default class GameScene extends Phaser.Scene {
       if (this.boss && this.boss.sprite.active && !this.boss.defeated) {
         const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
           barkBounds,
-          this.boss.sprite.getBounds()
+          bossCombatBounds(this.boss)
         );
         if (overlap) {
           this.boss.applyDamage(this.barkDamage());
@@ -2040,9 +2041,12 @@ export default class GameScene extends Phaser.Scene {
         this.textures.exists(npcTexture(npcData)) ? npcTexture(npcData) : 'npc';
       const sprite = this.physics.add.staticSprite(npcData.x, npcData.y, textureKey);
       sprite.setDepth(DEPTH.NPCS);
+      const art = entityArtLayout(textureKey, NPC.HEIGHT, NPC.HEIGHT / 2);
+      sprite.setScale(art.scale).setOrigin(0.5, art.originY);
+      const artTop = npcData.y + art.top;
 
       // NPC name tag
-      const nameTag = this.add.text(npcData.x, npcData.y - 40, npcData.name, {
+      const nameTag = this.add.text(npcData.x, artTop - 14, npcData.name, {
         fontSize: '12px',
         fontFamily: UI.FONT_FAMILY,
         color: '#FFFFFF',
@@ -2051,7 +2055,7 @@ export default class GameScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(DEPTH.NPCS);
 
       // Quest marker (! available / ? ready) above the name tag
-      const questMarker = this.add.text(npcData.x, npcData.y - 62, '', {
+      const questMarker = this.add.text(npcData.x, artTop - 36, '', {
         fontSize: '18px',
         fontFamily: 'Arial Black, Arial',
         color: '#F1C40F',
@@ -2066,7 +2070,7 @@ export default class GameScene extends Phaser.Scene {
         repeat: -1,
       });
 
-      this.npcSprites.push({ sprite, nameTag, questMarker, data: npcData });
+      this.npcSprites.push({ sprite, nameTag, questMarker, hintY: artTop - 60, data: npcData });
     });
   }
 

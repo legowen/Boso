@@ -177,6 +177,11 @@ Optional `alpha` renders a type translucent (lonesome, dustmote).
   Both use 96px frames at 1.125 scale, preserving the original physics footprint
   and foot anchor through a custom origin. Portals are 72x96 and stand on their
   supporting platform; label and interaction positions follow their art.
+  Bosses and NPCs use their configured visible heights times the same 1.5
+  enlargement, compensating for PNG padding with `EntityArt.js`. Physics and
+  boss combat bounds retain their original sizes; use `bossCombatBounds()`
+  instead of sprite image bounds. Boss tweens/reset scales must include
+  `this.art.scale`. NPC labels and hints follow the visible top edge.
   Holding CTRL cycles three strikes (1x / 1.15x / 1.5x ATK); each swing hits a
   target once. DOWN crouches and reduces hurt height from 56px to 28px.
   Wind claws travel outward; Bomi's melee stays close. Damage/rope grabs cancel swings.

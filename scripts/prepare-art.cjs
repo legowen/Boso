@@ -99,6 +99,7 @@ async function main() {
   }
   await sharp(path.join(source,'ship.png')).resize(1200,800,{kernel:'nearest'}).png().toFile(path.join(output,'world','travel_ship.png'));
   await sharp(path.join(source,'voyage.png')).resize(1536,512,{kernel:'nearest'}).png().toFile(path.join(output,'world','bg_voyage.png'));
+  await (await import('./measure-entity-art.mjs')).measureEntityArt();
   console.log('Prepared cat animation sheets, portraits, world art, and all entity textures.');
 }
 main().catch(err=>{console.error(err);process.exitCode=1;});
