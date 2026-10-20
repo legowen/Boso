@@ -16,6 +16,7 @@
 
 import { MAPS_DATA, START_MAP } from '../data/maps.js';
 import { BOSS_TYPES } from '../data/monsters.js';
+import { isBossAlive } from '../data/bossRespawn.js';
 import { CHARACTERS, getCharacter as getCharacterDef, maxHpFor } from '../data/characters.js';
 import { DEFAULT_SPAWN_ID } from '../data/spawns.js';
 
@@ -359,10 +360,33 @@ export default class SaveManager {
     persistActive();
   }
 
-  // Boss defeat: bump the boss record, keep the legacy `<id>Defeated` flag
-  // (portals/quests/travel read it) and autosave.
+  // ===== Boss respawn =====
+  // Two separate questions about a boss (see data/bossRespawn.js):
+  //   hasDefeatedBoss  story progress, permanent
+  //   isBossAlive      alive state, back once respawnSec has passed
+
+  // Has this boss EVER been defeated in the active slot?
+  static hasDefeatedBoss(bossId) {
+    const data = current();
+    const record = data.bosses[bossId];
+    return (isPlainObject(record) && isIsoDate(record.firstDefeatedAt)) || !!data.storyFlags[`${bossId}Defeated`];
+  }
+
+  // Is the boss in its map right now? Wall-clock, so the timer also runs
+  // while the game is closed.
+  static isBossAlive(bossId, now = Date.now()) {
+    const def = BOSS_TYPES[bossId];
+    if (!def) return false;
+    return isBossAlive(def, current().bosses[bossId], now);
+  }
+
+  // Boss defeat: bump the boss record, keep the `<id>Defeated` story flag
+  // (portals/quests/travel read it) and autosave. Returns { first } - true
+  // only for the boss's first defeat in this slot, the only one allowed to
+  // trigger story events and one-time unlocks.
   static recordBossDefeat(bossId, patch = {}) {
-    if (!activeData) return;
+    if (!activeData) return { first: true };
+    const first = !SaveManager.hasDefeatedBoss(bossId);
     const now = new Date().toISOString();
     const previous = activeData.bosses[bossId];
     activeData.bosses[bossId] = {
@@ -371,6 +395,24 @@ export default class SaveManager {
     };
     activeData.storyFlags[`${bossId}Defeated`] = true;
     SaveManager.saveProgress(patch);
+    return { first };
+  }
+
+  // Dev helper: make every defeated boss due to respawn right now. Only the
+  // timer moves; flags and firstDefeatedAt stay, so no story event replays
+  // and no unlock is lost. (lastDefeatedAt may land before firstDefeatedAt.)
+  // Returns how many boss records were reset.
+  static resetBossTimers(now = Date.now()) {
+    const data = current();
+    let count = 0;
+    for (const [bossId, record] of Object.entries(data.bosses)) {
+      const def = BOSS_TYPES[bossId];
+      if (!def || !isPlainObject(record)) continue;
+      record.lastDefeatedAt = new Date(now - def.respawnSec * 1000).toISOString();
+      count += 1;
+    }
+    persistActive();
+    return count;
   }
 
   // A gameplay scene (map or cage ride) became / stopped being active.

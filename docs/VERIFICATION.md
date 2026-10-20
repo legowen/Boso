@@ -233,3 +233,32 @@ Clock/TweenManager pause 시맨틱, Canvas 렌더러에서 postFX 안전성,
 - 일시정지 중 Date.now() 기반 AI 타이머는 계속 진행 (재개 시 즉시 행동
   가능성 — 게임플레이 영향 경미)
 - ogg 단독 드롭 시 일부 브라우저 무음 (mp3 권장, 문서화됨)
+
+## 보스 리스폰 타이머
+
+스토리 진행("한 번이라도 처치했나", 영구)과 생존 상태("지금 맵에 있나", 타이머)를
+분리. 생존 판정은 `isBossAlive(bossDef, bossSave, now)` (`src/data/bossRespawn.js`),
+벽시계 `Date.now()` 기준이라 게임을 꺼 둬도 타이머가 흐른다.
+`respawnSec`: hugGuardian 300 / vacuumKing 600 / drEmbrace 300 / biggie 300 (조정 가능).
+
+### 수동 검증 시나리오
+1. Hug Guardian 처치 → 맵을 나갔다 바로 복귀 → 보스 없음 (숨은 포탈은 그대로 열려 있음)
+2. 그 맵에 머문 채 `respawnSec` 경과(또는 개발 모드 F9 / 콘솔
+   `window.bosoDev.resetBossTimers()`) → 최대 3초 내 카메라 흔들림 + 경고 문구 →
+   약 2초 뒤 보스 등장 (HP 가득)
+3. 탭을 닫고 `respawnSec` 이후에 다시 열기 → 이어하기 → 보스 복귀.
+   타이머 전에 열면 보스 없음
+4. 첫 처치에서만: 스토리 플래그, 숨은 포탈 개방 + 안내 문구, Vacuum King 엔딩,
+   Biggie 친구 배너. 이후 처치는 EXP/트릿/아이템만 지급 (엔딩/포탈/배너 재생 없음)
+5. 보스 스폰 지점 200px 이내에 서 있으면 경고 후 최대 5초 대기, 비켜서면 즉시 등장,
+   계속 있으면 5초 뒤 그대로 등장
+6. 전투 중 맵 이동/새로고침 → 보스는 항상 가득 찬 HP로 재시작 (HP 미저장)
+
+### 자동 검증
+- `node scripts/validate.mjs`: 보스별 `respawnSec` 숫자 > 0, `STORY.bossRespawn` 문구,
+  `isBossAlive` 4케이스 (미처치 / 방금 처치 / 정확히 타이머 / 타이머 이후) + 시계 되감김
+- `tests/boss-respawn.test.mjs`: 첫 처치 판정(`first`), 타이머 재시작, 저장→재실행
+  후 Continue, 개발용 리셋이 스토리 진행을 건드리지 않음, 슬롯별 독립
+- 브라우저 실행 확인 (Playwright, 개발 서버): 경고→등장 2.09s, 스폰 지점 점유 시
+  7.03s (2s 경고 + 5s 상한), 비켜서면 즉시 등장, 후속 처치에서 포탈/힌트/엔딩/배너 없음
+

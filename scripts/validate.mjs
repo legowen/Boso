@@ -19,6 +19,8 @@ import { ITEMS } from '../src/data/items.js';
 import { TRAVEL_ROUTES, AMBUSH_TYPES } from '../src/data/travel.js';
 import { WORLD_MAP_LAYOUT, REGION_TITLES } from '../src/data/worldmap.js';
 import { OPTIONAL_TEXTURES } from '../src/data/assets.js';
+import { STORY } from '../src/data/story.js';
+import { BOSS_RESPAWN, isBossAlive } from '../src/data/bossRespawn.js';
 import { DEFAULT_SPAWN_ID, portalSpawnId, resolveSpawn } from '../src/data/spawns.js';
 import { createSlotData, serializeSlot, parseSlot, SLOT_SCHEMA_VERSION } from '../src/systems/SaveManager.js';
 
@@ -355,6 +357,35 @@ for (const [key, boss] of Object.entries(BOSS_TYPES)) {
       check(!!ITEMS[itemKey], `boss:${key}`, `drop item '${itemKey}' is not in ITEMS`);
     }
   }
+}
+
+// ===== Check 11b: boss respawn — timers, warning text, isBossAlive cases =====
+for (const [key, boss] of Object.entries(BOSS_TYPES)) {
+  check(
+    typeof boss.respawnSec === 'number' && Number.isFinite(boss.respawnSec) && boss.respawnSec > 0,
+    `boss:${key}`,
+    `respawnSec must be a number > 0 (got ${boss.respawnSec})`
+  );
+  check(
+    typeof STORY.bossRespawn[key] === 'string' && STORY.bossRespawn[key].length > 0,
+    `boss:${key}`,
+    'missing STORY.bossRespawn warning text'
+  );
+}
+for (const [name, value] of Object.entries(BOSS_RESPAWN)) {
+  check(Number.isFinite(value) && value > 0, 'BOSS_RESPAWN', `${name} must be a number > 0 (got ${value})`);
+}
+{
+  const def = { respawnSec: 300 };
+  const T0 = Date.parse('2026-01-01T00:00:00.000Z');
+  const defeatedAt = { firstDefeatedAt: new Date(T0).toISOString(), lastDefeatedAt: new Date(T0).toISOString() };
+  const alive = (save, now) => isBossAlive(def, save, now);
+  check(alive(undefined, T0) === true, 'isBossAlive', 'a never-defeated boss must be alive');
+  check(alive(defeatedAt, T0) === false, 'isBossAlive', 'a just-defeated boss must be away');
+  check(alive(defeatedAt, T0 + 299999) === false, 'isBossAlive', 'a boss 1ms before its timer must be away');
+  check(alive(defeatedAt, T0 + 300000) === true, 'isBossAlive', 'a boss exactly at its timer must be alive');
+  check(alive(defeatedAt, T0 + 300001) === true, 'isBossAlive', 'a boss after its timer must be alive');
+  check(alive(defeatedAt, T0 - 60000) === true, 'isBossAlive', 'a defeat stamped in the future (clock set back) must not lock the boss out');
 }
 
 // ===== Check 12: regions — every map tagged, region homes exist =====
