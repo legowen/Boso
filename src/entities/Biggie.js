@@ -564,8 +564,9 @@ export default class Biggie {
       });
     }
 
-    // Befriend banner lines
-    STORY.biggieFriend.forEach((line, i) => {
+    // Befriend banner lines (story beat: first time only)
+    const bannerLines = this.scene.isFirstBossDefeat(this.id) ? STORY.biggieFriend : [];
+    bannerLines.forEach((line, i) => {
       const text = this.scene.add.text(
         this.scene.scale.width / 2,
         this.scene.scale.height * 0.3 + i * 34,

@@ -30,6 +30,7 @@ import { WORLD_MAP_LAYOUT, REGION_TITLES } from '../data/worldmap.js';
 import { ITEMS, ITEM_KEYS } from '../data/items.js';
 import { QUESTS } from '../data/quests.js';
 import { STORY } from '../data/story.js';
+import { BOSS_RESPAWN } from '../data/bossRespawn.js';
 import { TRAVEL_ROUTES } from '../data/travel.js';
 import HugGuardian from '../entities/HugGuardian.js';
 import DrEmbrace from '../entities/DrEmbrace.js';
@@ -175,6 +176,7 @@ export default class GameScene extends Phaser.Scene {
         this.boss.update(time, delta);
         this.updateBossHpBar();
       }
+      this.updateBossRespawn(delta);
       this.updateBarks();
       this.updateDrops();
       this.hud.update(this.player);
@@ -1608,6 +1610,11 @@ export default class GameScene extends Phaser.Scene {
         this.openPauseMenu();
       }
     });
+
+    // Dev only: F9 makes every defeated boss due to respawn at once
+    if (import.meta.env.DEV) {
+      this.input.keyboard.on('keydown-F9', () => this.debugResetBossTimers());
+    }
   }
 
   openPauseMenu() {
@@ -2375,13 +2382,23 @@ export default class GameScene extends Phaser.Scene {
   initBoss() {
     this.boss = null;
     this.bossBar = null;
+    this.bossRespawn = null;
 
     const bossData = this.mapData.boss;
     if (!bossData) return;
 
-    // A defeated boss stays defeated (persisted via SaveManager)
-    if (SaveManager.getFlag(`${bossData.id}Defeated`)) return;
+    // Alive state is separate from story progress: a defeated boss stays away
+    // until its wall-clock respawn timer runs out (persisted via SaveManager)
+    if (SaveManager.isBossAlive(bossData.id)) {
+      if (this.spawnBoss(bossData)) this.showBossWarning(STORY.bossWarning[bossData.id]);
+    } else {
+      this.bossRespawn = { phase: 'waiting', elapsedMs: 0 };
+    }
+  }
 
+  // Builds the boss at its defined spawn point at full HP (HP is never
+  // persisted). Returns false if the map names a boss with no entity class.
+  spawnBoss(bossData) {
     if (bossData.id === 'hugGuardian') {
       this.boss = new HugGuardian(this, bossData.x, bossData.y);
     } else if (bossData.id === 'drEmbrace') {
@@ -2392,7 +2409,7 @@ export default class GameScene extends Phaser.Scene {
       this.boss = new VacuumKing(this, bossData.x, bossData.y);
     }
 
-    if (!this.boss) return;
+    if (!this.boss) return false;
 
     // Ground bosses collide with platforms (the Vacuum King floats)
     if (bossData.id !== 'vacuumKing') {
@@ -2402,7 +2419,64 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.createBossHpBar();
-    this.showBossWarning(STORY.bossWarning[bossData.id]);
+    return true;
+  }
+
+  // Runs while the boss is away: polls the wall-clock timer, and once it is
+  // due, warns (shake + text), waits for the spawn point to be clear of the
+  // player and brings the boss back. Driven by frame delta, not scene timers,
+  // so a paused or hidden game never skips a phase.
+  updateBossRespawn(delta) {
+    const state = this.bossRespawn;
+    if (!state) return;
+    state.elapsedMs += delta;
+    const bossData = this.mapData.boss;
+
+    if (state.phase === 'waiting') {
+      if (state.elapsedMs < BOSS_RESPAWN.checkIntervalMs) return;
+      state.elapsedMs = 0;
+      if (!SaveManager.isBossAlive(bossData.id)) return;
+      state.phase = 'warning';
+      this.cameras.main.shake(500, 0.008);
+      this.showBossWarning(STORY.bossRespawn[bossData.id]);
+    } else if (state.phase === 'warning') {
+      if (state.elapsedMs < BOSS_RESPAWN.warningMs) return;
+      state.phase = 'clearing';
+      state.elapsedMs = 0;
+    } else {
+      // Never pop up on top of the player: wait for them to step away, but
+      // not forever
+      if (this.isPlayerNearBossSpawn(bossData) && state.elapsedMs < BOSS_RESPAWN.maxClearWaitMs) return;
+      this.bossRespawn = null;
+      if (this.spawnBoss(bossData)) {
+        this.boss.sprite.setAlpha(0);
+        this.tweens.add({ targets: this.boss.sprite, alpha: 1, duration: 450 });
+      }
+    }
+  }
+
+  isPlayerNearBossSpawn(bossData) {
+    return Phaser.Math.Distance.Between(
+      this.player.sprite.x,
+      this.player.sprite.y,
+      bossData.x,
+      bossData.y
+    ) < BOSS_RESPAWN.clearRadiusPx;
+  }
+
+  // True until the boss's first defeat is recorded. Entities call this from
+  // die() to decide whether to play one-time story beats.
+  isFirstBossDefeat(bossId) {
+    return !SaveManager.hasDefeatedBoss(bossId);
+  }
+
+  // Dev only (F9): back-date every boss timer so respawns happen right away
+  debugResetBossTimers() {
+    const count = SaveManager.resetBossTimers();
+    if (this.bossRespawn && this.bossRespawn.phase === 'waiting') {
+      this.bossRespawn.elapsedMs = BOSS_RESPAWN.checkIntervalMs;
+    }
+    this.showQuestToast(`[DEV] Boss timers reset (${count})`);
   }
 
   createBossHpBar() {
@@ -2466,10 +2540,11 @@ export default class GameScene extends Phaser.Scene {
   }
 
   onBossDefeated(bossId) {
-    // Records the defeat time, sets `<id>Defeated` and autosaves
-    SaveManager.recordBossDefeat(bossId, { hp: this.player.hp });
+    // Starts the respawn timer (lastDefeatedAt), sets `<id>Defeated` and
+    // autosaves. `first` is true only for this boss's first defeat in the slot.
+    const { first } = SaveManager.recordBossDefeat(bossId, { hp: this.player.hp });
 
-    // Boss EXP, rewards, and quest progress
+    // Boss EXP, rewards, and quest progress (every kill pays out)
     const bossCfg = BOSS_TYPES[bossId];
     if (bossCfg && this.player.hp > 0) {
       if (bossCfg.exp) this.player.gainExp(bossCfg.exp);
@@ -2487,9 +2562,16 @@ export default class GameScene extends Phaser.Scene {
     }
 
     if (this.bossBar) {
-      this.bossBar.container.setVisible(false);
+      this.bossBar.container.destroy();
+      this.bossBar = null;
     }
     this.boss = null;
+
+    // If the player stays in the map, watch for the boss coming back
+    this.bossRespawn = { phase: 'waiting', elapsedMs: 0 };
+
+    // Later kills end here: no story flags, unlocks, hints or ending
+    if (!first) return;
 
     if (bossId === 'vacuumKing') {
       SaveManager.setFlag('demoCleared');

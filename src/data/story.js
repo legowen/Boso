@@ -29,6 +29,14 @@ export const STORY = {
     drEmbrace: 'Dr. Embrace has SO much love to give!',
     biggie: 'Biggie guards this yard. Show him what you are made of!',
   },
+  // Shown (with a camera shake) when a defeated boss comes back while the
+  // player is still in its map
+  bossRespawn: {
+    hugGuardian: 'The Hug Guardian is back for another hug!',
+    vacuumKing: 'The Vacuum King returns!',
+    drEmbrace: 'Dr. Embrace is back for a check-up!',
+    biggie: 'Biggie bounds back in, tail wagging!',
+  },
   biggieFriend: [
     'Biggie stops... and wags his tail!',
     'You made a friend!',

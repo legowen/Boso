@@ -24,4 +24,12 @@ SaveManager.migrateLegacy();
 // Create game instance
 const game = new Phaser.Game(config);
 
+// Dev only: window.bosoDev.resetBossTimers() makes every defeated boss due to
+// respawn (same as F9 in a map). Stripped from production builds.
+if (import.meta.env.DEV) {
+  window.bosoDev = {
+    resetBossTimers: () => SaveManager.resetBossTimers(),
+  };
+}
+
 export default game;

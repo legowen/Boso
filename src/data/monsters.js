@@ -287,6 +287,8 @@ export const MONSTER_TYPES = {
   },
 };
 
+// respawnSec: wall-clock seconds after a defeat before the boss is back in
+// its map (see data/bossRespawn.js). Tunable per boss.
 export const BOSS_TYPES = {
   // Field boss (Zakum homage) — a giant toy golem built to hug.
   hugGuardian: {
@@ -294,6 +296,7 @@ export const BOSS_TYPES = {
     hp: 1500,
     touchDamage: 20,
     exp: 300,
+    respawnSec: 300,
     drops: { treats: 180, items: { cookie: 2 } },
     width: 140,
     height: 160,
@@ -315,6 +318,7 @@ export const BOSS_TYPES = {
     hp: 320,
     touchDamage: 8,
     exp: 80,
+    respawnSec: 300,
     drops: { treats: 50, items: { cookie: 1 } },
     width: 90,
     height: 120,
@@ -335,6 +339,7 @@ export const BOSS_TYPES = {
     hp: 900,
     touchDamage: 16,
     exp: 220,
+    respawnSec: 300,
     drops: { treats: 130, items: { cookie: 1, milk: 1 } },
     width: 150,
     height: 130,
@@ -354,6 +359,7 @@ export const BOSS_TYPES = {
     hp: 2200,
     touchDamage: 25,
     exp: 500,
+    respawnSec: 600,
     drops: { treats: 280, items: { cookie: 2, milk: 2 } },
     width: 120,
     height: 150,

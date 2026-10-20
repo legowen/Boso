@@ -44,7 +44,8 @@ boso-rpg/
 │   │   ├── map_*.js          # 20 maps across 3 regions (shelter/buddy/house)
 │   │   ├── spawns.js         # Named entry spawns ('default', 'from:<map>') for save slots
 │   │   ├── travel.js         # TRAVEL_ROUTES (cage rides) + AMBUSH_TYPES
-│   │   ├── monsters.js       # MONSTER_TYPES (14) + BOSS_TYPES (4) + drop tables
+│   │   ├── monsters.js       # MONSTER_TYPES (14) + BOSS_TYPES (4, with respawnSec) + drop tables
+│   │   ├── bossRespawn.js    # isBossAlive(bossDef, bossSave, now) + BOSS_RESPAWN timing constants
 │   │   ├── quests.js         # QUESTS (kill objectives, NPC givers, rewards)
 │   │   ├── items.js          # ITEMS (consumables: cookie/milk)
 │   │   ├── worldmap.js       # Region-scoped world map layout + REGION_TITLES
@@ -176,9 +177,35 @@ Optional `alpha` renders a type translucent (lonesome, dustmote).
   pull velocity to the player AFTER Player.update (see GameScene.update order),
   dust ball projectiles while off. Boss updates MUST stay after player update.
 - All: die() → scene.onBossDefeated(id) → SaveManager.recordBossDefeat (sets
-  flag `<id>Defeated`, writes `bosses[id]` first/last defeat times, autosaves);
-  hidden portals gated on that flag are revealed generically; a defeated boss
-  stays defeated within its slot (a fresh New Game starts with it alive).
+  flag `<id>Defeated`, writes `bosses[id]` first/last defeat times, autosaves,
+  returns `{ first }`); hidden portals gated on that flag are revealed
+  generically. A fresh New Game starts with every boss alive.
+- **Respawn (story progress vs alive state)**: two separate questions.
+  *Story progress* ("ever defeated") is permanent: the `<id>Defeated` flag +
+  `bosses[id].firstDefeatedAt`; read it with `SaveManager.hasDefeatedBoss(id)`.
+  *Alive state* ("in the map now") is derived: `isBossAlive(def, save, now)`
+  in `data/bossRespawn.js` — alive if never defeated OR
+  `now - lastDefeatedAt >= respawnSec * 1000` (wall-clock `Date.now()`, so it
+  keeps running while the game is closed; a defeat stamped in the future,
+  i.e. clock set back, counts as alive). `respawnSec` lives on each
+  BOSS_TYPES entry (hugGuardian 300, vacuumKing 600, drEmbrace 300,
+  biggie 300 — tunable). `SaveManager.isBossAlive(id)` wraps it for the slot.
+  - GameScene.initBoss checks alive state on map enter: alive → spawnBoss(),
+    away → `this.bossRespawn = { phase: 'waiting' }`. updateBossRespawn(delta)
+    (frame-delta driven, so pause/hidden tab never skip a phase) polls every
+    `BOSS_RESPAWN.checkIntervalMs`; when due: warning (camera shake +
+    `STORY.bossRespawn[id]`) → 2s → wait while the player is within
+    `clearRadiusPx` of the boss spawn point (max 5s, then spawn anyway) →
+    spawnBoss(). The same watcher is re-armed after every kill.
+  - Only the FIRST defeat (`first === true`) runs story: unlock flags
+    (`tutorialCompleted`, `demoCleared`), hidden-portal reveal + hint text,
+    the Vacuum King ending, Biggie's befriend banner (Biggie.die asks
+    `scene.isFirstBossDefeat(id)` before `onBossDefeated` records it). Later
+    kills only pay EXP/treats/items and count toward kill quests.
+  - Boss HP is never persisted: leaving the map or reloading respawns at full HP.
+  - Dev only (`import.meta.env.DEV`, stripped from production): **F9** in a map
+    or `window.bosoDev.resetBossTimers()` backdates every `lastDefeatedAt` by
+    `respawnSec` (story flags and `firstDefeatedAt` are untouched).
 
 ### Systems
 - **EXP/Leveling**: MONSTER_TYPES/BOSS_TYPES carry `exp`; Player.gainExp →
@@ -247,7 +274,9 @@ Optional `alpha` renders a type translucent (lonesome, dustmote).
     stamped at migration time. The legacy key is kept if slot 1 cannot be
     written.
   Flags: tutorialCompleted, drEmbraceDefeated, biggieDefeated,
-  hugGuardianDefeated, vacuumKingDefeated, demoCleared.
+  hugGuardianDefeated, vacuumKingDefeated, demoCleared. (`<id>Defeated` is
+  story progress and never clears; `bosses[id].lastDefeatedAt` drives the
+  respawn timer — see Bosses › Respawn.)
 - **AudioManager**: `play(scene, key)` / `stop()`. Missing audio file = silent
   no-op. Same key keeps playing across map changes. BGM registry entries may
   carry `url: null` (default path lookup) or a custom path string.
@@ -313,7 +342,9 @@ the player above the pad, and MAP/BAG provide map/quest details.
   guide/cage placement, texture key registry coverage, quest/drop integrity,
   save slots (default spawn per map, portal → 'from:<map>' spawn ids, slot
   schema create→serialize→parse round-trip, loader rejects wrong version /
-  unknown mapId), src/ convention scan
+  unknown mapId), boss respawn (numeric respawnSec > 0 per boss, STORY.bossRespawn
+  text, isBossAlive: never defeated / just defeated / exactly at timer / after
+  timer), src/ convention scan
 - `npm run build` — must pass with zero errors
 
 ### Adding New Maps
