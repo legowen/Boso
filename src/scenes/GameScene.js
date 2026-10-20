@@ -24,6 +24,7 @@ import { entityArtLayout, bossCombatBounds, applyEntityArt, entityCombatBounds }
 import HUD from '../ui/HUD.js';
 import TouchControls, { usesTouchControls } from '../ui/TouchControls.js';
 import { MAPS_DATA, START_MAP, respawnMapFor } from '../data/maps.js';
+import { DEFAULT_SPAWN_ID, portalSpawnId, resolveSpawn } from '../data/spawns.js';
 import { MONSTER_TYPES, BOSS_TYPES } from '../data/monsters.js';
 import { WORLD_MAP_LAYOUT, REGION_TITLES } from '../data/worldmap.js';
 import { ITEMS, ITEM_KEYS } from '../data/items.js';
@@ -57,6 +58,7 @@ export default class GameScene extends Phaser.Scene {
     this.currentMapKey = START_MAP;
     this.spawnX = null;
     this.spawnY = null;
+    this.spawnId = DEFAULT_SPAWN_ID;
   }
 
   init(data) {
@@ -73,6 +75,8 @@ export default class GameScene extends Phaser.Scene {
     if (data && data.spawnY !== undefined) {
       this.spawnY = data.spawnY;
     }
+    // Which entry spawn of the map the player arrives at (saved to the slot)
+    this.spawnId = (data && data.spawnId) || DEFAULT_SPAWN_ID;
     if (data && data.characterData) {
       this.characterData = data.characterData;
     }
@@ -130,9 +134,22 @@ export default class GameScene extends Phaser.Scene {
     // Per-map BGM (silent graceful fallback when no audio file exists)
     AudioManager.play(this, this.mapData.bgm);
 
+    // Autosave: the map was just entered, so record where (entry spawn only,
+    // never raw coordinates). Play time ticks while this scene is active and
+    // the tab is visible; hiding the tab saves too.
+    SaveManager.beginPlay();
+    SaveManager.saveProgress({
+      mapId: this.currentMapKey,
+      spawnId: this.spawnId,
+      hp: this.player.hp,
+    });
+    const stopWatchingVisibility = SaveManager.watchVisibility(() => ({ hp: this.player.hp }));
+
     // Event listeners (once: scene.restart would stack persistent listeners)
     this.events.once('player-died', () => this.handlePlayerDeath());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      stopWatchingVisibility();
+      SaveManager.endPlay();
       this.events.off('player-died');
       this.scale.off('resize', this.overlayResizeHandler);
       // Defensive: Clock/TweenManager persist across scene.restart -
@@ -213,6 +230,9 @@ export default class GameScene extends Phaser.Scene {
     if (this.isTransitioning) return;
     if (!MAPS[targetMapKey]) return;
 
+    // The landing point is named after the map being left ('from:<map>')
+    const spawnId = portalSpawnId(this.currentMapKey);
+
     this.isTransitioning = true;
 
     // Save current map monster state before leaving
@@ -225,6 +245,7 @@ export default class GameScene extends Phaser.Scene {
         mapKey: targetMapKey,
         spawnX: spawnX,
         spawnY: spawnY,
+        spawnId,
         characterData: this.characterData,
         playerHp: this.player.hp,
         playerMp: this.player.mp,
@@ -1535,6 +1556,7 @@ export default class GameScene extends Phaser.Scene {
             mapKey: respawnKey,
             spawnX: MAPS[respawnKey].spawnX,
             spawnY: MAPS[respawnKey].spawnY,
+            spawnId: DEFAULT_SPAWN_ID,
             characterData: this.characterData,
           });
         });
@@ -1731,7 +1753,7 @@ export default class GameScene extends Phaser.Scene {
     this.closePauseMenu();
     this.cameras.main.fadeOut(400, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start(SCENES.CHARACTER_SELECT);
+      this.scene.start(SCENES.CHARACTER_SELECT, { switching: true });
     });
   }
 
@@ -2198,13 +2220,18 @@ export default class GameScene extends Phaser.Scene {
   }
 
   initPlayer() {
-    const sx = this.spawnX !== null ? this.spawnX : this.mapData.spawnX;
-    const sy = this.spawnY !== null ? this.spawnY : this.mapData.spawnY;
+    // Explicit coordinates (portal/cage/respawn) win; a resumed save only
+    // knows the entry spawn id, which falls back to the default spawn.
+    const landing = resolveSpawn(this.currentMapKey, this.spawnId)
+      || { x: this.mapData.spawnX, y: this.mapData.spawnY };
+    const sx = this.spawnX !== null ? this.spawnX : landing.x;
+    const sy = this.spawnY !== null ? this.spawnY : landing.y;
     this.player = new Player(this, sx, sy, this.characterData);
 
-    // Apply saved HP/MP from map transition (not set on death → full HP respawn)
+    // Apply saved HP/MP from map transition or a loaded save (not set on
+    // death -> full HP respawn). Clamp: never above max, never loaded dead.
     if (this.savedPlayerHp !== null) {
-      this.player.hp = this.savedPlayerHp;
+      this.player.hp = Phaser.Math.Clamp(this.savedPlayerHp, 1, this.player.maxHp);
     }
     if (this.savedPlayerMp !== null) {
       this.player.mp = this.savedPlayerMp;
@@ -2439,7 +2466,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   onBossDefeated(bossId) {
-    SaveManager.setFlag(`${bossId}Defeated`);
+    // Records the defeat time, sets `<id>Defeated` and autosaves
+    SaveManager.recordBossDefeat(bossId, { hp: this.player.hp });
 
     // Boss EXP, rewards, and quest progress
     const bossCfg = BOSS_TYPES[bossId];

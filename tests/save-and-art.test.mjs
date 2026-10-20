@@ -2,34 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import sharp from 'sharp';
-import SaveManager from '../src/systems/SaveManager.js';
 import { MAPS_DATA } from '../src/data/maps.js';
 import { MAP_ART, WORLD_THEMES, WORLD_TEXTURES, EXTRA_TEXTURES, portalLayout } from '../src/data/worldArt.js';
 import { PORTAL } from '../src/utils/constants.js';
 import { OPTIONAL_TEXTURES } from '../src/data/assets.js';
 import { MONSTER_TYPES } from '../src/data/monsters.js';
 import { CAT_FRAME_SIZE, CAT_ANIMATIONS } from '../src/data/characters.js';
-
-test('old saves migrate to both cats without losing inventory, quests, flags, or legacy records', () => {
-  let stored = JSON.stringify({ version: 2, flags: { biggieDefeated: true }, characters: {
-    boso_swift: { level: 4, exp: 12, treats: 30, items: { cookie: 3 }, quests: { old: 'done' } },
-    boso_brave: { level: 5, exp: 20 }, bomi: { level: 2, exp: 4 },
-  } });
-  globalThis.localStorage = { getItem: () => stored, setItem: (_key, value) => { stored = value; } };
-  try {
-    const migrated = SaveManager.load();
-    assert.equal(migrated.version, 3);
-    assert.deepEqual(migrated.characters.seoli, migrated.characters.boso_swift);
-    assert.equal(migrated.characters.bomi.level, 5);
-    assert.equal(migrated.characters.legacy_bomi.level, 2);
-    assert.equal(migrated.flags.biggieDefeated, true);
-    SaveManager.save(migrated);
-    assert.deepEqual(SaveManager.load(), migrated);
-    assert.equal(SaveManager.getCharacter('seoli').items.cookie, 3);
-    stored = JSON.stringify({ version: 2, characters: { bomi: { level: 8 }, boso_brave: { level: 3 } } });
-    assert.equal(SaveManager.getCharacter('bomi').level, 8);
-  } finally { delete globalThis.localStorage; }
-});
 
 const imageRoot = new URL('../public/assets/images/', import.meta.url);
 

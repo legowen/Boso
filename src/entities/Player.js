@@ -5,10 +5,7 @@ import Phaser from 'phaser';
 import { PLAYER, DEPTH, DAMAGE_TEXT, ROPE } from '../utils/constants.js';
 import SaveManager from '../systems/SaveManager.js';
 import { ITEMS } from '../data/items.js';
-import { getCharacter, COMBO_MULTIPLIERS, COMBO_RESET_MS, CAT_FRAME_SIZE, CAT_DISPLAY_SCALE, CAT_FOOT_Y, CAT_FEET_OFFSET } from '../data/characters.js';
-
-// Stat growth per level (MapleStory-style persistent progression)
-const LEVEL_GROWTH = { hp: 12, mp: 6, atk: 2 };
+import { getCharacter, LEVEL_GROWTH, COMBO_MULTIPLIERS, COMBO_RESET_MS, CAT_FRAME_SIZE, CAT_DISPLAY_SCALE, CAT_FOOT_Y, CAT_FEET_OFFSET } from '../data/characters.js';
 
 // Slow natural MP regeneration
 const MP_REGEN_AMOUNT = 2;

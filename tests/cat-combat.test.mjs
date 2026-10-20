@@ -12,11 +12,16 @@ const phaser = new vm.SyntheticModule(['default'], function () {
     Geom: { Rectangle: class { constructor(x, y, width, height) { Object.assign(this, { x, y, width, height }); } } },
   });
 }, { context });
+// Cache the in-flight link promise: modules shared by several importers
+// (a diamond in the import graph) are requested concurrently and must not
+// be handed out before they finish linking.
 const modules = new Map();
-async function readModule(url) {
-  if (modules.has(url.href)) return modules.get(url.href);
+function readModule(url) {
+  if (!modules.has(url.href)) modules.set(url.href, loadModule(url));
+  return modules.get(url.href);
+}
+async function loadModule(url) {
   const module = new vm.SourceTextModule(await fs.readFile(url, 'utf8'), { context, identifier: url.href });
-  modules.set(url.href, module);
   await module.link((specifier, parent) => specifier === 'phaser' ? phaser : readModule(new URL(specifier, parent.identifier)));
   return module;
 }

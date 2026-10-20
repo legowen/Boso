@@ -42,6 +42,7 @@ boso-rpg/
 │   ├── data/                 # PURE DATA (no Phaser imports, Node-validatable)
 │   │   ├── maps.js           # MAPS_DATA registry + START_MAP + REGION_HOME/respawnMapFor
 │   │   ├── map_*.js          # 20 maps across 3 regions (shelter/buddy/house)
+│   │   ├── spawns.js         # Named entry spawns ('default', 'from:<map>') for save slots
 │   │   ├── travel.js         # TRAVEL_ROUTES (cage rides) + AMBUSH_TYPES
 │   │   ├── monsters.js       # MONSTER_TYPES (14) + BOSS_TYPES (4) + drop tables
 │   │   ├── quests.js         # QUESTS (kill objectives, NPC givers, rewards)
@@ -59,16 +60,20 @@ boso-rpg/
 │   │   └── VacuumKing.js     # Hidden boss (suction + dust projectiles)
 │   ├── scenes/
 │   │   ├── PreloadScene.js   # Optional-asset loader (texture/bgm overrides)
-│   │   ├── TitleScene.js     # Title (key: MenuScene)
+│   │   ├── TitleScene.js     # Title (key: MenuScene): Start | Continue / New Game
+│   │   ├── SaveSlotScene.js  # 3-slot list for Continue / New Game (+ overwrite confirm)
 │   │   ├── CharacterSelectScene.js  # Choose Seoli (speed) or Bomi (power)
 │   │   ├── StoryScene.js     # Intro text sequence ({player} substitution)
 │   │   ├── GameScene.js      # Main game (multi-map, monster AI, bosses, travel boarding)
 │   │   └── TravelScene.js    # Cage rides (scrolling world, countdown, ambushes)
 │   ├── systems/
 │   │   ├── AudioManager.js   # Key-based BGM, silent when files missing
-│   │   └── SaveManager.js    # localStorage 'boso_save_v1', version:3 + migrate()
+│   │   └── SaveManager.js    # localStorage save slots (boso.save.slot1-3), autosave, legacy migration
 │   ├── ui/HUD.js             # HP/MP bars + map name
-│   └── utils/constants.js    # Global constants (PLAYER, SCENES, DEPTH...)
+│   ├── ui/Menu.js            # MenuButton + MenuNav (keyboard/pointer menus)
+│   └── utils/
+│       ├── constants.js      # Global constants (PLAYER, SCENES, DEPTH...)
+│       └── format.js         # Pure play-time / saved-at formatters
 ├── index.html
 └── package.json
 ```
@@ -76,10 +81,18 @@ boso-rpg/
 ## Architecture
 
 ### Scene Flow
-PreloadScene → TitleScene (MENU) → CharacterSelectScene → StoryScene → GameScene
+PreloadScene → TitleScene (MENU) → [SaveSlotScene] → CharacterSelectScene → StoryScene → GameScene
+- Title: no save in any slot → START (slot 1). Otherwise CONTINUE / NEW GAME,
+  both open SaveSlotScene. CONTINUE loads a slot straight into GameScene at
+  its saved map + entry spawn. NEW GAME on an empty slot starts at once; a
+  filled/corrupted slot asks "Overwrite this save?" (default focus: No).
+  The slot is only written when StoryScene finishes, so backing out of
+  character select never touches an existing save.
 - GameScene ⇄ TravelScene: talk to Owen near a cage → boarding page → ride →
   arrival map (HP/MP carried over both ways)
-- ESC in GameScene opens pause menu (Continue / Character Select / Main Menu)
+- ESC in GameScene opens pause menu (Continue / Character Select / Main Menu);
+  Character Select swaps the active slot's companion in place (same map, the
+  other cat's own progress, no intro replay)
 - Death → SPACE to respawn at the current region's home map; dying mid-ride
   returns to the departure map
 - Vacuum King defeated → ending sequence → title (demoCleared flag)
@@ -162,15 +175,18 @@ Optional `alpha` renders a type translucent (lonesome, dustmote).
 - **VacuumKing** (closet): hover+bob, suction cycle (3s on / 2.5s off) that adds
   pull velocity to the player AFTER Player.update (see GameScene.update order),
   dust ball projectiles while off. Boss updates MUST stay after player update.
-- All: die() → scene.onBossDefeated(id) → SaveManager flag `<id>Defeated`;
-  hidden portals gated on that flag are revealed generically; boss never
-  respawns once defeated.
+- All: die() → scene.onBossDefeated(id) → SaveManager.recordBossDefeat (sets
+  flag `<id>Defeated`, writes `bosses[id]` first/last defeat times, autosaves);
+  hidden portals gated on that flag are revealed generically; a defeated boss
+  stays defeated within its slot (a fresh New Game starts with it alive).
 
 ### Systems
 - **EXP/Leveling**: MONSTER_TYPES/BOSS_TYPES carry `exp`; Player.gainExp →
   levelUp (+12 HP, +6 MP, +2 ATK, full heal); expToNext = 30 + level*25.
-  Progress persists per character id (MapleStory-style: survives new games).
-  HUD shows Lv + EXP bar + Treats; CharacterSelect shows saved level.
+  Progress persists per character id INSIDE each save slot (a New Game resets
+  it; slots never share levels, treats, items or quests).
+  HUD shows Lv + EXP bar + Treats; CharacterSelect shows saved levels only
+  when swapping companions in an existing slot.
 - **Characters**: only `seoli` (fast, wind claws + X gust) and `bomi`
   (high HP/ATK, short-range paws). Canonical definitions and animation frames
   live in `src/data/characters.js`. Boso is the game name, never a playable dog.
@@ -201,11 +217,35 @@ Optional `alpha` renders a type translucent (lonesome, dustmote).
 - **NPC dialogue**: SPACE near an NPC opens a dialogue box; SPACE advances,
   auto-closes when walking away. `{player}` in lines is replaced with the
   character name. Owen NPCs append a travel boarding page.
-- **SaveManager**: localStorage key `boso_save_v1`, `{ version: 3, flags: {},
-  characters: { <charId>: { level, exp, treats, items, quests } } }`;
-  migrate() upgrades older saves additively. Swift progress maps to Seoli;
-  Brave maps to Bomi if it is more advanced. All old records are retained;
-  replaced Bomi progress is archived as `legacy_bomi`. Node-safe.
+- **SaveManager (save slots)**: up to 3 slots, one JSON object each in
+  localStorage `boso.save.slot1` … `boso.save.slot3` (schema v1):
+  `{ version: 1, slot, createdAt, updatedAt, playTimeSec, mapId, spawnId, hp,
+  storyFlags, bosses: { <id>: { firstDefeatedAt, lastDefeatedAt } },
+  characterId, characters: { <charId>: { level, exp, treats, items, quests } } }`.
+  Global settings (not per slot) live in `boso.settings`
+  (`getSettings()/updateSettings()`). `getFlag/setFlag/getCharacter/
+  setCharacter` read and write the ACTIVE slot (set by `startNewGame(slot, cat)`
+  or `continueSlot(slot)`). Node-safe; every storage access is try/catch with
+  an in-memory fallback, and the title shows a notice when storage is blocked.
+  - Autosave only (no manual save): after every map entry (GameScene.create,
+    which also covers portals, death respawn and cage arrival), on boss
+    defeat, and on `visibilitychange` → hidden. Position is the entry spawn
+    (`spawnId`), never raw x/y: `'default'` (map spawnX/Y) or `'from:<map>'`
+    (the landing point of the portal in <map>); both come from
+    `src/data/spawns.js`, derived from map data. Unknown spawnId → default.
+  - `playTimeSec` accrues only between `beginPlay()/endPlay()` (GameScene and
+    TravelScene) while the tab is visible. hp <= 0 is never saved; a loaded hp
+    is clamped to 1..maxHp.
+  - parseSlot() rejects invalid JSON, unknown version, unknown mapId, wrong
+    slot number or malformed fields → the slot lists as "Corrupted" and is
+    never auto-deleted. New Game into a slot resets ALL state.
+  - Legacy: `boso_save_v1` (version 3 single blob) is converted once, on boot
+    (`migrateLegacy()` in main.js), into slot 1 if all slots are empty, then
+    removed. Position = `high_table` if `tutorialCompleted` else START_MAP;
+    flags and every character record are kept (old swift/brave → Seoli/Bomi
+    mapping still applies); bosses already flagged defeated get a record
+    stamped at migration time. The legacy key is kept if slot 1 cannot be
+    written.
   Flags: tutorialCompleted, drEmbraceDefeated, biggieDefeated,
   hugGuardianDefeated, vacuumKingDefeated, demoCleared.
 - **AudioManager**: `play(scene, key)` / `stop()`. Missing audio file = silent
@@ -271,7 +311,9 @@ the player above the pad, and MAP/BAG provide map/quest details.
   rope anchoring, bgm keys, regions + world map layout coverage, travel route
   integrity (endpoints/duration/bgm/ambush windows), NPC travel references,
   guide/cage placement, texture key registry coverage, quest/drop integrity,
-  src/ convention scan
+  save slots (default spawn per map, portal → 'from:<map>' spawn ids, slot
+  schema create→serialize→parse round-trip, loader rejects wrong version /
+  unknown mapId), src/ convention scan
 - `npm run build` — must pass with zero errors
 
 ### Adding New Maps
