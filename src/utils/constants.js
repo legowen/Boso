@@ -101,6 +101,7 @@ export const CAMERA = {
 export const SCENES = {
   PRELOAD: 'PreloadScene',
   MENU: 'MenuScene',
+  SAVE_SLOTS: 'SaveSlotScene',
   CHARACTER_SELECT: 'CharacterSelectScene',
   STORY: 'StoryScene',
   GAME: 'GameScene',

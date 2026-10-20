@@ -6,6 +6,7 @@ import { SCENES } from '../utils/constants.js';
 import AudioManager from '../systems/AudioManager.js';
 import SaveManager from '../systems/SaveManager.js';
 import { usesTouchControls } from '../ui/TouchControls.js';
+import { MenuButton, MenuNav } from '../ui/Menu.js';
 
 export default class TitleScene extends Phaser.Scene {
   constructor() {
@@ -87,9 +88,49 @@ export default class TitleScene extends Phaser.Scene {
     this.add.image(w / 2 - 56, h * (compact ? 0.48 : 0.52), 'portrait_seoli').setDisplaySize(compact ? 60 : 88, compact ? 60 : 88);
     this.add.image(w / 2 + 56, h * (compact ? 0.48 : 0.52), 'portrait_bomi').setDisplaySize(compact ? 60 : 88, compact ? 60 : 88);
 
-    // Demo-clear badge (persisted via SaveManager)
-    if (SaveManager.getFlag('demoCleared')) {
-      const badge = this.add.text(w / 2, h * 0.75, '* DEMO CLEARED *', {
+    // === Menu: START when no slot holds a save, otherwise CONTINUE / NEW GAME ===
+    const hasSave = SaveManager.hasAnySave();
+    const entries = hasSave
+      ? [
+        { label: 'CONTINUE', onSelect: () => this.go(SCENES.SAVE_SLOTS, { mode: 'continue' }) },
+        { label: 'NEW GAME', onSelect: () => this.go(SCENES.SAVE_SLOTS, { mode: 'new' }) },
+      ]
+      : [{ label: 'START', onSelect: () => this.go(SCENES.CHARACTER_SELECT, { slot: 1 }) }];
+
+    const btnW = compact ? 200 : 220;
+    const btnH = compact ? 38 : 50;
+    const btnGap = compact ? 8 : 12;
+    const btnTop = h * (compact ? 0.62 : 0.60);
+    const orange = { fill: 0xF39C12, fillFocus: 0xE67E22, stroke: 0xE67E22, strokeFocus: 0xFFFFFF, text: '#FFFFFF' };
+    const buttons = entries.map((entry, index) => new MenuButton(this, {
+      x: w / 2,
+      y: btnTop + btnH / 2 + index * (btnH + btnGap),
+      width: btnW,
+      height: btnH,
+      lines: [entry.label],
+      fontSize: compact ? 17 : 22,
+      palette: orange,
+      onSelect: entry.onSelect,
+    }));
+    this.nav = new MenuNav(this);
+    this.nav.setButtons(buttons, 0);
+
+    const menuBottom = btnTop + entries.length * btnH + (entries.length - 1) * btnGap;
+    const hintY = menuBottom + (compact ? 14 : 22);
+    const hint = usesTouchControls()
+      ? 'Tap an option'
+      : (entries.length > 1 ? 'UP / DOWN to choose, ENTER to select' : 'Press ENTER or SPACE');
+    this.add.text(w / 2, hintY, hint, {
+      fontSize: '13px',
+      fontFamily: 'Arial',
+      color: '#D0D0D0',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    // Demo-clear badge (any readable slot that cleared the demo)
+    if (SaveManager.anySlotHasFlag('demoCleared')) {
+      const badge = this.add.text(w / 2, compact ? 14 : hintY + 26, '* DEMO CLEARED *', {
         fontSize: '14px',
         fontFamily: 'Arial Black, Arial',
         color: '#F1C40F',
@@ -105,70 +146,22 @@ export default class TitleScene extends Phaser.Scene {
       });
     }
 
-    // === Press Start Button ===
-    const btnW = 220;
-    const btnH = 50;
-    const btnX = w / 2 - btnW / 2;
-    const btnY = h * (compact ? 0.62 : 0.60);
-
-    const btnBg = this.add.graphics();
-    btnBg.fillStyle(0xF39C12, 1);
-    btnBg.fillRoundedRect(btnX, btnY, btnW, btnH, 10);
-    btnBg.lineStyle(2, 0xE67E22, 1);
-    btnBg.strokeRoundedRect(btnX, btnY, btnW, btnH, 10);
-
-    const btnText = this.add.text(w / 2, btnY + btnH / 2, 'PRESS START', {
-      fontSize: '22px',
-      fontFamily: 'Arial Black, Arial',
-      color: '#FFFFFF',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setOrigin(0.5);
-
-    // Button pulse animation
-    this.tweens.add({
-      targets: [btnBg, btnText],
-      alpha: 0.6,
-      duration: 800,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
-    // Make button interactive
-    const btnZone = this.add.zone(w / 2, btnY + btnH / 2, btnW, btnH).setInteractive();
-    btnZone.on('pointerdown', () => this.startGame());
-    btnZone.on('pointerover', () => {
-      btnBg.clear();
-      btnBg.fillStyle(0xE67E22, 1);
-      btnBg.fillRoundedRect(btnX, btnY, btnW, btnH, 10);
-      btnBg.lineStyle(2, 0xD35400, 1);
-      btnBg.strokeRoundedRect(btnX, btnY, btnW, btnH, 10);
-    });
-    btnZone.on('pointerout', () => {
-      btnBg.clear();
-      btnBg.fillStyle(0xF39C12, 1);
-      btnBg.fillRoundedRect(btnX, btnY, btnW, btnH, 10);
-      btnBg.lineStyle(2, 0xE67E22, 1);
-      btnBg.strokeRoundedRect(btnX, btnY, btnW, btnH, 10);
-    });
-
-    // Space key to start
-    this.input.keyboard.once('keydown-SPACE', () => this.startGame());
-
-    // "Press SPACE" hint
-    this.add.text(w / 2, h * (compact ? 0.84 : 0.72), usesTouchControls() ? 'Tap PRESS START' : 'or press SPACE', {
-      fontSize: '13px',
-      fontFamily: 'Arial',
-      color: '#666666',
-    }).setOrigin(0.5);
-
     // Version text
-    this.add.text(w / 2, h * 0.92, 'Seoli & Bomi - Pixel Adventure', {
+    this.add.text(w / 2, Math.max(h * 0.92, hintY + 18), 'Seoli & Bomi - Pixel Adventure', {
       fontSize: '11px',
       fontFamily: 'Arial',
       color: '#444444',
     }).setOrigin(0.5);
+
+    // Storage blocked (private mode, site data disabled): the game still
+    // runs, but nothing survives closing the tab.
+    if (!SaveManager.isStorageAvailable()) {
+      this.add.text(w / 2, h - 8, "Progress can't be saved in this browser", {
+        fontSize: '12px',
+        fontFamily: 'Arial',
+        color: '#E8B04A',
+      }).setOrigin(0.5, 1);
+    }
   }
 
   coverBackground(screenW, screenH) {
@@ -188,14 +181,14 @@ export default class TitleScene extends Phaser.Scene {
     }
   }
 
-  startGame() {
-    // Guard against click + SPACE stacking fade listeners
+  // Fade out, then open another scene (guards against click + key stacking).
+  go(sceneKey, data) {
     if (this.isStarting) return;
     this.isStarting = true;
 
     this.cameras.main.fadeOut(400, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start(SCENES.CHARACTER_SELECT);
+      this.scene.start(sceneKey, data);
     });
   }
 }

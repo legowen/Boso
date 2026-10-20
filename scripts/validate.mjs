@@ -6,6 +6,7 @@
 // Collects ALL failures, prints one '[FAIL] <map>: <detail>' line each,
 // and exits 1 if any check failed; otherwise prints a PASS summary.
 
+import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +19,8 @@ import { ITEMS } from '../src/data/items.js';
 import { TRAVEL_ROUTES, AMBUSH_TYPES } from '../src/data/travel.js';
 import { WORLD_MAP_LAYOUT, REGION_TITLES } from '../src/data/worldmap.js';
 import { OPTIONAL_TEXTURES } from '../src/data/assets.js';
+import { DEFAULT_SPAWN_ID, portalSpawnId, resolveSpawn } from '../src/data/spawns.js';
+import { createSlotData, serializeSlot, parseSlot, SLOT_SCHEMA_VERSION } from '../src/systems/SaveManager.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -510,6 +513,69 @@ for (const bossTexture of [
     'bosses',
     `texture key '${bossTexture}' missing from OPTIONAL_TEXTURES`
   );
+}
+
+// ===== Check 16: save slots — default spawns, spawn ids, slot schema round-trip =====
+for (const [key, map] of Object.entries(MAPS_DATA)) {
+  // Every map defines a default spawn that resolves to its own spawnX/spawnY.
+  const spawn = resolveSpawn(key, DEFAULT_SPAWN_ID);
+  check(
+    spawn !== null && spawn.id === DEFAULT_SPAWN_ID && spawn.x === map.spawnX && spawn.y === map.spawnY,
+    key,
+    'default spawn does not resolve to the map spawnX/spawnY'
+  );
+  check(
+    Number.isFinite(map.spawnX) && Number.isFinite(map.spawnY) && inBounds(map, map.spawnX, map.spawnY),
+    key,
+    `default spawn (${map.spawnX}, ${map.spawnY}) is not inside the map`
+  );
+}
+
+// A saved spawnId must land exactly where the portal that produced it does.
+for (const [key, map] of Object.entries(MAPS_DATA)) {
+  for (const portal of map.portals || []) {
+    const landing = resolveSpawn(portal.targetMap, portalSpawnId(key));
+    check(
+      landing !== null && landing.id === portalSpawnId(key) && landing.x === portal.spawnX && landing.y === portal.spawnY,
+      key,
+      `portal to '${portal.targetMap}' does not resolve to spawn '${portalSpawnId(key)}'`
+    );
+  }
+}
+check(
+  resolveSpawn('kitchen', 'from:no_such_portal').id === DEFAULT_SPAWN_ID,
+  'save slots',
+  'an unknown spawnId must fall back to the default spawn'
+);
+
+// Slot schema: create -> serialize -> parse -> deep equal (no Phaser involved).
+{
+  const sample = createSlotData({
+    slot: 2,
+    characterId: 'bomi',
+    mapId: START_MAP,
+    storyFlags: { tutorialCompleted: true },
+    bosses: { drEmbrace: { firstDefeatedAt: '2026-01-01T00:00:00.000Z', lastDefeatedAt: '2026-01-02T00:00:00.000Z' } },
+    characters: { bomi: { level: 2, exp: 3, treats: 4, items: { cookie: 1 }, quests: {} } },
+  });
+  const parsed = parseSlot(serializeSlot(sample), 2);
+  let equal = parsed.ok;
+  if (equal) {
+    try {
+      assert.deepStrictEqual(parsed.data, sample);
+    } catch (e) {
+      equal = false;
+    }
+  }
+  check(equal, 'save slots', 'slot data does not survive create -> serialize -> parse');
+  check(sample.version === SLOT_SCHEMA_VERSION && SLOT_SCHEMA_VERSION === 1, 'save slots', 'slot schema version must be 1');
+
+  const rejected = (patch) => parseSlot(JSON.stringify({ ...sample, ...patch }), 2);
+  check(rejected({ version: SLOT_SCHEMA_VERSION + 1 }).ok === false, 'save slots', 'loader accepted a wrong version');
+  check(rejected({ version: undefined }).ok === false, 'save slots', 'loader accepted a missing version');
+  check(rejected({ mapId: 'no_such_map' }).ok === false, 'save slots', 'loader accepted an unknown mapId');
+  check(rejected({ mapId: 'constructor' }).ok === false, 'save slots', 'loader accepted an inherited key as mapId');
+  check(parseSlot('{not json', 2).ok === false, 'save slots', 'loader accepted invalid JSON');
 }
 
 // ===== Check 9: source scan — no Korean characters, no console.log in src/ =====

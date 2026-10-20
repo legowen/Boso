@@ -19,6 +19,8 @@ import TouchControls, { usesTouchControls } from '../ui/TouchControls.js';
 import { MAPS_DATA } from '../data/maps.js';
 import { TRAVEL_ROUTES, AMBUSH_TYPES } from '../data/travel.js';
 import AudioManager from '../systems/AudioManager.js';
+import SaveManager from '../systems/SaveManager.js';
+import { DEFAULT_SPAWN_ID } from '../data/spawns.js';
 
 // World layout: the cage hangs in the middle of a larger scroll world.
 const WORLD_W = 2400;
@@ -121,9 +123,16 @@ export default class TravelScene extends Phaser.Scene {
       this.ambushQueue.sort((a, b) => a.atMs - b.atMs);
     }
 
+    // The ride counts as play time. The slot keeps pointing at the departure
+    // map (it is only re-saved once the arrival map is entered).
+    SaveManager.beginPlay();
+    const stopWatchingVisibility = SaveManager.watchVisibility();
+
     // Death → back to the departure map (full-heal respawn)
     this.events.once('player-died', () => this.handlePlayerDeath());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      stopWatchingVisibility();
+      SaveManager.endPlay();
       this.events.off('player-died');
       this.scale.off('resize', this.resizeHandler);
     });
@@ -677,6 +686,7 @@ export default class TravelScene extends Phaser.Scene {
         mapKey: route.to,
         spawnX: target.spawnX,
         spawnY: target.spawnY,
+        spawnId: DEFAULT_SPAWN_ID,
         characterData: this.characterData,
         playerHp: Math.max(1, this.player.hp),
         playerMp: this.player.mp,
@@ -739,6 +749,7 @@ export default class TravelScene extends Phaser.Scene {
             mapKey: route.from,
             spawnX: from.spawnX,
             spawnY: from.spawnY,
+            spawnId: DEFAULT_SPAWN_ID,
             characterData: this.characterData,
           });
         });

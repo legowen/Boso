@@ -8,6 +8,7 @@ import { SCENES, UI } from '../utils/constants.js';
 import { STORY } from '../data/story.js';
 import { usesTouchControls } from '../ui/TouchControls.js';
 import { START_MAP } from '../data/maps.js';
+import SaveManager from '../systems/SaveManager.js';
 
 export default class StoryScene extends Phaser.Scene {
   constructor() {
@@ -17,6 +18,7 @@ export default class StoryScene extends Phaser.Scene {
   init(data) {
     this.characterData = data && data.characterData ? data.characterData : null;
     this.freshRun = !!(data && data.freshRun);
+    this.slot = data && data.slot ? data.slot : null;
     this.lineIndex = 0;
     this.isFinishing = false;
     this.fadeTween = null;
@@ -146,6 +148,11 @@ export default class StoryScene extends Phaser.Scene {
     this.isFinishing = true;
     this.cameras.main.fadeOut(500, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
+      // The chosen slot is created (or overwritten) only now that the run
+      // really starts, so quitting during the intro leaves it untouched.
+      if (this.slot && this.characterData) {
+        SaveManager.startNewGame(this.slot, this.characterData.id);
+      }
       this.scene.start(SCENES.GAME, {
         mapKey: START_MAP,
         characterData: this.characterData,

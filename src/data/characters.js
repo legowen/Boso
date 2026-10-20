@@ -20,6 +20,15 @@ export function getCharacter(id) {
   return CHARACTERS.find((character) => character.id === id) || CHARACTERS[0];
 }
 
+// Stat gain per level-up (applied by Player on top of the base stats).
+export const LEVEL_GROWTH = { hp: 12, mp: 6, atk: 2 };
+
+// Max HP of a character at a given level (save slots store a full-health
+// starting value without needing a Player instance).
+export function maxHpFor(id, level = 1) {
+  return getCharacter(id).stats.hp + (Math.max(1, level) - 1) * LEVEL_GROWTH.hp;
+}
+
 export const COMBO_MULTIPLIERS = [1, 1.15, 1.5];
 export const COMBO_RESET_MS = 850;
 export const CAT_FRAME_SIZE = 96;

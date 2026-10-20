@@ -8,6 +8,14 @@ import { usesTouchControls } from '../ui/TouchControls.js';
 export default class CharacterSelectScene extends Phaser.Scene {
   constructor() { super(SCENES.CHARACTER_SELECT); }
 
+  // slot: chosen on the slot screen for a new run (the slot is created when
+  //   the intro finishes, so backing out never touches it).
+  // switching: pause-menu swap of the active slot's companion in place.
+  init(data) {
+    this.slot = data && data.slot ? data.slot : null;
+    this.switching = !!(data && data.switching);
+  }
+
   create() {
     const w = this.scale.width, h = this.scale.height;
     this.selectedIndex = 0;
@@ -43,7 +51,8 @@ export default class CharacterSelectScene extends Phaser.Scene {
       const portraitSize = Math.min(142, cardW - 20, cardH * 0.30);
       const portrait = this.add.image(0, -cardH * (cardH < 310 ? 0.06 : 0.13), `portrait_${character.id}`)
         .setDisplaySize(portraitSize, portraitSize);
-      const progress = SaveManager.getCharacter(character.id);
+      // A new run starts every cat at Lv.1; only a swap shows saved progress.
+      const progress = this.switching ? SaveManager.getCharacter(character.id) : null;
       const desc = this.add.text(0, cardH * 0.12, character.desc, {
         fontFamily: 'monospace', fontSize: `${Math.max(9, Math.min(12, cardW / 24))}px`,
         color: '#DAE2D9', align: 'center', lineSpacing: 4, wordWrap: { width: cardW - 14 },
@@ -96,8 +105,17 @@ export default class CharacterSelectScene extends Phaser.Scene {
     if (this.isLaunching || Date.now() < this.inputReadyAt) return;
     this.isLaunching = true;
     this.cameras.main.fadeOut(350);
-    this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start(SCENES.STORY, {
-      characterData: CHARACTERS[this.selectedIndex], freshRun: true,
-    }));
+    const characterData = CHARACTERS[this.selectedIndex];
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      if (this.switching) {
+        // Same slot, same map: just play it as the other cat.
+        const resume = SaveManager.switchCharacter(characterData.id);
+        this.scene.start(SCENES.GAME, {
+          mapKey: resume.mapId, spawnId: resume.spawnId, characterData, freshRun: true,
+        });
+        return;
+      }
+      this.scene.start(SCENES.STORY, { characterData, freshRun: true, slot: this.slot });
+    });
   }
 }
