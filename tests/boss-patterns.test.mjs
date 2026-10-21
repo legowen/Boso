@@ -5,7 +5,7 @@ import {
   HUG_GUARDIAN_PHASES, DR_EMBRACE_PHASES, VACUUM_KING_PHASES,
 } from '../src/data/bossPatterns.js';
 import {
-  selectPhase, pickPattern, planBurstSpots, readyAtFor, cooldownMultFor, speedMultFor,
+  selectPhase, pickPattern, planBurstSpots, readyAtFor, cooldownMultFor, speedMultFor, summonCap,
 } from '../src/systems/BossBrain.js';
 import StatusTracker from '../src/systems/StatusEffects.js';
 import { BOSS_TYPES, MONSTER_TYPES } from '../src/data/monsters.js';
@@ -114,6 +114,17 @@ test('pickPattern: exclusive patterns block, overlap patterns may join, summons 
   ids.clear();
   for (let i = 0; i < 200; i += 1) ids.add(pickPattern(summonPhase, {}, [], 0, rng, { minionsAlive: 1 }).id);
   assert.ok(ids.has('call'), 'summons stay available below the cap');
+});
+
+test('summonCap: a pattern may lower the cap, never raise it', () => {
+  assert.equal(summonCap({ params: { max: 2 } }), 2);
+  assert.equal(summonCap({ params: { max: 9 } }), FAIRNESS.maxMinionsPerBoss);
+  assert.equal(summonCap({ params: {} }), FAIRNESS.maxMinionsPerBoss);
+  assert.equal(summonCap({ params: { max: 3 } }, 2), 2);
+  const small = { id: 's', type: 'summon', weight: 1, cooldownMs: 0, telegraphMs: 800, params: { max: 2 } };
+  const rng = mulberry32(2);
+  assert.equal(pickPattern(phaseOf(small), {}, [], 0, rng, { minionsAlive: 2 }), null, 'its own max of 2 is reached');
+  assert.equal(pickPattern(phaseOf(small), {}, [], 0, rng, { minionsAlive: 1 }).id, 's');
 });
 
 // Runs the scheduler the way the entity does: start -> cooldown -> run time -> gap

@@ -13,9 +13,9 @@
 
 import Phaser from 'phaser';
 import { bossCombatBounds } from './EntityArt.js';
-import { planBurstSpots } from './BossBrain.js';
+import { planBurstSpots, summonCap } from './BossBrain.js';
 import { DEPTH } from '../utils/constants.js';
-import { FAIRNESS, TELEGRAPH_STYLE } from '../data/bossPatterns.js';
+import { TELEGRAPH_STYLE } from '../data/bossPatterns.js';
 
 const { Rectangle } = Phaser.Geom;
 
@@ -603,7 +603,8 @@ class SummonRun extends PatternRun {
   onTelegraphStart() {
     const boss = this.boss;
     const { monster, count } = this.params;
-    const free = FAIRNESS.maxMinionsPerBoss - boss.aliveMinions().length;
+    this.cap = summonCap(this.pattern);
+    const free = this.cap - boss.aliveMinions().length;
     const n = Math.min(count, free);
     if (n <= 0) {
       this.done = true;
@@ -643,7 +644,7 @@ class SummonRun extends PatternRun {
   onImpact() {
     if (!this.spots) return;
     const boss = this.boss;
-    const free = FAIRNESS.maxMinionsPerBoss - boss.aliveMinions().length;
+    const free = this.cap - boss.aliveMinions().length;
     this.spots.slice(0, Math.max(0, free)).forEach((spot) => {
       const minion = this.scene.spawnMinion(this.monster, spot.x, spot, boss);
       if (minion) boss.minions.push(minion);

@@ -1995,18 +1995,20 @@ export default class GameScene extends Phaser.Scene {
     // Translucent types (ghosts, dust) carry a per-type base alpha
     if (cfg.alpha) sprite.setAlpha(cfg.alpha);
 
+    const colliders = [];
     if (flying) {
       // Flyers ignore gravity and pass through platforms
       sprite.body.setAllowGravity(false);
     } else {
       // Ground walkers collide with platforms
       this.platforms.forEach((platform) => {
-        this.physics.add.collider(sprite, platform);
+        colliders.push(this.physics.add.collider(sprite, platform));
       });
     }
 
     const monsterObj = {
       sprite: sprite,
+      colliders,
       type: type,
       cfg: cfg,
       art,
@@ -2090,6 +2092,7 @@ export default class GameScene extends Phaser.Scene {
     monsterObj.discard = true;
     monsterObj.hpBar.destroy();
     monsterObj.hpBarBg.destroy();
+    monsterObj.colliders.forEach((collider) => collider.destroy());
     this.tweens.killTweensOf(monsterObj.sprite);
     monsterObj.sprite.destroy();
   }

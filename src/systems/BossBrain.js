@@ -10,6 +10,13 @@
 
 import { FAIRNESS } from '../data/bossPatterns.js';
 
+// Most minions alive at once a summon pattern allows: its own `max`, never
+// above the global cap.
+export function summonCap(pattern, globalCap = FAIRNESS.maxMinionsPerBoss) {
+  const own = pattern && pattern.params ? pattern.params.max : undefined;
+  return Number.isFinite(own) ? Math.min(own, globalCap) : globalCap;
+}
+
 // Phases are sorted by hpBelow descending and the first one is 1.0. A phase
 // begins once HP drops STRICTLY below its threshold: at exactly 60% the boss
 // is still in phase 1, one point of damage later it is in phase 2.
@@ -63,7 +70,7 @@ export function pickPattern(phase, cooldowns, history, now, rng, ctx = {}) {
     if (active.length > 0 && !p.overlap) return false;
     if (active.some((a) => a.id === p.id)) return false;
     if (p.type === 'fieldWide' && last && last.type === 'fieldWide') return false;
-    if (p.type === 'summon' && minionsAlive >= minionCap) return false;
+    if (p.type === 'summon' && minionsAlive >= summonCap(p, minionCap)) return false;
     return true;
   });
   if (candidates.length === 0) return null;
