@@ -441,7 +441,9 @@ class DashSweepRun extends PatternRun {
 
     const arrived = this.dir > 0 ? sprite.x >= this.endX : sprite.x <= this.endX;
     const blocked = sprite.body.blocked.left || sprite.body.blocked.right;
-    if (arrived || blocked) {
+    // Safety net: a boss that somehow cannot get across must not charge forever
+    const tooLong = this.stageMs > (this.mapWidth / (speed * boss.speedMult)) * 1000 + 1500;
+    if (arrived || blocked || tooLong) {
       sprite.setVelocityX(0);
       this.onCleanup();
       boss.tweenScale({ scaleX: boss.art.scale, scaleY: boss.art.scale, duration: 250 });
