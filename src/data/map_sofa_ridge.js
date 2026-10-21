@@ -3,7 +3,7 @@
 // Socks and yarn balls roam the plush slopes.
 
 const MAP_SOFA_RIDGE = {
-  name: 'Sofa Ridge',
+  nameKey: 'map.sofa_ridge.name',
   region: 'buddy',
   width: 2400,
   height: 900,
@@ -27,8 +27,8 @@ const MAP_SOFA_RIDGE = {
     { x: 1900, y: 680, w: 300, h: 20, isGround: false },
   ],
   portals: [
-    { x: 60, y: 790, label: '← Hallway Runway', targetMap: 'hallway_run', spawnX: 160, spawnY: 640 },
-    { x: 2340, y: 790, label: '→ High Table Village', targetMap: 'high_table', spawnX: 180, spawnY: 780 },
+    { x: 60, y: 790, labelKey: 'portal.sofa_ridge.hallway_run', targetMap: 'hallway_run', spawnX: 160, spawnY: 640 },
+    { x: 2340, y: 790, labelKey: 'portal.sofa_ridge.high_table', targetMap: 'high_table', spawnX: 180, spawnY: 780 },
   ],
   ropes: [
     { x: 420, topY: 700, bottomY: 800 },

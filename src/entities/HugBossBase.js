@@ -9,6 +9,8 @@
 import Phaser from 'phaser';
 import { applyBossArt, bossCombatBounds } from '../systems/EntityArt.js';
 import { PLAYER, DEPTH } from '../utils/constants.js';
+import { pixelFont } from '../i18n/fonts.js';
+import { t } from '../i18n/index.js';
 
 export default class HugBossBase {
   constructor(scene, x, y, options) {
@@ -17,8 +19,8 @@ export default class HugBossBase {
     this.cfg = options.cfg;
     this.textureKey = options.textureKey;
     this.armTextureKey = options.armTextureKey;
-    this.warnText = options.warnText || 'HUG INCOMING!';
-    this.name = this.cfg.name;
+    this.warnKey = options.warnKey || 'boss.hugGuardian.hugWarning';
+    this.nameKey = this.cfg.nameKey;
     this.hp = this.cfg.hp;
     this.maxHp = this.cfg.hp;
     this.defeated = false;
@@ -261,10 +263,9 @@ export default class HugBossBase {
     const warn = this.scene.add.text(
       this.scene.scale.width / 2,
       this.scene.scale.height * 0.25,
-      this.warnText,
+      t(this.warnKey),
       {
-        fontSize: '26px',
-        fontFamily: 'Arial Black, Arial',
+        ...pixelFont(26),
         color: '#FF7EB9',
         stroke: '#000000',
         strokeThickness: 5,

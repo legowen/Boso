@@ -8,6 +8,8 @@ import { OPTIONAL_TEXTURES, textureOverridePath } from '../data/assets.js';
 import { BGM_KEYS, bgmFilePaths } from '../data/audio.js';
 import { CHARACTERS, CAT_FRAME_SIZE, CAT_ANIMATIONS } from '../data/characters.js';
 import { EXTRA_TEXTURES, WORLD_TEXTURES } from '../data/worldArt.js';
+import { pixelFont } from '../i18n/fonts.js';
+import { t } from '../i18n/index.js';
 
 export default class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -20,9 +22,8 @@ export default class PreloadScene extends Phaser.Scene {
     const barW = Math.min(320, w * 0.6);
     const barH = 16;
 
-    this.add.text(w / 2, h / 2 - 30, 'Loading...', {
-      fontSize: '20px',
-      fontFamily: UI.FONT_FAMILY,
+    this.add.text(w / 2, h / 2 - 30, t('load.loading'), {
+      ...pixelFont(20),
       color: UI.FONT_COLOR,
     }).setOrigin(0.5);
 

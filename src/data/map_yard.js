@@ -2,7 +2,7 @@
 // Sunny Backyard - starting town where the cats arrive
 
 const MAP_YARD = {
-  name: 'Sunny Backyard',
+  nameKey: 'map.yard.name',
   region: 'house',
   width: 2400,
   height: 800,
@@ -25,8 +25,8 @@ const MAP_YARD = {
     { x: 1900, y: 590, w: 220, h: 16, isGround: false },
   ],
   portals: [
-    { x: 60, y: 690, label: '← Secret Garden', targetMap: 'garden', spawnX: 2260, spawnY: 680 },
-    { x: 2340, y: 690, label: '→ Living Room', targetMap: 'livingroom', spawnX: 120, spawnY: 680 },
+    { x: 60, y: 690, labelKey: 'portal.yard.garden', targetMap: 'garden', spawnX: 2260, spawnY: 680 },
+    { x: 2340, y: 690, labelKey: 'portal.yard.livingroom', targetMap: 'livingroom', spawnX: 120, spawnY: 680 },
   ],
   ropes: [
     { x: 280, topY: 620, bottomY: 700 },
@@ -38,32 +38,35 @@ const MAP_YARD = {
     {
       x: 400,
       y: 714,
-      name: 'Miyo the Cat',
-      dialogue: [
-        "Meow... {player}? The Owner hasn't come down for days.",
-        'The toy creatures escaped from the attic lab. Be careful out there!',
+      id: 'miyo',
+      nameKey: 'npc.miyo.name',
+      dialogueKeys: [
+        'npc.miyo.line1',
+        'npc.miyo.line2',
       ],
     },
     {
       x: 700,
       y: 714,
-      name: 'Old Bell',
-      dialogue: [
-        'Woof. In my day, this yard was quiet...',
-        'A strange garden lies to the west. Its bugs sting - level up a bit first!',
-        'Lost? Press M to open the house map.',
+      id: 'old_bell',
+      nameKey: 'npc.old_bell.name',
+      dialogueKeys: [
+        'npc.old_bell.line1',
+        'npc.old_bell.line2',
+        'npc.old_bell.line3',
       ],
     },
     {
       x: 1150,
       y: 714,
-      name: 'Owen',
+      id: 'owen',
+      nameKey: 'npc.owen.name',
       texture: 'npc_owen',
       travelRoute: 'home_to_buddy',
-      dialogue: [
-        'Home sweet home, {player}... though the house is a bit of a mess.',
-        'The attic light never turns off anymore. Go see for yourself.',
-        'Missing Buddy House already? I can drive you back for a visit anytime.',
+      dialogueKeys: [
+        'npc.owen.home.line1',
+        'npc.owen.home.line2',
+        'npc.owen.home.line3',
       ],
     },
   ],

@@ -3,7 +3,7 @@
 // Open-world branch: the window leads to the rooftop (alternate attic route).
 
 const MAP_BEDROOM = {
-  name: "Owner's Bedroom",
+  nameKey: 'map.bedroom.name',
   region: 'house',
   width: 2400,
   height: 800,
@@ -42,8 +42,8 @@ const MAP_BEDROOM = {
     { x: 2150, y: 620, w: 200, h: 16, isGround: false },
   ],
   portals: [
-    { x: 60, y: 690, label: '← Hallway', targetMap: 'hallway', spawnX: 1350, spawnY: 560 },
-    { x: 2340, y: 690, label: '→ Rooftop Window', targetMap: 'rooftop', spawnX: 140, spawnY: 680 },
+    { x: 60, y: 690, labelKey: 'portal.bedroom.hallway', targetMap: 'hallway', spawnX: 1350, spawnY: 560 },
+    { x: 2340, y: 690, labelKey: 'portal.bedroom.rooftop', targetMap: 'rooftop', spawnX: 140, spawnY: 680 },
   ],
   ropes: [
     // Ground to layer 1
@@ -68,10 +68,11 @@ const MAP_BEDROOM = {
     {
       x: 400,
       y: 714,
-      name: 'Dozy the Kitten',
-      dialogue: [
-        'Yaaawn... the Owner used to nap here every afternoon...',
-        'The window leads to the rooftop. From there you can sneak into the attic skylight!',
+      id: 'dozy',
+      nameKey: 'npc.dozy.name',
+      dialogueKeys: [
+        'npc.dozy.line1',
+        'npc.dozy.line2',
       ],
     },
   ],

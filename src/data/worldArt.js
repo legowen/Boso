@@ -34,11 +34,12 @@ export const WORLD_TEXTURES = [
 
 export function npcTexture(npc) {
   if (npc.texture) return npc.texture;
-  if (/nurse/i.test(npc.name)) return 'npc_nurse';
-  if (/hedgehog|haku/i.test(npc.name)) return 'npc_hedgehog';
-  if (/gear|clock|mechanic|bolt/i.test(npc.name)) return 'npc_gear';
-  if (/plush|stitch|sew/i.test(npc.name)) return 'npc_plush';
-  if (/hound|dog|old bell/i.test(npc.name)) return 'npc_hound';
+  // npc.id is the stable identifier (display names are translated)
+  if (/nurse/.test(npc.id)) return 'npc_nurse';
+  if (/hedgehog|haku/.test(npc.id)) return 'npc_hedgehog';
+  if (/gear|clock|mechanic|bolt/.test(npc.id)) return 'npc_gear';
+  if (/plush|stitch|sew/.test(npc.id)) return 'npc_plush';
+  if (/hound|dog|old_bell/.test(npc.id)) return 'npc_hound';
   return 'npc';
 }
 

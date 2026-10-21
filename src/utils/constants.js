@@ -77,7 +77,7 @@ export const UI = {
   MP_BG_COLOR: 0x1B4F72,
   EXP_COLOR: 0xF1C40F,
   EXP_BG_COLOR: 0x7D6608,
-  FONT_FAMILY: 'Arial',
+  FONT_FAMILY: 'Galmuri11, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif',
   FONT_COLOR: '#ECF0F1',
 };
 

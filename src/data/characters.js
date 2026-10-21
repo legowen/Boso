@@ -1,14 +1,17 @@
 // Canonical playable characters. Boso is the game title, not a character.
+// Display text comes from the locale files through the *Key fields.
 export const CHARACTERS = [
   {
-    id: 'seoli', name: 'Seoli', className: 'Wind Whisker', color: 0xEAE7DF,
-    desc: 'Quick paws, emerald eyes.\nSwift wind claws and a ranged gust.',
+    id: 'seoli', color: 0xEAE7DF,
+    nameKey: 'character.seoli.name', classKey: 'character.seoli.class',
+    descKey: 'character.seoli.desc', tagKey: 'character.seoli.tag',
     stats: { hp: 100, mp: 80, atk: 14, spd: 250, jumpPower: -540 },
     combat: { reach: 105, width: 72, height: 46, cooldown: 290, duration: 210, effect: 'fx_wind', knockback: 160 },
   },
   {
-    id: 'bomi', name: 'Bomi', className: 'Mighty Paw', color: 0x25232E,
-    desc: 'A brave heart in a black coat.\nHigh health, powerful close-range paws.',
+    id: 'bomi', color: 0x25232E,
+    nameKey: 'character.bomi.name', classKey: 'character.bomi.class',
+    descKey: 'character.bomi.desc', tagKey: 'character.bomi.tag',
     stats: { hp: 160, mp: 40, atk: 24, spd: 190, jumpPower: -480 },
     combat: { reach: 34, width: 48, height: 44, cooldown: 410, duration: 230, effect: 'fx_paw', knockback: 250 },
   },

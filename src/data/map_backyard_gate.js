@@ -4,7 +4,7 @@
 // back to High Table Village (and unlocks the ride home).
 
 const MAP_BACKYARD_GATE = {
-  name: 'Backyard Gate',
+  nameKey: 'map.backyard_gate.name',
   region: 'buddy',
   width: 2200,
   height: 800,
@@ -25,11 +25,11 @@ const MAP_BACKYARD_GATE = {
     { x: 1750, y: 600, w: 220, h: 16, isGround: false },
   ],
   portals: [
-    { x: 60, y: 690, label: '← Bookshelf Window', targetMap: 'bookshelf_cliffs', spawnX: 1280, spawnY: 400 },
+    { x: 60, y: 690, labelKey: 'portal.backyard_gate.bookshelf_cliffs', targetMap: 'bookshelf_cliffs', spawnX: 1280, spawnY: 400 },
     {
       x: 2100,
       y: 690,
-      label: '★ Table Shortcut',
+      labelKey: 'portal.backyard_gate.high_table',
       targetMap: 'high_table',
       spawnX: 1100,
       spawnY: 380,
@@ -48,7 +48,7 @@ const MAP_BACKYARD_GATE = {
   ],
   boss: { id: 'biggie', x: 1300, y: 640 },
   guides: [
-    { x: 250, y: 500, text: 'Biggie just wants to know\nif you can keep up. Show him!' },
+    { x: 250, y: 500, textKey: 'guide.backyard_gate.1' },
   ],
 };
 

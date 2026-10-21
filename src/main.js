@@ -11,6 +11,8 @@ import CharacterSelectScene from './scenes/CharacterSelectScene.js';
 import StoryScene from './scenes/StoryScene.js';
 import GameScene from './scenes/GameScene.js';
 import TravelScene from './scenes/TravelScene.js';
+import { loadFonts } from './i18n/fonts.js';
+import { initLanguage } from './i18n/index.js';
 
 // Register scenes (first scene in array is launched first)
 const config = {
@@ -21,8 +23,10 @@ const config = {
 // Convert the pre-slot single save into slot 1 (no-op once done)
 SaveManager.migrateLegacy();
 
-// Create game instance
-const game = new Phaser.Game(config);
+// Mirror the chosen language onto <html lang> / the tab title, then wait for
+// the pixel fonts so the first scene never flashes a fallback font.
+initLanguage();
+const game = loadFonts().then(() => new Phaser.Game(config));
 
 // Dev only: window.bosoDev.resetBossTimers() makes every defeated boss due to
 // respawn (same as F9 in a map). Stripped from production builds.

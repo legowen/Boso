@@ -3,7 +3,7 @@
 // RC cars own this stretch; keep an eye out for the drift telegraph.
 
 const MAP_HALLWAY_RUN = {
-  name: 'Hallway Runway',
+  nameKey: 'map.hallway_run.name',
   region: 'buddy',
   width: 2600,
   height: 760,
@@ -25,9 +25,9 @@ const MAP_HALLWAY_RUN = {
     { x: 1900, y: 580, w: 220, h: 16, isGround: false },
   ],
   portals: [
-    { x: 60, y: 650, label: '← Sofa Ridge', targetMap: 'sofa_ridge', spawnX: 160, spawnY: 780 },
-    { x: 1300, y: 650, label: '↑ Bookshelf Cliffs', targetMap: 'bookshelf_cliffs', spawnX: 140, spawnY: 1380 },
-    { x: 2540, y: 650, label: '→ Kitchen Floor', targetMap: 'kitchen_floor', spawnX: 2240, spawnY: 680 },
+    { x: 60, y: 650, labelKey: 'portal.hallway_run.sofa_ridge', targetMap: 'sofa_ridge', spawnX: 160, spawnY: 780 },
+    { x: 1300, y: 650, labelKey: 'portal.hallway_run.bookshelf_cliffs', targetMap: 'bookshelf_cliffs', spawnX: 140, spawnY: 1380 },
+    { x: 2540, y: 650, labelKey: 'portal.hallway_run.kitchen_floor', targetMap: 'kitchen_floor', spawnX: 2240, spawnY: 680 },
   ],
   ropes: [
     { x: 590, topY: 580, bottomY: 660 },

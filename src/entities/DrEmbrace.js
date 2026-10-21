@@ -14,7 +14,7 @@ export default class DrEmbrace extends HugBossBase {
       cfg: BOSS_TYPES.drEmbrace,
       textureKey: 'boss_dr_embrace',
       armTextureKey: 'proj_arm_dr',
-      warnText: 'CHECK-UP HUG INCOMING!',
+      warnKey: 'boss.drEmbrace.hugWarning',
     });
   }
 

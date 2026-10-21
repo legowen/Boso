@@ -2,7 +2,7 @@
 // Living Room - sofas and shelves overrun by bubble experiments
 
 const MAP_LIVINGROOM = {
-  name: 'Living Room',
+  nameKey: 'map.livingroom.name',
   region: 'house',
   width: 3200,
   height: 800,
@@ -47,8 +47,8 @@ const MAP_LIVINGROOM = {
     { x: 2850, y: 625, w: 200, h: 16, isGround: false },
   ],
   portals: [
-    { x: 60, y: 690, label: '← Backyard', targetMap: 'yard', spawnX: 2240, spawnY: 680 },
-    { x: 3140, y: 690, label: '→ Kitchen', targetMap: 'kitchen', spawnX: 150, spawnY: 680 },
+    { x: 60, y: 690, labelKey: 'portal.livingroom.yard', targetMap: 'yard', spawnX: 2240, spawnY: 680 },
+    { x: 3140, y: 690, labelKey: 'portal.livingroom.kitchen', targetMap: 'kitchen', spawnX: 150, spawnY: 680 },
   ],
   ropes: [
     // Ground to layer 1

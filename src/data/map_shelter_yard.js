@@ -3,7 +3,7 @@
 // departure cage where Owen waits (Maple Island harbor homage).
 
 const MAP_SHELTER_YARD = {
-  name: 'Shelter Yard',
+  nameKey: 'map.shelter_yard.name',
   region: 'shelter',
   width: 1800,
   height: 760,
@@ -24,7 +24,7 @@ const MAP_SHELTER_YARD = {
     { x: 1450, y: 580, w: 220, h: 16, isGround: false },
   ],
   portals: [
-    { x: 60, y: 650, label: '← Clinic Hallway', targetMap: 'shelter_hall', spawnX: 1440, spawnY: 640 },
+    { x: 60, y: 650, labelKey: 'portal.shelter_yard.shelter_hall', targetMap: 'shelter_hall', spawnX: 1440, spawnY: 640 },
   ],
   ropes: [
     { x: 290, topY: 580, bottomY: 660 },
@@ -34,20 +34,21 @@ const MAP_SHELTER_YARD = {
     {
       x: 1620,
       y: 674,
-      name: 'Owen',
+      id: 'owen',
+      nameKey: 'npc.owen.name',
       texture: 'npc_owen',
       travelRoute: 'shelter_to_buddy',
       travelRequiresFlag: 'drEmbraceDefeated',
-      travelLockedLines: [
-        'There you are, {player}! I am Owen - I signed your adoption papers today.',
-        'We can leave as soon as Dr. Embrace clears you... but he is out in the yard, insisting on one last goodbye hug for every patient.',
-        'Show him you are strong enough for the big world, then come back to me!',
+      travelLockedKeys: [
+        'npc.owen.shelter.line1',
+        'npc.owen.shelter.locked1',
+        'npc.owen.shelter.locked2',
       ],
-      dialogue: [
-        'There you are, {player}! I am Owen - I signed your adoption papers today.',
-        'I have to leave on a long work trip right away... terrible timing, I know.',
-        'So you will stay at my best friend\'s house for a while. Big place, big table, one VERY big dog.',
-        'The travel cage is cozy, I promise. Ready for your new world?',
+      dialogueKeys: [
+        'npc.owen.shelter.line1',
+        'npc.owen.shelter.line2',
+        'npc.owen.shelter.line3',
+        'npc.owen.shelter.line4',
       ],
     },
   ],
@@ -56,8 +57,8 @@ const MAP_SHELTER_YARD = {
   ],
   boss: { id: 'drEmbrace', x: 900, y: 620 },
   guides: [
-    { x: 200, y: 480, text: 'Dr. Embrace loves goodbye hugs.\nGreen circle = the ONLY safe spot!' },
-    { x: 1620, y: 540, text: 'Talk to Owen (SPACE)\nto board the travel cage' },
+    { x: 200, y: 480, textKey: 'guide.shelter_yard.1' },
+    { x: 1620, y: 540, textKey: 'guide.shelter_yard.2' },
   ],
   cage: { x: 1730, y: 700 },
 };

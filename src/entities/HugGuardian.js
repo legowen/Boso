@@ -13,7 +13,7 @@ export default class HugGuardian extends HugBossBase {
       cfg: BOSS_TYPES.hugGuardian,
       textureKey: 'boss_hug_guardian',
       armTextureKey: 'proj_arm',
-      warnText: 'HUG INCOMING!',
+      warnKey: 'boss.hugGuardian.hugWarning',
     });
   }
 

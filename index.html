@@ -1,10 +1,18 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Boso — Look at me!</title>
+    <!-- Galmuri pixel fonts (SIL OFL 1.1, see public/assets/fonts). Hangul and
+         Latin both come from them; src/main.js waits for them before the first scene. -->
+    <link rel="preload" href="/assets/fonts/Galmuri11.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/assets/fonts/Galmuri14.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/assets/fonts/Galmuri9.woff2" as="font" type="font/woff2" crossorigin>
     <style>
+        @font-face { font-family: 'Galmuri9'; src: url('/assets/fonts/Galmuri9.woff2') format('woff2'); font-display: block; }
+        @font-face { font-family: 'Galmuri11'; src: url('/assets/fonts/Galmuri11.woff2') format('woff2'); font-display: block; }
+        @font-face { font-family: 'Galmuri14'; src: url('/assets/fonts/Galmuri14.woff2') format('woff2'); font-display: block; }
         * {
             margin: 0;
             padding: 0;

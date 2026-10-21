@@ -1,100 +1,101 @@
 // src/data/quests.js
 // Pure data - quest definitions (no Phaser imports).
-// giver matches an NPC name in map data; objective.target is a
+// giver is an NPC `id` from map data; text fields are locale keys
+// (src/i18n); objective.target is a
 // MONSTER_TYPES key or a BOSS_TYPES key (kill-count objectives).
 
 export const QUESTS = [
   // === Shelter Isle (tutorial) ===
   {
     id: 'dustBusters',
-    giver: 'Keeper Tobi',
-    title: 'Dust Busters',
-    offer: [
-      'Those dust motes make the patients sneeze all night.',
-      'Swat 3 of them for me? CTRL is all it takes.',
+    giver: 'keeper_tobi',
+    titleKey: 'quest.dustBusters.title',
+    offerKeys: [
+      'quest.dustBusters.offer1',
+      'quest.dustBusters.offer2',
     ],
-    reminder: 'Three dust motes. They drift around the hallway - CTRL!',
-    complete: ['Bless you, kitten! The ward can breathe again. Here, treats.'],
+    reminderKey: 'quest.dustBusters.reminder',
+    completeKeys: ['quest.dustBusters.complete1'],
     objective: { target: 'dustmote', count: 3 },
     reward: { treats: 20, exp: 15, items: { cookie: 1 } },
   },
   // === Buddy House ===
   {
     id: 'sockRoundup',
-    giver: 'Granny Tabby',
-    title: 'Sock Roundup',
-    offer: [
-      'The laundry escaped again! Socks, slinking all over Sofa Ridge.',
-      'Flatten 4 of them before they nest in the cushions.',
+    giver: 'granny_tabby',
+    titleKey: 'quest.sockRoundup.title',
+    offerKeys: [
+      'quest.sockRoundup.offer1',
+      'quest.sockRoundup.offer2',
     ],
-    reminder: 'Four Sock Slinkers, dear. Sofa Ridge, west of the village.',
-    complete: ['Ha! Folded and filed. You earned every treat of this.'],
+    reminderKey: 'quest.sockRoundup.reminder',
+    completeKeys: ['quest.sockRoundup.complete1'],
     objective: { target: 'sockslinker', count: 4 },
     reward: { treats: 90, exp: 70 },
   },
   {
     id: 'makeFriends',
-    giver: 'Granny Tabby',
-    title: 'The Big Dog',
-    offer: [
-      'Biggie guards the backyard gate. He is not mean - just... enormous.',
-      'Go show him you belong here. Win him over!',
+    giver: 'granny_tabby',
+    titleKey: 'quest.makeFriends.title',
+    offerKeys: [
+      'quest.makeFriends.offer1',
+      'quest.makeFriends.offer2',
     ],
-    reminder: 'Biggie waits past the Bookshelf Cliffs. Stand your ground!',
-    complete: ['Friends with Biggie! Now THAT is a first. Welcome home, dear.'],
+    reminderKey: 'quest.makeFriends.reminder',
+    completeKeys: ['quest.makeFriends.complete1'],
     objective: { target: 'biggie', count: 1 },
     reward: { treats: 200, exp: 120, items: { milk: 1 } },
   },
   // === Home (original house) ===
   {
     id: 'popBubbles',
-    giver: 'Miyo the Cat',
-    title: 'Pop the Bubbles',
-    offer: [
-      'Those Bangul bubbles have multiplied all over the living room...',
-      'Pop 5 of them for me, will you?',
+    giver: 'miyo',
+    titleKey: 'quest.popBubbles.title',
+    offerKeys: [
+      'quest.popBubbles.offer1',
+      'quest.popBubbles.offer2',
     ],
-    reminder: 'How goes the bubble popping? 5 Bangul, remember.',
-    complete: ['My whiskers thank you! Here - I buried these treats for a rainy day.'],
+    reminderKey: 'quest.popBubbles.reminder',
+    completeKeys: ['quest.popBubbles.complete1'],
     objective: { target: 'bangul', count: 5 },
     reward: { treats: 50, exp: 30 },
   },
   {
     id: 'gardenPatrol',
-    giver: 'Old Bell',
-    title: 'Garden Patrol',
-    offer: [
-      'My old bones cannot patrol the garden anymore.',
-      'Chase off 3 of those Nabi butterflies for me, little whisker.',
+    giver: 'old_bell',
+    titleKey: 'quest.gardenPatrol.title',
+    offerKeys: [
+      'quest.gardenPatrol.offer1',
+      'quest.gardenPatrol.offer2',
     ],
-    reminder: 'The garden is west of here. 3 Nabi butterflies.',
-    complete: ['Good work! You would have made a fine garden guardian in my day.'],
+    reminderKey: 'quest.gardenPatrol.reminder',
+    completeKeys: ['quest.gardenPatrol.complete1'],
     objective: { target: 'nabi', count: 3 },
     reward: { treats: 80, exp: 60 },
   },
   {
     id: 'runawayPrototypes',
-    giver: 'Apprentice Bolt',
-    title: 'Runaway Prototypes',
-    offer: [
-      'The wind-up prototypes broke their leashes!',
-      'Scrap 4 Robo units before the master finds out. Please!',
+    giver: 'apprentice_bolt',
+    titleKey: 'quest.runawayPrototypes.title',
+    offerKeys: [
+      'quest.runawayPrototypes.offer1',
+      'quest.runawayPrototypes.offer2',
     ],
-    reminder: 'Robo units. Four of them. Quickly, before the master notices!',
-    complete: ['Phew! Take these from the emergency snack drawer. Our secret!'],
+    reminderKey: 'quest.runawayPrototypes.reminder',
+    completeKeys: ['quest.runawayPrototypes.complete1'],
     objective: { target: 'robo', count: 4 },
     reward: { treats: 120, exp: 100, items: { cookie: 2 } },
   },
   {
     id: 'softenGuardian',
-    giver: 'Plushist Sewmaster',
-    title: 'Soften the Guardian',
-    offer: [
-      'Our Hug Guardian waits in the attic... it must be stopped. Gently.',
-      'Defeat it - and remember: the green circle is the ONLY safe spot!',
+    giver: 'plushist_sewmaster',
+    titleKey: 'quest.softenGuardian.title',
+    offerKeys: [
+      'quest.softenGuardian.offer1',
+      'quest.softenGuardian.offer2',
     ],
-    reminder: 'The Guardian is in the attic. Green circle. Do not forget.',
-    complete: ['You freed it from its own love... Thank you, brave little cat.'],
+    reminderKey: 'quest.softenGuardian.reminder',
+    completeKeys: ['quest.softenGuardian.complete1'],
     objective: { target: 'hugGuardian', count: 1 },
     reward: { treats: 300, exp: 150, items: { milk: 2 } },
   },

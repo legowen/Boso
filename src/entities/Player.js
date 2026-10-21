@@ -4,6 +4,8 @@
 import Phaser from 'phaser';
 import { PLAYER, DEPTH, DAMAGE_TEXT, ROPE } from '../utils/constants.js';
 import SaveManager from '../systems/SaveManager.js';
+import { pixelFont } from '../i18n/fonts.js';
+import { t } from '../i18n/index.js';
 import { ITEMS } from '../data/items.js';
 import { getCharacter, LEVEL_GROWTH, COMBO_MULTIPLIERS, COMBO_RESET_MS, CAT_FRAME_SIZE, CAT_DISPLAY_SCALE, CAT_FOOT_Y, CAT_FEET_OFFSET } from '../data/characters.js';
 
@@ -349,7 +351,7 @@ export default class Player {
     this.attackEffect.setDisplaySize(cfg.width * (1 + this.comboStep * 0.13), cfg.height * (1 + this.comboStep * 0.1));
     this.updateAttackEffect();
     if (this.comboStep === 2) {
-      this.showFloatingText('3 HIT!', this.charId === 'seoli' ? '#8DE5D3' : '#FFD08E');
+      this.showFloatingText(t('float.hit3'), this.charId === 'seoli' ? '#8DE5D3' : '#FFD08E');
     }
     this.scene.time.delayedCall(cfg.duration, () => this.clearAttack());
     this.scene.time.delayedCall(cfg.cooldown + (this.comboStep === 2 ? 70 : 0), () => {
@@ -421,11 +423,11 @@ export default class Player {
     if (def.heal) {
       if (this.hp >= this.maxHp) return false; // don't waste it
       this.hp = Math.min(this.maxHp, this.hp + def.heal);
-      this.showFloatingText(`+${def.heal} HP`, '#2ECC71');
+      this.showFloatingText(t('float.heal', { amount: def.heal }), '#2ECC71');
     } else if (def.mana) {
       if (this.mp >= this.maxMp) return false;
       this.mp = Math.min(this.maxMp, this.mp + def.mana);
-      this.showFloatingText(`+${def.mana} MP`, '#3498DB');
+      this.showFloatingText(t('float.mana', { amount: def.mana }), '#3498DB');
     }
 
     this.items[key] -= 1;
@@ -442,7 +444,7 @@ export default class Player {
     this.hp = this.maxHp;
     this.mp = this.maxMp;
 
-    this.showFloatingText('LEVEL UP!', '#F1C40F');
+    this.showFloatingText(t('float.levelUp'), '#F1C40F');
 
     // Golden burst effect
     const burst = this.scene.add.graphics({ x: this.sprite.x, y: this.sprite.y });
@@ -513,10 +515,8 @@ export default class Player {
       this.sprite.y - 40,
       text,
       {
-        fontSize: DAMAGE_TEXT.FONT_SIZE,
-        fontFamily: 'Arial',
+        ...pixelFont(DAMAGE_TEXT.FONT_SIZE),
         color: color,
-        fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 3,
       }

@@ -13,6 +13,8 @@ import { getCharacter } from '../data/characters.js';
 import SaveManager, { SLOT_COUNT } from '../systems/SaveManager.js';
 import { MenuButton, MenuNav } from '../ui/Menu.js';
 import { formatPlayTime, formatSavedAt } from '../utils/format.js';
+import { pixelFont } from '../i18n/fonts.js';
+import { t } from '../i18n/index.js';
 
 const DIALOG_DEPTH = 100;
 
@@ -40,16 +42,14 @@ export default class SaveSlotScene extends Phaser.Scene {
     this.add.rectangle(0, 0, w, h, 0x141D20, 0.78).setOrigin(0);
 
     const titleY = compact ? 26 : h * 0.1;
-    this.add.text(w / 2, titleY, isNew ? 'NEW GAME' : 'CONTINUE', {
-      fontFamily: 'Georgia, serif',
-      fontSize: `${compact ? 24 : Math.min(32, w / 14)}px`,
+    this.add.text(w / 2, titleY, isNew ? t('title.newGame') : t('title.continue'), {
+      ...pixelFont(compact ? 24 : Math.min(32, w / 14)),
       color: '#FFF4D9',
       stroke: '#2C2728',
       strokeThickness: 3,
     }).setOrigin(0.5);
-    this.add.text(w / 2, titleY + (compact ? 24 : 34), isNew ? 'Choose a slot to start in' : 'Choose a save to load', {
-      fontFamily: 'Arial',
-      fontSize: '13px',
+    this.add.text(w / 2, titleY + (compact ? 24 : 34), isNew ? t('slots.chooseNew') : t('slots.chooseContinue'), {
+      ...pixelFont(13),
       color: '#C8D9CE',
     }).setOrigin(0.5);
 
@@ -85,7 +85,7 @@ export default class SaveSlotScene extends Phaser.Scene {
       y: backY,
       width: 160,
       height: backH,
-      lines: ['BACK'],
+      lines: [t('common.back')],
       fontSize: 15,
       onSelect: () => this.back(),
     });
@@ -101,17 +101,20 @@ export default class SaveSlotScene extends Phaser.Scene {
 
   // Row text + whether it can be chosen in the current mode.
   describe(entry, isNew) {
-    const label = `SLOT ${entry.slot}`;
+    const slot = entry.slot;
     if (entry.status === 'ok') {
       const { data } = entry;
       const progress = data.characters[data.characterId];
       const level = progress && typeof progress.level === 'number' ? progress.level : 1;
-      const mapName = MAPS_DATA[data.mapId].name;
       return {
         enabled: true,
         lines: [
-          `${label}  -  ${getCharacter(data.characterId).name}  Lv.${level}`,
-          `${mapName}  |  ${formatPlayTime(data.playTimeSec)}  |  ${formatSavedAt(data.updatedAt)}`,
+          t('slots.okTitle', { slot, name: t(getCharacter(data.characterId).nameKey), level }),
+          t('slots.okDetail', {
+            map: t(MAPS_DATA[data.mapId].nameKey),
+            time: formatPlayTime(data.playTimeSec),
+            saved: formatSavedAt(data.updatedAt),
+          }),
         ],
       };
     }
@@ -119,14 +122,14 @@ export default class SaveSlotScene extends Phaser.Scene {
       return {
         enabled: isNew,
         lines: [
-          `${label}  -  Corrupted`,
-          isNew ? 'This save cannot be read. Starting here replaces it.' : 'This save cannot be read.',
+          t('slots.corruptedTitle', { slot }),
+          isNew ? t('slots.corruptedNew') : t('slots.corruptedContinue'),
         ],
       };
     }
     return {
       enabled: isNew,
-      lines: [`${label}  -  Empty`, isNew ? 'Start a new adventure here' : 'No save data'],
+      lines: [t('slots.emptyTitle', { slot }), isNew ? t('slots.emptyNew') : t('slots.emptyContinue')],
     };
   }
 
@@ -196,23 +199,27 @@ export default class SaveSlotScene extends Phaser.Scene {
     objects.push(blocker);
     objects.push(this.add.rectangle(w / 2, h / 2, panelW, panelH, 0x1A2224, 0.98)
       .setStrokeStyle(2, 0xEED19B).setDepth(DIALOG_DEPTH));
-    objects.push(this.add.text(w / 2, h / 2 - panelH / 2 + (compact ? 24 : 32), 'Overwrite this save?', {
-      fontFamily: 'Georgia, serif', fontSize: '22px', color: '#FFF4D9',
+    objects.push(this.add.text(w / 2, h / 2 - panelH / 2 + (compact ? 24 : 32), t('slots.overwrite'), {
+      ...pixelFont(22), color: '#FFF4D9',
     }).setOrigin(0.5).setDepth(DIALOG_DEPTH));
     const summary = entry.status === 'ok'
-      ? `SLOT ${entry.slot}  -  ${MAPS_DATA[entry.data.mapId].name}  |  ${formatPlayTime(entry.data.playTimeSec)}`
-      : `SLOT ${entry.slot}  -  Corrupted`;
+      ? t('slots.summaryOk', {
+        slot: entry.slot,
+        map: t(MAPS_DATA[entry.data.mapId].nameKey),
+        time: formatPlayTime(entry.data.playTimeSec),
+      })
+      : t('slots.corruptedTitle', { slot: entry.slot });
     objects.push(this.add.text(w / 2, h / 2 - panelH / 2 + (compact ? 52 : 68), summary, {
-      fontFamily: 'Arial', fontSize: '13px', color: '#C8D9CE', wordWrap: { width: panelW - 24 }, align: 'center',
+      ...pixelFont(13), color: '#C8D9CE', wordWrap: { width: panelW - 24 }, align: 'center',
     }).setOrigin(0.5).setDepth(DIALOG_DEPTH));
 
     const btnY = h / 2 + panelH / 2 - (compact ? 30 : 36);
     const yes = new MenuButton(this, {
-      x: w / 2 - 66, y: btnY, width: 112, height: 38, lines: ['YES'], fontSize: 15,
+      x: w / 2 - 66, y: btnY, width: 112, height: 38, lines: [t('common.yes')], fontSize: 15,
       onSelect: () => { this.closeConfirm(); this.startNewGame(entry.slot); },
     }).setDepth(DIALOG_DEPTH + 1);
     const no = new MenuButton(this, {
-      x: w / 2 + 66, y: btnY, width: 112, height: 38, lines: ['NO'], fontSize: 15,
+      x: w / 2 + 66, y: btnY, width: 112, height: 38, lines: [t('common.no')], fontSize: 15,
       onSelect: () => this.closeConfirm(),
     }).setDepth(DIALOG_DEPTH + 1);
 

@@ -2,7 +2,7 @@
 // Kitchen - counters and cupboards, bouncing balls everywhere
 
 const MAP_KITCHEN = {
-  name: 'Kitchen',
+  nameKey: 'map.kitchen.name',
   region: 'house',
   width: 3200,
   height: 800,
@@ -47,10 +47,10 @@ const MAP_KITCHEN = {
     { x: 2880, y: 615, w: 200, h: 16, isGround: false },
   ],
   portals: [
-    { x: 60, y: 690, label: '← Living Room', targetMap: 'livingroom', spawnX: 3040, spawnY: 680 },
-    { x: 240, y: 690, label: '↓ Garden Back Door', targetMap: 'garden', spawnX: 140, spawnY: 680 },
-    { x: 1600, y: 690, label: '↓ Basement', targetMap: 'basement', spawnX: 140, spawnY: 680 },
-    { x: 3140, y: 690, label: '→ Hallway', targetMap: 'hallway', spawnX: 150, spawnY: 1280 },
+    { x: 60, y: 690, labelKey: 'portal.kitchen.livingroom', targetMap: 'livingroom', spawnX: 3040, spawnY: 680 },
+    { x: 240, y: 690, labelKey: 'portal.kitchen.garden', targetMap: 'garden', spawnX: 140, spawnY: 680 },
+    { x: 1600, y: 690, labelKey: 'portal.kitchen.basement', targetMap: 'basement', spawnX: 140, spawnY: 680 },
+    { x: 3140, y: 690, labelKey: 'portal.kitchen.hallway', targetMap: 'hallway', spawnX: 150, spawnY: 1280 },
   ],
   ropes: [
     // Ground to layer 1

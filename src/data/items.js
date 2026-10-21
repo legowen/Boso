@@ -4,13 +4,13 @@
 
 export const ITEMS = {
   cookie: {
-    name: 'Crunchy Cookie',
+    nameKey: 'item.cookie.name',
     heal: 40,
     hotkey: '1',
     texture: 'drop_cookie',
   },
   milk: {
-    name: 'Warm Milk',
+    nameKey: 'item.milk.name',
     mana: 30,
     hotkey: '2',
     texture: 'drop_milk',

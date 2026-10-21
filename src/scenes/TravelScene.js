@@ -21,6 +21,8 @@ import { TRAVEL_ROUTES, AMBUSH_TYPES } from '../data/travel.js';
 import AudioManager from '../systems/AudioManager.js';
 import SaveManager from '../systems/SaveManager.js';
 import { DEFAULT_SPAWN_ID } from '../data/spawns.js';
+import { pixelFont } from '../i18n/fonts.js';
+import { t } from '../i18n/index.js';
 
 // World layout: the cage hangs in the middle of a larger scroll world.
 const WORLD_W = 2400;
@@ -107,7 +109,7 @@ export default class TravelScene extends Phaser.Scene {
 
     // HUD + countdown
     this.hud = new HUD(this);
-    this.hud.setMapName(route.name);
+    this.hud.setMapName(route.nameKey);
     this.createCountdown();
 
     // Roll the ambush schedule for this ride (randomized inside windows)
@@ -268,8 +270,7 @@ export default class TravelScene extends Phaser.Scene {
 
   createCountdown() {
     this.countdownText = this.add.text(this.scale.width / 2, 18, '', {
-      fontSize: '18px',
-      fontFamily: 'Arial Black, Arial',
+      ...pixelFont(this.isTouch ? 12 : 18),
       color: '#FDFEFE',
       stroke: '#000000',
       strokeThickness: 4,
@@ -302,9 +303,8 @@ export default class TravelScene extends Phaser.Scene {
     if (this.player.hp > 0) {
       this.elapsedMs += delta;
       const remaining = Math.max(0, Math.ceil((route.durationSec * 1000 - this.elapsedMs) / 1000));
-      this.countdownText.setText(`${route.name}  -  arriving in ${remaining}s`);
+      this.countdownText.setText(t('travel.countdown', { route: t(route.nameKey), sec: remaining }));
       this.countdownText.setPosition(this.scale.width / 2, this.isTouch ? 78 : 18);
-      this.countdownText.setFontSize(this.isTouch ? 12 : 18);
 
       if (this.elapsedMs >= route.durationSec * 1000) {
         this.arrive();
@@ -361,8 +361,7 @@ export default class TravelScene extends Phaser.Scene {
 
   showAmbushWarning(text, color) {
     const warn = this.add.text(this.scale.width / 2, this.scale.height * 0.22, text, {
-      fontSize: '24px',
-      fontFamily: 'Arial Black, Arial',
+      ...pixelFont(24),
       color: color,
       stroke: '#000000',
       strokeThickness: 5,
@@ -386,13 +385,12 @@ export default class TravelScene extends Phaser.Scene {
       CAGE.y + CAGE.h - 80
     );
 
-    this.showAmbushWarning('VROOM INCOMING!', '#E74C3C');
+    this.showAmbushWarning(t('travel.vroomWarning'), '#E74C3C');
 
     // Edge telegraph arrow at the lane height
     const edgeX = fromLeft ? CAGE.x - 60 : CAGE.x + CAGE.w + 60;
     const arrow = this.add.text(edgeX, laneY, fromLeft ? '»»' : '««', {
-      fontSize: '34px',
-      fontFamily: 'Arial Black, Arial',
+      ...pixelFont(34),
       color: '#E74C3C',
       stroke: '#000000',
       strokeThickness: 5,
@@ -455,7 +453,7 @@ export default class TravelScene extends Phaser.Scene {
     const fromLeft = Math.random() < 0.5;
     const x = fromLeft ? CAGE.x + 60 : CAGE.x + CAGE.w - 60;
 
-    this.showAmbushWarning('SOMETHING RUMBLES BELOW...', '#F39C12');
+    this.showAmbushWarning(t('travel.rumbleWarning'), '#F39C12');
 
     const sprite = this.physics.add.sprite(x, CAGE.y + CAGE.h - 100, 'ambush_rumble');
     const art = applyEntityArt(sprite, cfg, cfg.width, cfg.height);
@@ -654,10 +652,8 @@ export default class TravelScene extends Phaser.Scene {
   // Floating combat text (same look as GameScene damage numbers)
   showDamageNumber(x, y, amount, color) {
     const text = this.add.text(x, y - 20, `${amount}`, {
-      fontSize: '18px',
-      fontFamily: UI.FONT_FAMILY,
+      ...pixelFont(18),
       color: color || '#FFFFFF',
-      fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 3,
     }).setOrigin(0.5).setDepth(DEPTH.EFFECTS);
@@ -678,7 +674,7 @@ export default class TravelScene extends Phaser.Scene {
     const route = this.route;
     const target = MAPS_DATA[route.to];
 
-    this.countdownText.setText(`${route.name}  -  arrived!`);
+    this.countdownText.setText(t('travel.arrived', { route: t(route.nameKey) }));
 
     this.cameras.main.fadeOut(600, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
@@ -713,11 +709,9 @@ export default class TravelScene extends Phaser.Scene {
     this.tweens.add({ targets: overlay, alpha: 0.5, duration: 1000 });
 
     this.time.delayedCall(500, () => {
-      this.add.text(w / 2, h / 2 - 30, 'You Died', {
-        fontSize: '36px',
-        fontFamily: UI.FONT_FAMILY,
+      this.add.text(w / 2, h / 2 - 30, t('death.title'), {
+        ...pixelFont(36),
         color: '#E74C3C',
-        fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 4,
       }).setOrigin(0.5).setDepth(DEPTH.UI + 11).setScrollFactor(0);
@@ -725,10 +719,9 @@ export default class TravelScene extends Phaser.Scene {
       const restartText = this.add.text(
         w / 2,
         h / 2 + 30,
-        `${this.isTouch ? 'Tap CONTINUE' : 'Press SPACE'} to wake up back at ${from.name}`,
+        t(this.isTouch ? 'death.wakeBackTouch' : 'death.wakeBack', { map: t(from.nameKey) }),
         {
-          fontSize: '16px',
-          fontFamily: UI.FONT_FAMILY,
+          ...pixelFont(16),
           color: '#95A5A6',
           wordWrap: { width: w - 32 }, align: 'center',
         }

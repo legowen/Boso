@@ -12,7 +12,6 @@ import {
   CAMERA,
   DEPTH,
   DAMAGE_TEXT,
-  UI,
   SCENES,
   ROPE,
 } from '../utils/constants.js';
@@ -26,7 +25,7 @@ import TouchControls, { usesTouchControls } from '../ui/TouchControls.js';
 import { MAPS_DATA, START_MAP, respawnMapFor } from '../data/maps.js';
 import { DEFAULT_SPAWN_ID, portalSpawnId, resolveSpawn } from '../data/spawns.js';
 import { MONSTER_TYPES, BOSS_TYPES } from '../data/monsters.js';
-import { WORLD_MAP_LAYOUT, REGION_TITLES } from '../data/worldmap.js';
+import { WORLD_MAP_LAYOUT, REGION_TITLE_KEYS } from '../data/worldmap.js';
 import { ITEMS, ITEM_KEYS } from '../data/items.js';
 import { QUESTS } from '../data/quests.js';
 import { STORY } from '../data/story.js';
@@ -38,6 +37,9 @@ import Biggie from '../entities/Biggie.js';
 import VacuumKing from '../entities/VacuumKing.js';
 import AudioManager from '../systems/AudioManager.js';
 import SaveManager from '../systems/SaveManager.js';
+import { pixelFont } from '../i18n/fonts.js';
+import { t, translate, getLang, setLang, onLanguageChanged, LANGS } from '../i18n/index.js';
+import { addLocalizedText } from '../i18n/text.js';
 
 // Map registry lives in src/data/maps.js (pure data, Node-validatable)
 const MAPS = MAPS_DATA;
@@ -148,7 +150,10 @@ export default class GameScene extends Phaser.Scene {
 
     // Event listeners (once: scene.restart would stack persistent listeners)
     this.events.once('player-died', () => this.handlePlayerDeath());
+    // Live language switch (pause menu): redraw the text that is already on screen
+    const offLanguage = onLanguageChanged(() => this.refreshLanguage());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      offLanguage();
       stopWatchingVisibility();
       SaveManager.endPlay();
       this.events.off('player-died');
@@ -274,7 +279,7 @@ export default class GameScene extends Phaser.Scene {
       );
       if (distance < PORTAL.ACTIVATE_DISTANCE) {
         nearPortal = true;
-        this.interactionHint.setText(this.isTouch ? 'Tap ↑ to enter' : '↑ Enter Portal');
+        this.interactionHint.setText(this.isTouch ? t('hint.enterPortalTouch') : t('hint.enterPortal'));
         this.interactionHint.setPosition(zone.x, zone.hintY);
         this.interactionHint.setVisible(true);
 
@@ -296,7 +301,7 @@ export default class GameScene extends Phaser.Scene {
       );
       if (distance < NPC.INTERACT_DISTANCE) {
         nearNPC = true;
-        this.interactionHint.setText(this.isTouch ? 'Tap TALK' : '[SPACE] Talk');
+        this.interactionHint.setText(this.isTouch ? t('hint.talkTouch') : t('hint.talk'));
         this.interactionHint.setPosition(npcObj.sprite.x, npcObj.hintY);
         this.interactionHint.setVisible(true);
 
@@ -306,7 +311,7 @@ export default class GameScene extends Phaser.Scene {
         if (
           !this.dialogue &&
           !this.worldMap &&
-          npcObj.data.dialogue &&
+          npcObj.data.dialogueKeys &&
           Phaser.Input.Keyboard.JustDown(this.keys.space)
         ) {
           this.openDialogue(npcObj);
@@ -329,31 +334,34 @@ export default class GameScene extends Phaser.Scene {
 
     // Compose lines: base dialogue + quest offer/reminder/completion.
     // Quest state transitions happen when the conversation opens.
+    // Lines are thunks so a language switch can re-render the open page.
     const npcData = npcObj.data;
-    let lines = [...(npcData.dialogue || [])];
+    const keyLine = (key) => () => t(key, { player: this.playerDisplayName() });
+    let lines = (npcData.dialogueKeys || []).map(keyLine);
 
     // Gated travel: while the flag is missing, Owen only chats
     const travelLocked =
       !!npcData.travelRoute &&
       !!npcData.travelRequiresFlag &&
       !SaveManager.getFlag(npcData.travelRequiresFlag);
-    if (travelLocked) {
-      lines = [...(npcData.travelLockedLines || lines)];
+    if (travelLocked && npcData.travelLockedKeys) {
+      lines = npcData.travelLockedKeys.map(keyLine);
     }
 
-    const defs = QUESTS.filter((q) => q.giver === npcData.name);
+    const defs = QUESTS.filter((q) => q.giver === npcData.id);
     for (const quest of defs) {
       const st = this.player.quests[quest.id];
+      const questTitle = () => t(quest.titleKey);
       if (st && st.state === 'ready') {
-        lines = [...quest.complete, `[Quest complete: ${quest.title}]`];
+        lines = [...quest.completeKeys.map(keyLine), () => t('dialogue.questComplete', { title: questTitle() })];
         this.completeQuest(quest);
         break;
       } else if (!st) {
-        lines = [...lines, ...quest.offer, `[Quest accepted: ${quest.title}]`];
+        lines = [...lines, ...quest.offerKeys.map(keyLine), () => t('dialogue.questAccepted', { title: questTitle() })];
         this.acceptQuest(quest);
         break;
       } else if (st.state === 'active') {
-        lines = [...lines, quest.reminder];
+        lines = [...lines, keyLine(quest.reminderKey)];
         break;
       }
     }
@@ -367,7 +375,10 @@ export default class GameScene extends Phaser.Scene {
       const route = TRAVEL_ROUTES[boardingRoute];
       lines = [
         ...lines,
-        `Board the cage - "${route.name}" (~${route.durationSec}s ride)? ${this.isTouch ? 'NEXT' : 'SPACE'} to hop in, or walk away to stay.`,
+        () => t(this.isTouch ? 'dialogue.boardTouch' : 'dialogue.board', {
+          route: t(route.nameKey),
+          sec: route.durationSec,
+        }),
       ];
     }
 
@@ -380,25 +391,22 @@ export default class GameScene extends Phaser.Scene {
     bg.strokeRoundedRect(-boxW / 2, 0, boxW, boxH, 10);
     container.add(bg);
 
-    const nameText = this.add.text(-boxW / 2 + 16, 10, npcObj.data.name, {
-      fontSize: '13px',
-      fontFamily: 'Arial Black, Arial',
+    const nameText = addLocalizedText(this, -boxW / 2 + 16, 10, npcObj.data.nameKey, {
+      ...pixelFont(13),
       color: '#F1C40F',
     });
     container.add(nameText);
 
     const lineText = this.add.text(-boxW / 2 + 16, 34, '', {
-      fontSize: '13px',
-      fontFamily: UI.FONT_FAMILY,
+      ...pixelFont(13),
       color: '#ECF0F1',
       wordWrap: { width: boxW - 32 },
       lineSpacing: 4,
     });
     container.add(lineText);
 
-    const hint = this.add.text(boxW / 2 - 14, boxH - 14, this.isTouch ? 'NEXT >' : 'SPACE >', {
-      fontSize: '11px',
-      fontFamily: UI.FONT_FAMILY,
+    const hint = addLocalizedText(this, boxW / 2 - 14, boxH - 14, this.isTouch ? 'dialogue.nextTouch' : 'dialogue.next', {
+      ...pixelFont(11),
       color: '#7F8C8D',
     }).setOrigin(1, 0.5);
     container.add(hint);
@@ -421,15 +429,14 @@ export default class GameScene extends Phaser.Scene {
 
   // The player's display name for {player} placeholders in dialogue
   playerDisplayName() {
-    return this.characterData && this.characterData.name
-      ? this.characterData.name
-      : 'friend';
+    return this.characterData && this.characterData.nameKey
+      ? t(this.characterData.nameKey)
+      : t('dialogue.fallbackName');
   }
 
   renderDialogueLine() {
     if (!this.dialogue) return;
-    const line = this.dialogue.lines[this.dialogue.index];
-    this.dialogue.lineText.setText(line.replace(/\{player\}/g, this.playerDisplayName()));
+    this.dialogue.lineText.setText(this.dialogue.lines[this.dialogue.index]());
   }
 
   updateDialogue() {
@@ -541,9 +548,8 @@ export default class GameScene extends Phaser.Scene {
     const region = this.mapData.region;
 
     container.add(
-      this.add.text(w / 2, y0 - 24, REGION_TITLES[region] || 'WORLD MAP', {
-        fontSize: '20px',
-        fontFamily: 'Arial Black, Arial',
+      this.add.text(w / 2, y0 - 24, t(REGION_TITLE_KEYS[region]), {
+        ...pixelFont(20),
         color: '#F39C12',
         stroke: '#000000',
         strokeThickness: 3,
@@ -589,18 +595,15 @@ export default class GameScene extends Phaser.Scene {
       container.add(node);
 
       container.add(
-        this.add.text(nx, ny, MAPS_DATA[key].name, {
-          fontSize: '10px',
-          fontFamily: UI.FONT_FAMILY,
+        this.add.text(nx, ny, t(MAPS_DATA[key].nameKey), {
+          ...pixelFont(10),
           color: isHere ? '#F1C40F' : '#D5DBDB',
-          fontStyle: isHere ? 'bold' : 'normal',
         }).setOrigin(0.5)
       );
 
       if (isHere) {
-        const marker = this.add.text(nx, ny - 28, 'YOU', {
-          fontSize: '11px',
-          fontFamily: 'Arial Black, Arial',
+        const marker = this.add.text(nx, ny - 28, t('worldmap.you'), {
+          ...pixelFont(11),
           color: '#F1C40F',
           stroke: '#000000',
           strokeThickness: 2,
@@ -617,9 +620,8 @@ export default class GameScene extends Phaser.Scene {
     });
 
     container.add(
-      this.add.text(w / 2, y0 + ph + 22, 'M - Close', {
-        fontSize: '12px',
-        fontFamily: UI.FONT_FAMILY,
+      this.add.text(w / 2, y0 + ph + 22, t('worldmap.close'), {
+        ...pixelFont(12),
         color: '#7F8C8D',
       }).setOrigin(0.5)
     );
@@ -782,10 +784,10 @@ export default class GameScene extends Phaser.Scene {
     const { payload, sprite } = drop;
     if (payload.treats) {
       this.player.gainTreats(payload.treats);
-      this.showPickupText(sprite.x, sprite.y, `+${payload.treats} Treats`, '#F1C40F');
+      this.showPickupText(sprite.x, sprite.y, t('toast.treats', { count: payload.treats }), '#F1C40F');
     } else if (payload.item) {
       this.player.addItem(payload.item, 1);
-      this.showPickupText(sprite.x, sprite.y, `+1 ${ITEMS[payload.item].name}`, '#82E0AA');
+      this.showPickupText(sprite.x, sprite.y, t('toast.item', { item: t(ITEMS[payload.item].nameKey) }), '#82E0AA');
     }
     this.tweens.killTweensOf(sprite);
     sprite.destroy();
@@ -793,8 +795,7 @@ export default class GameScene extends Phaser.Scene {
 
   showPickupText(x, y, text, color) {
     const label = this.add.text(x, y - 16, text, {
-      fontSize: '11px',
-      fontFamily: UI.FONT_FAMILY,
+      ...pixelFont(11),
       color: color,
       stroke: '#000000',
       strokeThickness: 2,
@@ -903,9 +904,8 @@ export default class GameScene extends Phaser.Scene {
 
   createQuestTracker() {
     // Sits just below the minimap
-    this.questTracker = this.add.text(12, 120, '', {
-      fontSize: '11px',
-      fontFamily: UI.FONT_FAMILY,
+    this.questTracker = this.add.text(12, 134, '', {
+      ...pixelFont(11),
       color: '#F7DC6F',
       stroke: '#000000',
       strokeThickness: 2,
@@ -921,10 +921,11 @@ export default class GameScene extends Phaser.Scene {
     QUESTS.forEach((quest) => {
       const st = this.player.quests[quest.id];
       if (!st || st.state === 'done') return;
+      const title = t(quest.titleKey);
       if (st.state === 'ready') {
-        lines.push(`${quest.title}: DONE - see ${quest.giver}`);
+        lines.push(t('quest.trackerReady', { title, giver: t(`npc.${quest.giver}.name`) }));
       } else {
-        lines.push(`${quest.title}: ${st.progress}/${quest.objective.count}`);
+        lines.push(t('quest.trackerProgress', { title, progress: st.progress, count: quest.objective.count }));
       }
     });
     this.questTracker.setText(lines.join('\n'));
@@ -933,7 +934,7 @@ export default class GameScene extends Phaser.Scene {
   refreshNPCMarkers() {
     this.npcSprites.forEach((npcObj) => {
       if (!npcObj.questMarker) return;
-      const defs = QUESTS.filter((q) => q.giver === npcObj.data.name);
+      const defs = QUESTS.filter((q) => q.giver === npcObj.data.id);
       let marker = '';
       if (defs.some((q) => {
         const st = this.player.quests[q.id];
@@ -958,7 +959,7 @@ export default class GameScene extends Phaser.Scene {
       progress,
     };
     this.player.persistProgress();
-    this.showQuestToast(`Quest accepted: ${quest.title}`);
+    this.showQuestToast(t('toast.questAccepted', { title: t(quest.titleKey) }));
   }
 
   completeQuest(quest) {
@@ -970,7 +971,7 @@ export default class GameScene extends Phaser.Scene {
     });
     this.player.quests[quest.id].state = 'done';
     this.player.persistProgress();
-    this.showQuestToast(`Quest complete: ${quest.title}!`);
+    this.showQuestToast(t('toast.questComplete', { title: t(quest.titleKey) }));
   }
 
   questKill(target) {
@@ -982,7 +983,7 @@ export default class GameScene extends Phaser.Scene {
       st.progress += 1;
       if (st.progress >= quest.objective.count) {
         st.state = 'ready';
-        this.showQuestToast(`Quest ready: ${quest.title} - report back!`);
+        this.showQuestToast(t('toast.questReady', { title: t(quest.titleKey) }));
       }
       changed = true;
     });
@@ -1000,8 +1001,7 @@ export default class GameScene extends Phaser.Scene {
     this.activeToasts += 1;
 
     const toast = this.add.text(this.scale.width / 2, toastY, text, {
-      fontSize: '14px',
-      fontFamily: 'Arial Black, Arial',
+      ...pixelFont(14),
       color: '#F1C40F',
       stroke: '#000000',
       strokeThickness: 3,
@@ -1044,9 +1044,8 @@ export default class GameScene extends Phaser.Scene {
     bg.strokeRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 12);
     container.add(bg);
 
-    container.add(this.add.text(0, -boxH / 2 + 22, 'ADVENTURE BAG', {
-      fontSize: '18px',
-      fontFamily: 'Arial Black, Arial',
+    container.add(this.add.text(0, -boxH / 2 + 22, t('bag.title'), {
+      ...pixelFont(18),
       color: '#F39C12',
       stroke: '#000000',
       strokeThickness: 3,
@@ -1055,11 +1054,9 @@ export default class GameScene extends Phaser.Scene {
     // Treats
     const treatIcon = this.add.sprite(-boxW / 2 + 34, -boxH / 2 + 60, 'drop_treat').setScale(1.4);
     container.add(treatIcon);
-    container.add(this.add.text(-boxW / 2 + 52, -boxH / 2 + 60, `Treats  x ${this.player.treats}`, {
-      fontSize: '14px',
-      fontFamily: UI.FONT_FAMILY,
+    container.add(this.add.text(-boxW / 2 + 52, -boxH / 2 + 60, t('bag.treats', { count: this.player.treats }), {
+      ...pixelFont(14),
       color: '#F1C40F',
-      fontStyle: 'bold',
     }).setOrigin(0, 0.5));
 
     // Items with hotkeys
@@ -1070,19 +1067,17 @@ export default class GameScene extends Phaser.Scene {
       container.add(this.add.text(
         -boxW / 2 + 52,
         rowY,
-        `${def.name}  x ${this.player.items[key] || 0}   [${def.hotkey}] use`,
+        t('bag.item', { name: t(def.nameKey), count: this.player.items[key] || 0, key: def.hotkey }),
         {
-          fontSize: '13px',
-          fontFamily: UI.FONT_FAMILY,
+          ...pixelFont(13),
           color: '#ECF0F1',
         }
       ).setOrigin(0, 0.5));
     });
 
     // Quest log
-    container.add(this.add.text(0, -boxH / 2 + 172, '- QUESTS -', {
-      fontSize: '13px',
-      fontFamily: 'Arial Black, Arial',
+    container.add(this.add.text(0, -boxH / 2 + 172, t('bag.questsHeading'), {
+      ...pixelFont(13),
       color: '#BB8FCE',
     }).setOrigin(0.5));
 
@@ -1090,26 +1085,25 @@ export default class GameScene extends Phaser.Scene {
     QUESTS.forEach((quest) => {
       const st = this.player.quests[quest.id];
       if (!st) return;
-      if (st.state === 'done') questLines.push(`(done) ${quest.title}`);
-      else if (st.state === 'ready') questLines.push(`! ${quest.title} - see ${quest.giver}`);
-      else questLines.push(`- ${quest.title}: ${st.progress}/${quest.objective.count}`);
+      const title = t(quest.titleKey);
+      if (st.state === 'done') questLines.push(t('bag.questDone', { title }));
+      else if (st.state === 'ready') questLines.push(t('bag.questReady', { title, giver: t(`npc.${quest.giver}.name`) }));
+      else questLines.push(t('bag.questActive', { title, progress: st.progress, count: quest.objective.count }));
     });
     container.add(this.add.text(
       -boxW / 2 + 24,
       -boxH / 2 + 192,
-      questLines.length > 0 ? questLines.join('\n') : 'No quests yet - talk to the locals! (SPACE)',
+      questLines.length > 0 ? questLines.join('\n') : t('bag.noQuests'),
       {
-        fontSize: '12px',
-        fontFamily: UI.FONT_FAMILY,
+        ...pixelFont(12),
         color: '#D5DBDB',
         lineSpacing: 6,
         wordWrap: { width: boxW - 48 },
       }
     ));
 
-    container.add(this.add.text(0, boxH / 2 - 18, this.isTouch ? 'Tap BAG to close' : 'I - Close', {
-      fontSize: '11px',
-      fontFamily: UI.FONT_FAMILY,
+    container.add(this.add.text(0, boxH / 2 - 18, this.isTouch ? t('bag.closeTouch') : t('bag.close'), {
+      ...pixelFont(11),
       color: '#7F8C8D',
     }).setOrigin(0.5));
 
@@ -1520,11 +1514,9 @@ export default class GameScene extends Phaser.Scene {
 
     // Death text (delayed for dramatic effect)
     this.time.delayedCall(500, () => {
-      this.add.text(w / 2, h / 2 - 30, 'You Died', {
-        fontSize: '36px',
-        fontFamily: UI.FONT_FAMILY,
+      this.add.text(w / 2, h / 2 - 30, t('death.title'), {
+        ...pixelFont(36),
         color: '#E74C3C',
-        fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 4,
       }).setOrigin(0.5).setDepth(DEPTH.UI + 11).setScrollFactor(0);
@@ -1533,10 +1525,9 @@ export default class GameScene extends Phaser.Scene {
       const restartText = this.add.text(
         w / 2,
         h / 2 + 30,
-        `${this.isTouch ? 'Tap CONTINUE' : 'Press SPACE'} to wake up at ${MAPS[respawnKey].name}`,
+        t(this.isTouch ? 'death.wakeTouch' : 'death.wake', { map: t(MAPS[respawnKey].nameKey) }),
         {
-          fontSize: '16px',
-          fontFamily: UI.FONT_FAMILY,
+          ...pixelFont(16),
           color: '#95A5A6',
           wordWrap: { width: w - 32 }, align: 'center',
         }
@@ -1641,7 +1632,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Menu box
     const boxW = 260;
-    const boxH = 240;
+    const boxH = 320;
     const box = this.add.graphics();
     box.fillStyle(0x1A1A2E, 0.95);
     box.fillRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 12);
@@ -1650,9 +1641,8 @@ export default class GameScene extends Phaser.Scene {
     this.pauseMenu.add(box);
 
     // Title
-    const title = this.add.text(0, -boxH / 2 + 28, 'PAUSED', {
-      fontSize: '22px',
-      fontFamily: 'Arial Black, Arial',
+    const title = addLocalizedText(this, 0, -boxH / 2 + 28, 'pause.title', {
+      ...pixelFont(22),
       color: '#F39C12',
       stroke: '#000000',
       strokeThickness: 3,
@@ -1667,9 +1657,9 @@ export default class GameScene extends Phaser.Scene {
 
     // Menu buttons
     const buttons = [
-      { text: 'Continue', action: () => this.closePauseMenu() },
-      { text: 'Character Select', action: () => this.goToCharacterSelect() },
-      { text: 'Main Menu', action: () => this.goToMainMenu() },
+      { textKey: 'pause.continue', action: () => this.closePauseMenu() },
+      { textKey: 'pause.characterSelect', action: () => this.goToCharacterSelect() },
+      { textKey: 'pause.mainMenu', action: () => this.goToMainMenu() },
     ];
 
     buttons.forEach((btn, i) => {
@@ -1684,11 +1674,9 @@ export default class GameScene extends Phaser.Scene {
       this.pauseMenu.add(btnBg);
 
       // Button text
-      const btnText = this.add.text(0, btnY + btnH / 2, btn.text, {
-        fontSize: '15px',
-        fontFamily: 'Arial',
+      const btnText = addLocalizedText(this, 0, btnY + btnH / 2, btn.textKey, {
+        ...pixelFont(15),
         color: '#ECF0F1',
-        fontStyle: 'bold',
       }).setOrigin(0.5);
       this.pauseMenu.add(btnText);
 
@@ -1710,6 +1698,48 @@ export default class GameScene extends Phaser.Scene {
       });
       zone.on('pointerdown', btn.action);
     });
+
+    this.createPauseLanguageRow(boxH);
+  }
+
+  // "Language" row with one button per language at the bottom of the pause menu. The
+  // buttons are repainted in place on `language-changed` (nothing is
+  // destroyed inside a click handler).
+  createPauseLanguageRow(boxH) {
+    const labelY = boxH / 2 - 78;
+    const rowY = boxH / 2 - 62;
+    const btnW = 96;
+    const btnH = 36;
+    const label = addLocalizedText(this, 0, labelY, 'lang.label', {
+      ...pixelFont(11),
+      color: '#AAB7B8',
+    }).setOrigin(0.5);
+    this.pauseMenu.add(label);
+
+    const entries = LANGS.map((code, i) => {
+      const x = (i === 0 ? -1 : 1) * (btnW / 2 + 6);
+      const bg = this.add.graphics();
+      const text = this.add.text(x, rowY + btnH / 2, translate(code, 'lang.self'), {
+        ...pixelFont(14),
+        color: '#ECF0F1',
+      }).setOrigin(0.5);
+      const zone = this.add.zone(x, rowY + btnH / 2, btnW, btnH).setInteractive();
+      zone.on('pointerdown', () => setLang(code));
+      this.pauseMenu.add([bg, text, zone]);
+      return { code, x, bg, text };
+    });
+
+    const paint = () => {
+      entries.forEach(({ code, x, bg, text }) => {
+        const active = code === getLang();
+        bg.clear();
+        bg.fillStyle(active ? 0xF39C12 : 0x2C3E50, 1);
+        bg.fillRoundedRect(x - btnW / 2, rowY, btnW, btnH, 6);
+        text.setColor(active ? '#000000' : '#ECF0F1');
+      });
+    };
+    paint();
+    this.pauseLangPaint = paint;
   }
 
   closePauseMenu() {
@@ -1720,6 +1750,7 @@ export default class GameScene extends Phaser.Scene {
     if (this.pauseMenu) {
       this.pauseMenu.destroy();
       this.pauseMenu = null;
+      this.pauseLangPaint = null;
     }
 
     // AI timers are wall-clock (Date.now) - shift them by the paused
@@ -1756,6 +1787,22 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  // `language-changed`: text made through addLocalizedText and the HUD
+  // rewrites itself; the overlays below are rebuilt from their data.
+  refreshLanguage() {
+    this.refreshQuestTracker();
+    this.renderDialogueLine();
+    if (this.worldMap) {
+      this.closeWorldMap();
+      this.openWorldMap();
+    }
+    if (this.bag) {
+      this.closeBag();
+      this.openBag();
+    }
+    if (this.pauseLangPaint) this.pauseLangPaint();
+  }
+
   goToCharacterSelect() {
     this.closePauseMenu();
     this.cameras.main.fadeOut(400, 0, 0, 0);
@@ -1774,7 +1821,7 @@ export default class GameScene extends Phaser.Scene {
 
   initHUD() {
     this.hud = new HUD(this);
-    this.hud.setMapName(this.mapData.name);
+    this.hud.setMapName(this.mapData.nameKey);
   }
 
   initMinimap() {
@@ -1783,7 +1830,8 @@ export default class GameScene extends Phaser.Scene {
     this.minimap.width = 180;
     this.minimap.height = 100;
     this.minimap.x = 10;
-    this.minimap.y = 10;
+    // Leaves room above the map for its name label (pixel fonts are taller than the old 10px text)
+    this.minimap.y = 24;
     this.minimap.scaleX = this.minimap.width / this.mapData.width;
     this.minimap.scaleY = this.minimap.height / this.mapData.height;
 
@@ -1801,9 +1849,8 @@ export default class GameScene extends Phaser.Scene {
     this.minimap.container.add(bg);
 
     // Map name label
-    const mapLabel = this.add.text(this.minimap.width / 2, -2, this.mapData.name, {
-      fontSize: '10px',
-      fontFamily: UI.FONT_FAMILY,
+    const mapLabel = addLocalizedText(this, this.minimap.width / 2, -2, this.mapData.nameKey, {
+      ...pixelFont(10),
       color: '#AAAAAA',
       stroke: '#000000',
       strokeThickness: 2,
@@ -1916,8 +1963,7 @@ export default class GameScene extends Phaser.Scene {
 
   initInteractionHint() {
     this.interactionHint = this.add.text(0, 0, '', {
-      fontSize: '14px',
-      fontFamily: UI.FONT_FAMILY,
+      ...pixelFont(14),
       color: '#FFFFFF',
       backgroundColor: '#00000088',
       padding: { x: 8, y: 4 },
@@ -2084,9 +2130,8 @@ export default class GameScene extends Phaser.Scene {
       const artTop = npcData.y + art.top;
 
       // NPC name tag
-      const nameTag = this.add.text(npcData.x, artTop - 14, npcData.name, {
-        fontSize: '12px',
-        fontFamily: UI.FONT_FAMILY,
+      const nameTag = addLocalizedText(this, npcData.x, artTop - 14, npcData.nameKey, {
+        ...pixelFont(12),
         color: '#FFFFFF',
         stroke: '#000000',
         strokeThickness: 2,
@@ -2094,8 +2139,7 @@ export default class GameScene extends Phaser.Scene {
 
       // Quest marker (! available / ? ready) above the name tag
       const questMarker = this.add.text(npcData.x, artTop - 36, '', {
-        fontSize: '18px',
-        fontFamily: 'Arial Black, Arial',
+        ...pixelFont(18),
         color: '#F1C40F',
         stroke: '#000000',
         strokeThickness: 3,
@@ -2175,9 +2219,8 @@ export default class GameScene extends Phaser.Scene {
   // Tutorial guide signs (floating hint panels from map data)
   initGuides() {
     (this.mapData.guides || []).forEach((guide) => {
-      this.add.text(guide.x, guide.y, guide.text, {
-        fontSize: '12px',
-        fontFamily: UI.FONT_FAMILY,
+      addLocalizedText(this, guide.x, guide.y, guide.textKey, {
+        ...pixelFont(12),
         color: '#FDFEFE',
         align: 'center',
         backgroundColor: '#1A1A2ECC',
@@ -2365,9 +2408,8 @@ export default class GameScene extends Phaser.Scene {
     });
 
     // Portal label
-    this.add.text(portalData.x, layout.labelY, portalData.label, {
-      fontSize: '12px',
-      fontFamily: UI.FONT_FAMILY,
+    addLocalizedText(this, portalData.x, layout.labelY, portalData.labelKey, {
+      ...pixelFont(12),
       color: portalData.hidden ? '#F1C40F' : '#BB8FCE',
       stroke: '#000000',
       strokeThickness: 2,
@@ -2476,7 +2518,7 @@ export default class GameScene extends Phaser.Scene {
     if (this.bossRespawn && this.bossRespawn.phase === 'waiting') {
       this.bossRespawn.elapsedMs = BOSS_RESPAWN.checkIntervalMs;
     }
-    this.showQuestToast(`[DEV] Boss timers reset (${count})`);
+    this.showQuestToast(t('dev.timersReset', { count }));
   }
 
   createBossHpBar() {
@@ -2485,9 +2527,8 @@ export default class GameScene extends Phaser.Scene {
 
     const container = this.add.container(w / 2, this.isTouch ? 80 : 24).setDepth(DEPTH.UI + 6).setScrollFactor(0);
 
-    const nameText = this.add.text(0, 0, this.boss.name, {
-      fontSize: '15px',
-      fontFamily: 'Arial Black, Arial',
+    const nameText = addLocalizedText(this, 0, 0, this.boss.nameKey, {
+      ...pixelFont(15),
       color: '#FFFFFF',
       stroke: '#000000',
       strokeThickness: 3,
@@ -2519,11 +2560,11 @@ export default class GameScene extends Phaser.Scene {
     this.bossBar.fill.fillRoundedRect(-bw / 2 + 2, 14, (bw - 4) * ratio, 10, 3);
   }
 
-  showBossWarning(text) {
-    if (!text) return;
-    const warning = this.add.text(this.scale.width / 2, this.scale.height * 0.3, text, {
-      fontSize: '22px',
-      fontFamily: 'Arial Black, Arial',
+  // textKey: locale key (a STORY.* entry)
+  showBossWarning(textKey) {
+    if (!textKey) return;
+    const warning = this.add.text(this.scale.width / 2, this.scale.height * 0.3, t(textKey), {
+      ...pixelFont(22),
       color: '#E74C3C',
       stroke: '#000000',
       strokeThickness: 4,
@@ -2552,7 +2593,7 @@ export default class GameScene extends Phaser.Scene {
       if (drops) {
         if (drops.treats) {
           this.player.gainTreats(drops.treats);
-          this.showQuestToast(`+${drops.treats} Treats!`);
+          this.showQuestToast(t('toast.bossTreats', { count: drops.treats }));
         }
         Object.entries(drops.items || {}).forEach(([key, count]) => {
           this.player.addItem(key, count);
@@ -2622,22 +2663,21 @@ export default class GameScene extends Phaser.Scene {
       duration: 2000,
       onComplete: () => {
         // Show the ending lines one at a time
-        STORY.ending.forEach((line, i) => {
+        STORY.ending.forEach((lineKey, i) => {
           this.time.delayedCall(600 + i * 2200, () => {
             const isLast = i === STORY.ending.length - 1;
-            const lineText = this.add.text(w / 2, h * 0.3 + i * 54, line.replaceAll('{player}', this.playerDisplayName()), {
-              fontSize: isLast ? '20px' : '22px',
-              fontFamily: isLast ? 'Arial' : 'Arial Black, Arial',
+            const lineText = this.add.text(w / 2, h * 0.3 + i * 54, t(lineKey, { player: this.playerDisplayName() }), {
+              ...pixelFont(isLast ? 20 : 22),
               color: isLast ? '#B9770E' : '#4A3728',
               align: 'center',
+              wordWrap: { width: w - 32 },
             }).setOrigin(0.5).setAlpha(0).setDepth(DEPTH.UI + 21).setScrollFactor(0);
             this.tweens.add({ targets: lineText, alpha: 1, duration: 800 });
 
             if (isLast) {
               this.time.delayedCall(1200, () => {
-                const hint = this.add.text(w / 2, h * 0.8, this.isTouch ? 'Tap CONTINUE to return to the title' : 'Press SPACE to return to the title', {
-                  fontSize: '14px',
-                  fontFamily: UI.FONT_FAMILY,
+                const hint = this.add.text(w / 2, h * 0.8, this.isTouch ? t('ending.hintTouch') : t('ending.hint'), {
+                  ...pixelFont(14),
                   color: '#7D6608',
                 }).setOrigin(0.5).setDepth(DEPTH.UI + 21).setScrollFactor(0);
                 this.tweens.add({
@@ -2663,10 +2703,8 @@ export default class GameScene extends Phaser.Scene {
     const size = isCritical ? '24px' : DAMAGE_TEXT.FONT_SIZE;
 
     const text = this.add.text(x, y - 20, `${amount}`, {
-      fontSize: size,
-      fontFamily: UI.FONT_FAMILY,
+      ...pixelFont(size),
       color: color,
-      fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 3,
     }).setOrigin(0.5).setDepth(DEPTH.EFFECTS);
@@ -3421,9 +3459,8 @@ export default class GameScene extends Phaser.Scene {
     const expGain = monsterObj.cfg.exp || 0;
     if (expGain > 0 && this.player.hp > 0) {
       this.player.gainExp(expGain);
-      const expText = this.add.text(monsterObj.sprite.x, monsterObj.sprite.y - 34, `+${expGain} EXP`, {
-        fontSize: '12px',
-        fontFamily: UI.FONT_FAMILY,
+      const expText = this.add.text(monsterObj.sprite.x, monsterObj.sprite.y - 34, t('float.exp', { amount: expGain }), {
+        ...pixelFont(12),
         color: '#F1C40F',
         stroke: '#000000',
         strokeThickness: 2,

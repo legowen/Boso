@@ -3,7 +3,7 @@
 // Crumbs hop in packs under the counters.
 
 const MAP_KITCHEN_FLOOR = {
-  name: 'Kitchen Floor',
+  nameKey: 'map.kitchen_floor.name',
   region: 'buddy',
   width: 2400,
   height: 800,
@@ -26,8 +26,8 @@ const MAP_KITCHEN_FLOOR = {
     { x: 1800, y: 560, w: 260, h: 16, isGround: false },
   ],
   portals: [
-    { x: 60, y: 690, label: '← High Table Village', targetMap: 'high_table', spawnX: 2020, spawnY: 780 },
-    { x: 2340, y: 690, label: '→ Hallway Runway', targetMap: 'hallway_run', spawnX: 2440, spawnY: 640 },
+    { x: 60, y: 690, labelKey: 'portal.kitchen_floor.high_table', targetMap: 'high_table', spawnX: 2020, spawnY: 780 },
+    { x: 2340, y: 690, labelKey: 'portal.kitchen_floor.hallway_run', targetMap: 'hallway_run', spawnX: 2440, spawnY: 640 },
   ],
   ropes: [
     { x: 470, topY: 600, bottomY: 700 },

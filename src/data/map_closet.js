@@ -2,7 +2,7 @@
 // Vacuum Closet - hidden lair of the Vacuum King
 
 const MAP_CLOSET = {
-  name: 'Vacuum Closet',
+  nameKey: 'map.closet.name',
   region: 'house',
   width: 1600,
   height: 800,
@@ -23,7 +23,7 @@ const MAP_CLOSET = {
     { x: 1100, y: 560, w: 220, h: 16, isGround: false },
   ],
   portals: [
-    { x: 60, y: 690, label: '← Attic Laboratory', targetMap: 'attic', spawnX: 2100, spawnY: 680 },
+    { x: 60, y: 690, labelKey: 'portal.closet.attic', targetMap: 'attic', spawnX: 2100, spawnY: 680 },
   ],
   ropes: [
     { x: 380, topY: 600, bottomY: 700 },

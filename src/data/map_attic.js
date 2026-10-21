@@ -2,7 +2,7 @@
 // Attic Laboratory - the Owner's lab, guarded by the Hug Guardian
 
 const MAP_ATTIC = {
-  name: 'Attic Laboratory',
+  nameKey: 'map.attic.name',
   region: 'house',
   width: 2400,
   height: 800,
@@ -25,12 +25,12 @@ const MAP_ATTIC = {
     { x: 2050, y: 600, w: 220, h: 16, isGround: false },
   ],
   portals: [
-    { x: 60, y: 690, label: '← Toy Workshop', targetMap: 'playroom', spawnX: 3040, spawnY: 680 },
-    { x: 1830, y: 510, label: '↑ Rooftop Skylight', targetMap: 'rooftop', spawnX: 2640, spawnY: 680 },
+    { x: 60, y: 690, labelKey: 'portal.attic.playroom', targetMap: 'playroom', spawnX: 3040, spawnY: 680 },
+    { x: 1830, y: 510, labelKey: 'portal.attic.rooftop', targetMap: 'rooftop', spawnX: 2640, spawnY: 680 },
     {
       x: 2200,
       y: 690,
-      label: '? Vacuum Closet',
+      labelKey: 'portal.attic.closet',
       targetMap: 'closet',
       spawnX: 140,
       spawnY: 680,
