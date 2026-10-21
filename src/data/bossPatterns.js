@@ -171,3 +171,91 @@ export const DR_EMBRACE_PHASES = [
     patterns: [ARM_REACH, CHECKUP_SLAM, CHECKUP_HUG],
   },
 ];
+
+// ===== Vacuum King (hidden boss: the primal fear of every pet) =====
+
+const SUCTION = {
+  id: 'suction',
+  type: 'pull',
+  nameKey: 'boss.vacuumKing.suction',
+  weight: 3,
+  cooldownMs: 5000,
+  telegraphMs: 800,
+  params: { durationMs: 2500, pull: 150 },
+};
+
+const DUST_BALLS = {
+  id: 'dustBalls',
+  type: 'projectile',
+  nameKey: 'boss.vacuumKing.dustBalls',
+  weight: 4,
+  cooldownMs: 1800,
+  telegraphMs: 700,
+  params: { count: 3, spreadDeg: 16, speed: 200, damage: 15, texture: 'proj_dust', lifespanMs: 4000 },
+};
+
+const FLOOR_SWEEP = {
+  id: 'floorSweep',
+  type: 'dashSweep',
+  nameKey: 'boss.vacuumKing.floorSweep',
+  weight: 3,
+  cooldownMs: 8000,
+  telegraphMs: 1000,
+  params: { speed: 520, damage: 22, lowProfile: 0.45 },
+};
+
+const CALL_FLIES = {
+  id: 'callFlies',
+  type: 'summon',
+  nameKey: 'boss.vacuumKing.callFlies',
+  weight: 2,
+  cooldownMs: 15000,
+  telegraphMs: 800,
+  params: { monster: 'pari', count: 2, max: 4 },
+};
+
+const BAG_BURST = {
+  id: 'bagBurst',
+  type: 'areaSlam',
+  nameKey: 'boss.vacuumKing.bagBurst',
+  weight: 3,
+  cooldownMs: 7000,
+  telegraphMs: 1000,
+  params: { width: 140, hitHeight: 130, count: 3, target: 'random', damage: 24, minGapPx: 90, spreadPx: 450 },
+};
+
+// Drops to floor level while it inhales: touching it then hurts a lot. The
+// pull stays below every cat's move speed, so walking against it always works.
+const FULL_SUCTION = {
+  id: 'fullSuction',
+  type: 'pull',
+  nameKey: 'boss.vacuumKing.fullSuction',
+  weight: 2,
+  cooldownMs: 12000,
+  telegraphMs: 1000,
+  params: { durationMs: 3000, pull: 180, lowerBody: true, hold: true, touchDamage: 55, banner: true },
+};
+
+// From phase 2 on, suction and dust balls may run at the same time
+const overlapping = (pattern) => ({ ...pattern, overlap: true });
+
+export const VACUUM_KING_PHASES = [
+  {
+    hpBelow: 1.0,
+    gapMs: 1300,
+    patterns: [SUCTION, DUST_BALLS, FLOOR_SWEEP],
+  },
+  {
+    hpBelow: 0.5,
+    gapMs: 1100,
+    roarKey: 'boss.vacuumKing.phase2',
+    patterns: [overlapping(SUCTION), overlapping(DUST_BALLS), FLOOR_SWEEP, CALL_FLIES],
+  },
+  {
+    hpBelow: 0.25,
+    gapMs: 900,
+    roarKey: 'boss.vacuumKing.phase3',
+    enrage: { cooldownMult: 0.7, speedMult: 1.3 },
+    patterns: [overlapping(SUCTION), overlapping(DUST_BALLS), FLOOR_SWEEP, CALL_FLIES, BAG_BURST, FULL_SUCTION],
+  },
+];

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   FAIRNESS, STATUS_RULES, PATTERN_TYPES, NON_DAMAGING_TYPES,
-  HUG_GUARDIAN_PHASES, DR_EMBRACE_PHASES,
+  HUG_GUARDIAN_PHASES, DR_EMBRACE_PHASES, VACUUM_KING_PHASES,
 } from '../src/data/bossPatterns.js';
 import {
   selectPhase, pickPattern, planBurstSpots, readyAtFor, cooldownMultFor, speedMultFor,
@@ -138,8 +138,12 @@ function simulate(phase, picks, seed) {
   return sequence;
 }
 
+const ALL_PHASE_TABLES = [
+  ['hugGuardian', HUG_GUARDIAN_PHASES], ['drEmbrace', DR_EMBRACE_PHASES], ['vacuumKing', VACUUM_KING_PHASES],
+];
+
 test('no fieldWide twice in a row over 1000 simulated picks, in every phase', () => {
-  for (const [name, phases] of [['hugGuardian', HUG_GUARDIAN_PHASES], ['drEmbrace', DR_EMBRACE_PHASES]]) {
+  for (const [name, phases] of ALL_PHASE_TABLES) {
     phases.forEach((phase, i) => {
       for (let seed = 1; seed <= 5; seed += 1) {
         const sequence = simulate(phase, 1000, seed);
@@ -167,7 +171,7 @@ test('the rule holds even when fieldWide is the heaviest pattern and has no cool
 });
 
 test('a boss is never locked out: a filler pattern is ready again by the next pick', () => {
-  const dataPhases = [...HUG_GUARDIAN_PHASES, ...DR_EMBRACE_PHASES];
+  const dataPhases = ALL_PHASE_TABLES.flatMap(([, phases]) => phases);
   for (const phase of dataPhases) {
     const filler = phase.patterns.filter((p) => p.type !== 'fieldWide' && p.type !== 'summon'
       && Math.round(p.cooldownMs * cooldownMultFor(phase)) <= p.telegraphMs + phase.gapMs);
@@ -212,7 +216,7 @@ test('planBurstSpots: first zone on the player, every zone in bounds with a dodg
 });
 
 test('every pattern definition uses a known type, positive weight and sane numbers', () => {
-  for (const phases of [HUG_GUARDIAN_PHASES, DR_EMBRACE_PHASES]) {
+  for (const [, phases] of ALL_PHASE_TABLES) {
     for (const phase of phases) {
       for (const p of phase.patterns) {
         assert.ok(PATTERN_TYPES.includes(p.type), `${p.id}: unknown type ${p.type}`);
@@ -303,6 +307,60 @@ test('Hug Guardian: 3 phases at 60% / 30% with the specified patterns', () => {
   assert.deepEqual(phases[2].enrage, { cooldownMult: 0.7, speedMult: 1.3 });
   assert.equal(phases[0].enrage, undefined);
   assert.equal(phases[1].enrage, undefined);
+});
+
+test('Vacuum King: 3 phases at 50% / 25% with the specified patterns', () => {
+  const phases = BOSS_TYPES.vacuumKing.phases;
+  assert.deepEqual(phases.map((p) => p.hpBelow), [1.0, 0.5, 0.25]);
+  const ids = (phase) => phase.patterns.map((p) => p.id);
+  assert.deepEqual(ids(phases[0]), ['suction', 'dustBalls', 'floorSweep']);
+  assert.deepEqual(ids(phases[1]), ['suction', 'dustBalls', 'floorSweep', 'callFlies']);
+  assert.deepEqual(ids(phases[2]), ['suction', 'dustBalls', 'floorSweep', 'callFlies', 'bagBurst', 'fullSuction']);
+  const byId = (phase, id) => phase.patterns.find((p) => p.id === id);
+
+  assert.equal(byId(phases[0], 'suction').type, 'pull');
+  assert.equal(byId(phases[0], 'suction').params.durationMs, 2500);
+  assert.equal(byId(phases[0], 'dustBalls').type, 'projectile');
+  assert.equal(byId(phases[0], 'dustBalls').params.count, 3);
+  assert.ok(byId(phases[0], 'dustBalls').params.spreadDeg > 0, 'a spread');
+  assert.equal(byId(phases[0], 'floorSweep').type, 'dashSweep');
+
+  // Phase 1 alternates; from phase 2 on suction and dust balls can overlap
+  assert.ok(!byId(phases[0], 'suction').overlap && !byId(phases[0], 'dustBalls').overlap);
+  for (const phase of phases.slice(1)) {
+    assert.equal(byId(phase, 'suction').overlap, true);
+    assert.equal(byId(phase, 'dustBalls').overlap, true);
+    assert.ok(!byId(phase, 'floorSweep').overlap, 'the sweep never overlaps');
+  }
+  assert.equal(byId(phases[1], 'callFlies').type, 'summon');
+  assert.deepEqual(byId(phases[1], 'callFlies').params, { monster: 'pari', count: 2, max: 4 });
+
+  const burst = byId(phases[2], 'bagBurst');
+  assert.equal(burst.type, 'areaSlam');
+  assert.equal(burst.params.count, 3);
+  assert.equal(burst.params.target, 'random');
+  const normal = byId(phases[2], 'suction');
+  const full = byId(phases[2], 'fullSuction');
+  assert.equal(full.type, 'pull');
+  assert.ok(full.params.pull > normal.params.pull, 'stronger pull');
+  assert.ok(full.params.touchDamage > BOSS_TYPES.vacuumKing.touchDamage, 'touching the boss during it hurts more than usual');
+  assert.deepEqual(phases[2].enrage, { cooldownMult: 0.7, speedMult: 1.3 });
+  assert.equal(phases[0].enrage, undefined);
+  assert.equal(phases[1].enrage, undefined);
+});
+
+test('walking against any pull always works: no pull outruns the slowest cat', () => {
+  const slowest = Math.min(...CHARACTERS.map((c) => c.stats.spd));
+  let pulls = 0;
+  for (const [, boss] of patternBosses) {
+    for (const phase of boss.phases) {
+      for (const p of phase.patterns.filter((x) => x.type === 'pull')) {
+        pulls += 1;
+        assert.ok(p.params.pull < slowest, `${p.id}: pull ${p.params.pull} must stay below ${slowest}`);
+      }
+    }
+  }
+  assert.ok(pulls > 0);
 });
 
 test('a full fight lasts about 2-4 minutes at the intended level, for both cats', () => {

@@ -3,7 +3,7 @@
 // Movement values are consumed by GameScene AI dispatch and boss entities.
 // Boss attacks are data too: `phases` (see data/bossPatterns.js).
 
-import { HUG_GUARDIAN_PHASES, DR_EMBRACE_PHASES } from './bossPatterns.js';
+import { HUG_GUARDIAN_PHASES, DR_EMBRACE_PHASES, VACUUM_KING_PHASES } from './bossPatterns.js';
 
 export const MONSTER_TYPES = {
   // Lowest tier — soap-bubble experiment. Moves like a MapleStory snail:
@@ -355,7 +355,7 @@ export const BOSS_TYPES = {
   // Special hidden boss — the primal fear of every pet: the vacuum.
   vacuumKing: {
     nameKey: 'boss.vacuumKing.name',
-    hp: 2200,
+    hp: 8000,
     touchDamage: 25,
     exp: 500,
     respawnSec: 600,
@@ -365,7 +365,7 @@ export const BOSS_TYPES = {
     color: 0x5D6D7E,
     hoverSpeed: 40,
     patrolRange: 300,
-    suction: { onMs: 3000, offMs: 2500, pull: 150 },
-    dust: { damage: 15, speed: 200, intervalMs: 1200, lifespanMs: 4000, size: 20 },
+    balance: { intendedLevel: 14, uptime: 0.3 },
+    phases: VACUUM_KING_PHASES,
   },
 };

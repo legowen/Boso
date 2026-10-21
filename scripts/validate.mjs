@@ -783,6 +783,8 @@ check(
     },
     pull: (p, c) => {
       c(positive(p.durationMs) && positive(p.pull), 'needs durationMs and pull > 0');
+      // "Walk against it": the pull must never outrun the slowest cat
+      c(p.pull < Math.min(...CHARACTERS.map((ch) => ch.stats.spd)), `pull must stay below every cat's move speed (${Math.min(...CHARACTERS.map((ch) => ch.stats.spd))})`);
       c(p.touchDamage === undefined || nonNegative(p.touchDamage), 'touchDamage must be >= 0');
     },
     summon: (p, c) => {
@@ -867,6 +869,13 @@ check(
       check(!stalled, at, 'the brain stalled with every pattern on cooldown');
       check(!consecutiveWipes, at, 'the same fieldWide was picked twice in a row');
     });
+
+    // The two big fights show three distinct phases, the last one an enrage
+    if (bossId === 'hugGuardian' || bossId === 'vacuumKing') {
+      check(phases.length === 3, where, `needs exactly 3 phases (got ${phases.length})`);
+      check(!!phases[phases.length - 1].enrage, where, 'the last phase must be the enrage phase');
+      check(phases.slice(0, -1).every((phase) => !phase.enrage), where, 'only the last phase enrages');
+    }
 
     if (boss.balance !== undefined) {
       check(Number.isInteger(boss.balance.intendedLevel) && boss.balance.intendedLevel >= 1, where, 'balance.intendedLevel must be an integer >= 1');

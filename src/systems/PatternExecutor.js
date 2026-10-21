@@ -18,6 +18,10 @@ import { DEPTH } from '../utils/constants.js';
 import { FAIRNESS, TELEGRAPH_STYLE } from '../data/bossPatterns.js';
 
 const { Rectangle } = Phaser.Geom;
+
+// A floating boss drops to the floor lane in the second half of the wind-up,
+// so a player standing right under it still has time to step away
+const LOWER_AT = 0.5;
 const overlaps = (a, b) => Phaser.Geom.Intersects.RectangleToRectangle(a, b);
 
 // ===== Telegraph drawing =====
@@ -303,15 +307,15 @@ class ProjectileRun extends PatternRun {
         angle: fromLeft ? 0 : Math.PI,
       }];
     } else {
-      // Aim is locked at the start of the wind-up: move off the line to dodge
-      const ox = boss.sprite.x;
-      const oy = boss.sprite.y + 20;
-      const base = Phaser.Math.Angle.Between(ox, oy, player.sprite.x, player.sprite.y);
+      // The angles are locked at the start of the wind-up (move off the line
+      // to dodge); the lines start wherever the boss drifts to
+      const origin = this.origin();
+      const base = Phaser.Math.Angle.Between(origin.x, origin.y, player.sprite.x, player.sprite.y);
       const step = Phaser.Math.DegToRad(spreadDeg);
       this.lane = null;
       this.shots = [];
       for (let i = 0; i < count; i += 1) {
-        this.shots.push({ x: ox, y: oy, angle: base + (i - (count - 1) / 2) * step });
+        this.shots.push({ x: origin.x, y: origin.y, angle: base + (i - (count - 1) / 2) * step });
       }
     }
 
@@ -324,6 +328,11 @@ class ProjectileRun extends PatternRun {
     });
   }
 
+  // Where shots leave the boss
+  origin() {
+    return { x: this.boss.sprite.x, y: this.boss.sprite.y + 20 };
+  }
+
   onTelegraph(progress) {
     const g = this.g;
     g.clear();
@@ -331,6 +340,10 @@ class ProjectileRun extends PatternRun {
       drawRect(g, this.lane, progress);
       return;
     }
+    // The boss may drift during the wind-up: the lines (and the shots that
+    // follow them) start from where it is now
+    const origin = this.origin();
+    this.shots.forEach((shot) => { shot.x = origin.x; shot.y = origin.y; });
     g.lineStyle(3, TELEGRAPH_STYLE.color, 0.2 + 0.6 * progress);
     this.shots.forEach((shot) => {
       g.lineBetween(shot.x, shot.y, shot.x + Math.cos(shot.angle) * 520, shot.y + Math.sin(shot.angle) * 520);
@@ -388,7 +401,7 @@ class DashSweepRun extends PatternRun {
       Math.abs(this.endX - boss.sprite.x),
       height
     );
-    if (boss.floating) boss.hoverOverrideY = surface - height / 2;
+    this.laneY = surface - height / 2;
     this.g = this.graphics();
 
     boss.setTintLayer(this.tintKey, 0xFF9C9C);
@@ -401,7 +414,9 @@ class DashSweepRun extends PatternRun {
   }
 
   onTelegraph(progress) {
-    this.boss.sprite.setVelocityX(0);
+    const boss = this.boss;
+    boss.sprite.setVelocityX(0);
+    if (boss.floating && progress >= LOWER_AT) boss.hoverOverrideY = this.laneY;
     this.g.clear();
     drawRect(this.g, this.lane, progress);
   }
@@ -509,19 +524,24 @@ class FieldWideRun extends PatternRun {
 class PullRun extends PatternRun {
   onTelegraphStart() {
     const boss = this.boss;
-    const { lowerBody } = this.params;
+    const { lowerBody, hold } = this.params;
+    // `hold`: the boss stops drifting while it inhales, so the distance the
+    // player keeps by walking against the pull is the distance that counts
+    this.controlsMovement = !!hold;
     this.streakAt = 0;
     this.g = this.graphics();
     if (this.params.banner) this.banner();
 
     // The heavy version drops to floor level: standing under it is the danger
-    if (lowerBody && boss.floating) boss.hoverOverrideY = boss.groundSurface() - boss.cfg.height / 2;
+    this.laneY = lowerBody && boss.floating ? boss.groundSurface() - boss.cfg.height / 2 : null;
     boss.setTintLayer(this.tintKey, 0x9BD9FF);
   }
 
   onTelegraph(progress) {
     // Rings closing in on the nozzle: it is about to inhale
     const boss = this.boss;
+    if (this.laneY !== null && progress >= LOWER_AT) boss.hoverOverrideY = this.laneY;
+    if (this.controlsMovement) boss.sprite.setVelocityX(0);
     this.g.clear();
     this.g.lineStyle(3, 0x9BD9FF, 0.3 + 0.5 * progress);
     this.g.strokeCircle(boss.sprite.x, boss.sprite.y, 260 - 190 * progress);
@@ -538,6 +558,7 @@ class PullRun extends PatternRun {
     const boss = this.boss;
     const { durationMs, pull } = this.params;
     const player = this.player;
+    if (this.controlsMovement) boss.sprite.setVelocityX(0);
 
     // Runs after Player.update, so this offsets the input velocity: running
     // away crawls, standing still gets dragged

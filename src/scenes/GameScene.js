@@ -2501,7 +2501,7 @@ export default class GameScene extends Phaser.Scene {
     if (!this.boss) return false;
 
     // Ground bosses collide with platforms (the Vacuum King floats)
-    if (bossData.id !== 'vacuumKing') {
+    if (!this.boss.floating) {
       this.platforms.forEach((platform) => {
         this.physics.add.collider(this.boss.sprite, platform);
       });

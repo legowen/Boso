@@ -102,8 +102,11 @@ export default class PatternBoss {
 
   applyFacing() {}
 
-  // Walking / hovering while no pattern holds the boss in place
+  // Walking / drifting while no pattern holds the boss in place
   patrol() {}
+
+  // Vertical steering for floating bosses; runs every frame, even mid-pattern
+  updateHover() {}
 
   update(time, delta) {
     if (this.defeated || !this.sprite.active) return;
@@ -121,6 +124,7 @@ export default class PatternBoss {
     if (player.hp <= 0) {
       this.cancelRuns();
       this.sprite.setVelocityX(0);
+      this.updateHover();
       return;
     }
 
@@ -208,6 +212,7 @@ export default class PatternBoss {
   }
 
   updateMovement() {
+    this.updateHover();
     if (this.runs.some((run) => run.controlsMovement)) return;
     if (this.runs.length > 0 && !this.movesWhileAttacking) {
       this.sprite.setVelocityX(0);
