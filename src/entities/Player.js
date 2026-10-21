@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import { PLAYER, DEPTH, DAMAGE_TEXT, ROPE } from '../utils/constants.js';
 import SaveManager from '../systems/SaveManager.js';
+import StatusTracker from '../systems/StatusEffects.js';
 import { pixelFont } from '../i18n/fonts.js';
 import { t } from '../i18n/index.js';
 import { ITEMS } from '../data/items.js';
@@ -59,6 +60,11 @@ export default class Player {
     this.currentRope = null;
     this.isKnockedBack = false;
 
+    // Slow / stun from boss patterns (timed on scene.time, which stops while paused)
+    this.status = new StatusTracker();
+    this.statusFx = null; // icon graphics, created on the first status
+    this.statusTinted = false;
+
     // Attack hitbox
     this.attackHitbox = null;
     this.attackEffect = null;
@@ -86,6 +92,80 @@ export default class Player {
     return new Phaser.Geom.Rectangle(body.x, body.y, body.width, body.height);
   }
 
+  // Slow (x0.6 move speed) and stun (no input) from boss hits. Returns false
+  // when ignored: dead, unknown status, or stun immunity.
+  applyStatus(type, ms) {
+    if (this.hp <= 0) return false;
+    if (!this.status.apply(type, ms, this.scene.time.now)) return false;
+    if (type === 'stun') {
+      this.clearAttack();
+      this.setCrouching(false);
+      if (this.isClimbing) this.releaseRope();
+    }
+    this.showFloatingText(t(`status.${type}`), type === 'stun' ? '#F7DC6F' : '#7FB3D5');
+    return true;
+  }
+
+  isStunned() {
+    return this.status.isStunned(this.scene.time.now);
+  }
+
+  isSlowed() {
+    return this.status.isSlowed(this.scene.time.now);
+  }
+
+  // Icons above the head (orbiting stars = stun, chevrons = slow) + a blue tint
+  updateStatusFx() {
+    const now = this.scene.time.now;
+    const stunned = this.status.isStunned(now);
+    const slowed = this.status.isSlowed(now);
+
+    if (!stunned && !slowed) {
+      if (this.statusFx) this.statusFx.clear();
+      if (this.statusTinted) {
+        this.sprite.clearTint();
+        this.statusTinted = false;
+      }
+      return;
+    }
+
+    if (!this.statusFx) this.statusFx = this.scene.add.graphics().setDepth(DEPTH.PLAYER + 1);
+    const g = this.statusFx;
+    g.clear();
+    const x = this.sprite.x;
+    const y = this.sprite.y - 52;
+
+    if (stunned) {
+      for (let i = 0; i < 3; i += 1) {
+        const a = now / 220 + (i * Math.PI * 2) / 3;
+        const sx = x + Math.cos(a) * 18;
+        const sy = y + Math.sin(a) * 5;
+        g.fillStyle(0xF7DC6F, 1);
+        g.fillTriangle(sx, sy - 5, sx - 4, sy + 3, sx + 4, sy + 3);
+        g.fillTriangle(sx, sy + 5, sx - 4, sy - 3, sx + 4, sy - 3);
+      }
+    }
+    if (slowed) {
+      const oy = stunned ? y - 14 : y;
+      g.fillStyle(0x5DADE2, 1);
+      g.fillTriangle(x - 12, oy - 6, x - 4, oy - 6, x - 8, oy + 2);
+      g.fillTriangle(x + 4, oy - 6, x + 12, oy - 6, x + 8, oy + 2);
+      if (!this.statusTinted) {
+        this.sprite.setTint(0x9CC9F0);
+        this.statusTinted = true;
+      }
+    } else if (this.statusTinted) {
+      this.sprite.clearTint();
+      this.statusTinted = false;
+    }
+  }
+
+  clearStatus() {
+    this.status.clear();
+    if (this.statusFx) this.statusFx.clear();
+    this.statusTinted = false;
+  }
+
   canHit(target) {
     return !!this.attackHitbox && this.hp > 0 && !this.hitTargets.has(target);
   }
@@ -107,7 +187,7 @@ export default class Player {
     if (!this.scene.anims.exists(`${this.charId}_idle`)) return;
     const grounded = this.sprite.body.blocked.down || this.sprite.body.touching.down;
     let state = 'idle';
-    if (this.isKnockedBack || this.hp <= 0) state = 'hurt';
+    if (this.isKnockedBack || this.hp <= 0 || this.isStunned()) state = 'hurt';
     else if (this.isAttacking) state = `attack${this.comboStep + 1}`;
     else if (this.isClimbing) state = 'climb';
     else if (!grounded) state = this.sprite.body.velocity.y < 0 ? 'jump' : 'fall';
@@ -123,6 +203,7 @@ export default class Player {
     // Dead: no input or attacks during the death delay
     if (this.hp <= 0) return;
 
+    this.updateStatusFx();
     this.handleMovement(cursors, keys);
     this.handleAttack(keys);
     this.updateAttackEffect();
@@ -140,6 +221,13 @@ export default class Player {
     // === Knockback state ===
     if (this.isKnockedBack) return;
 
+    // === Stunned: no input at all (gravity and landing still apply) ===
+    if (this.isStunned()) {
+      const grounded = this.sprite.body.blocked.down || this.sprite.body.touching.down;
+      if (grounded) this.sprite.setVelocityX(0);
+      return;
+    }
+
     // === Climbing state ===
     if (this.isClimbing) {
       this.handleClimbing(cursors, keys);
@@ -150,7 +238,7 @@ export default class Player {
 
     const crouching = cursors.down.isDown && onGround && !this.isDroppingThrough;
     if (crouching !== this.isCrouching) this.setCrouching(crouching);
-    const speed = this.isAttacking ? this.moveSpeed * 0.4 : this.moveSpeed;
+    const speed = (this.isAttacking ? this.moveSpeed * 0.4 : this.moveSpeed) * this.status.speedMult(this.scene.time.now);
     // Crouching is stationary; DOWN + ALT and ropes remain available.
     if (crouching) this.sprite.setVelocityX(0);
     // Left/right movement
@@ -329,13 +417,13 @@ export default class Player {
   }
 
   handleAttack(keys) {
-    if (keys.ctrl.isDown && this.canAttack && !this.isAttacking && !this.isClimbing && !this.isKnockedBack) {
+    if (keys.ctrl.isDown && this.canAttack && !this.isAttacking && !this.isClimbing && !this.isKnockedBack && !this.isStunned()) {
       this.performAttack();
     }
   }
 
   performAttack() {
-    if (this.hp <= 0 || this.isClimbing || this.isKnockedBack || !this.canAttack) return;
+    if (this.hp <= 0 || this.isClimbing || this.isKnockedBack || this.isStunned() || !this.canAttack) return;
     const now = this.scene.time.now;
     this.comboStep = now - this.lastAttackAt < COMBO_RESET_MS ? (this.comboStep + 1) % 3 : 0;
     this.lastAttackAt = now;
@@ -418,7 +506,7 @@ export default class Player {
   // Use a consumable by key; returns true if consumed
   useItem(key) {
     const def = ITEMS[key];
-    if (!def || !(this.items[key] > 0) || this.hp <= 0) return false;
+    if (!def || !(this.items[key] > 0) || this.hp <= 0 || this.isStunned()) return false;
 
     if (def.heal) {
       if (this.hp >= this.maxHp) return false; // don't waste it
@@ -499,6 +587,7 @@ export default class Player {
 
   die() {
     this.clearAttack();
+    this.clearStatus();
     this.updateAnimation();
     this.sprite.setTint(0x555555);
     this.sprite.setVelocity(0, 0);

@@ -222,7 +222,7 @@ export default class GameScene extends Phaser.Scene {
       this.player.charId === 'seoli' &&
       this.keys.x.isDown &&
       this.player.hp > 0 &&
-      !this.player.isClimbing && !this.player.isKnockedBack
+      !this.player.isClimbing && !this.player.isKnockedBack && !this.player.isStunned()
     ) {
       const now = Date.now();
       if (now > this.barkReadyAt && this.player.mp >= BARK.mpCost) {

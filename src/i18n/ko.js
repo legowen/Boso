@@ -151,6 +151,9 @@ export default {
   'float.mana': '+{amount} MP',
   'float.levelUp': '레벨 업!',
   'float.exp': '+{amount} EXP',
+  'float.guard': '방어!',
+  'status.stun': '기절!',
+  'status.slow': '느려짐!',
 
   // --- Cage rides and boss callouts ---
   'travel.countdown': '{route}  -  도착까지 {sec}초',
@@ -159,6 +162,17 @@ export default {
   'travel.rumbleWarning': '아래에서 뭔가 우르릉거려...',
   'boss.hugGuardian.hugWarning': '포옹이 몰려온다!',
   'boss.drEmbrace.hugWarning': '검진 포옹이 몰려온다!',
+  'boss.hugGuardian.pawSwipe': '발바닥 휘두르기!',
+  'boss.hugGuardian.hugGrab': '꽉 안아주기!',
+  'boss.hugGuardian.callFriends': '친구 부르기!',
+  'boss.hugGuardian.groupHug': '단체 포옹!',
+  'boss.hugGuardian.cuddleShield': '포근한 방패!',
+  'boss.hugGuardian.phase2': '더 많은 포옹! 수호자가 더 세게 안아요!',
+  'boss.hugGuardian.phase3': '사랑이 너무 넘쳐! 수호자가 폭주한다!',
+  'boss.drEmbrace.armReach': '검진 손길!',
+  'boss.drEmbrace.checkupSlam': '검진 내리치기!',
+  'boss.drEmbrace.checkupHug': '검진 포옹이 몰려온다!',
+  'boss.drEmbrace.phase2': '큰 포옹을 할 시간이야!',
   'boss.biggie.woof': '멍!',
   'boss.biggie.zoomies': '우다다!',
 

@@ -144,6 +144,9 @@ export default {
   'float.mana': '+{amount} MP',
   'float.levelUp': 'LEVEL UP!',
   'float.exp': '+{amount} EXP',
+  'float.guard': 'GUARD!',
+  'status.stun': 'STUN!',
+  'status.slow': 'SLOW!',
 
   // --- Cage rides and boss callouts ---
   'travel.countdown': '{route}  -  arriving in {sec}s',
@@ -152,6 +155,17 @@ export default {
   'travel.rumbleWarning': 'SOMETHING RUMBLES BELOW...',
   'boss.hugGuardian.hugWarning': 'HUG INCOMING!',
   'boss.drEmbrace.hugWarning': 'CHECK-UP HUG INCOMING!',
+  'boss.hugGuardian.pawSwipe': 'PAW SWIPE!',
+  'boss.hugGuardian.hugGrab': 'HUG GRAB!',
+  'boss.hugGuardian.callFriends': 'CALL FRIENDS!',
+  'boss.hugGuardian.groupHug': 'GROUP HUG!',
+  'boss.hugGuardian.cuddleShield': 'CUDDLE SHIELD!',
+  'boss.hugGuardian.phase2': 'MORE HUGS! THE GUARDIAN HUGS HARDER!',
+  'boss.hugGuardian.phase3': 'TOO MUCH LOVE! THE GUARDIAN IS ENRAGED!',
+  'boss.drEmbrace.armReach': 'CHECK-UP REACH!',
+  'boss.drEmbrace.checkupSlam': 'CHECK-UP SLAM!',
+  'boss.drEmbrace.checkupHug': 'CHECK-UP HUG INCOMING!',
+  'boss.drEmbrace.phase2': 'TIME FOR A BIG HUG!',
   'boss.biggie.woof': 'WOOF!',
   'boss.biggie.zoomies': 'ZOOMIES!',
 
