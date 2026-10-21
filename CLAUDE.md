@@ -270,9 +270,11 @@ Optional `alpha` renders a type translucent (lonesome, dustmote).
   All text uses Galmuri (Hangul + Latin): `pixelFont(px)` snaps to a size on the
   font's own grid (9/11/14 px × integer) so pixels stay crisp; never set
   `fontFamily`/`fontSize`/bold by hand. `loadFonts()` runs before `new Phaser.Game`.
-  Character names (Seoli, Bomi, Owen, Biggie, Dr. Embrace, NPC given names) stay
-  romanized in Korean until their Hangul spelling is decided; Korean text that
-  follows `{player}` may only use particles that fit vowel-final names.
+  Seoli, Bomi and Owen have Korean names in `ko.js` (`character.*.name`,
+  `npc.owen.name`); Biggie, Dr. Embrace and the NPC given names stay romanized
+  until their spelling is decided (the cast may change). Korean text that
+  follows `{player}` / the character names may only use particles that fit
+  vowel-final names (all three Korean names are).
 - **SaveManager (save slots)**: up to 3 slots, one JSON object each in
   localStorage `boso.save.slot1` … `boso.save.slot3` (schema v1):
   `{ version: 1, slot, createdAt, updatedAt, playTimeSec, mapId, spawnId, hp,

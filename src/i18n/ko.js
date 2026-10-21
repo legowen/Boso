@@ -3,10 +3,11 @@
 // Same key set as en.js (npm run validate enforces it).
 //
 // Notes for translators:
-// - {player} is always Seoli or Bomi (vowel-final), so "{player}야" /
-//   "{player}는" / "{player}가" are safe. Re-check the particles if the
-//   character names become Hangul spellings that end in a consonant.
-// - Character names stay romanized until the Korean spelling is decided.
+// - {player} is always 설이 (Seoli) or 보미 (Bomi), both vowel-final, so
+//   "{player}야" / "{player}는" / "{player}가" are safe. Owen is 영이, also
+//   vowel-final. Re-check the particles if a name ever ends in a consonant.
+// - Biggie, Dr. Embrace and the NPC given names stay romanized for now: their
+//   Korean spelling is undecided and the cast may change.
 
 export default {
   // --- App, language and shared words ---
@@ -29,7 +30,7 @@ export default {
   'title.hintNav': '위 / 아래로 고르고 ENTER로 선택',
   'title.hintStart': 'ENTER 또는 SPACE를 누르세요',
   'title.demoCleared': '* 데모 클리어 *',
-  'title.footer': 'Seoli & Bomi - 픽셀 어드벤처',
+  'title.footer': '설이 & 보미 - 픽셀 어드벤처',
   'title.storageBlocked': '이 브라우저에서는 진행 상황을 저장할 수 없어요',
 
   // --- Save slots ---
@@ -55,11 +56,11 @@ export default {
   'select.hintTouch': '고양이를 고르고 아래 버튼을 눌러요. 가로 화면을 추천해요.',
   'select.hintKeys': '방향키 선택  /  ENTER 시작  /  CTRL 공격  /  ALT 점프',
   'select.stats': 'HP {hp}   공격 {atk}\n속도 {spd}   Lv.{level}',
-  'character.seoli.name': 'Seoli',
+  'character.seoli.name': '설이',
   'character.seoli.class': '바람수염',
   'character.seoli.desc': '재빠른 발, 에메랄드빛 눈.\n날쌘 바람 발톱과 멀리 닿는 돌풍.',
   'character.seoli.tag': '속도 / 바람 발톱',
-  'character.bomi.name': 'Bomi',
+  'character.bomi.name': '보미',
   'character.bomi.class': '힘센 발바닥',
   'character.bomi.desc': '검은 털옷 속에 용감한 마음.\n튼튼한 체력과 강력한 근접 발바닥.',
   'character.bomi.tag': '힘 / 근접 전투',
@@ -71,7 +72,7 @@ export default {
   'story.intro1': '깨끗한 수건 냄새가 나는 포근한 침대에서\n작은 아이가 눈을 떠요.',
   'story.intro2': '발바닥 보호소 진료소 — 길 잃은 작은 발들이\n누군가 찾으러 올 때까지 쉬어 가는 곳.',
   'story.intro3': '"좋은 아침이야, {player}야.\n오늘 누군가 너를 찾아왔단다."',
-  'story.intro4': '그의 이름은 Owen. 하지만 Owen은 긴 여행을 떠나야 해서,\n한동안은 친구네 집이 보금자리가 될 거예요...',
+  'story.intro4': '그의 이름은 영이. 하지만 영이는 긴 여행을 떠나야 해서,\n한동안은 친구네 집이 보금자리가 될 거예요...',
   'story.intro5': '커다란 집. 모든 것 위로 높이 솟은 식탁.\n그리고 아주아주 커다란 강아지 한 마리.',
   'story.intro6': '그리고 언젠가는 너만의 집으로 —\n잠들지 않는 다락방이 있는 그곳으로.',
   'story.intro7': '작은 발, 커다란 세상.\n가서 인사해 보자!',
@@ -294,7 +295,7 @@ export default {
   'portal.yard.livingroom': '→ 거실',
 
   // --- NPCs ---
-  'npc.owen.name': 'Owen',
+  'npc.owen.name': '영이',
   'npc.granny_tabby.name': '할머니 Tabby',
   'npc.nurse_mimsy.name': '간호사 Mimsy',
   'npc.keeper_tobi.name': '관리인 Tobi',
@@ -335,7 +336,7 @@ export default {
   'npc.nurse_mimsy.line2': '여기는 발바닥 보호소 진료소예요. 이곳은 안전하니까 걱정 마요.',
   'npc.nurse_mimsy.line3': '발을 쭉 펴 봐요. 방향키로 걷고, ALT로 폴짝 뛰는 거예요.',
   'npc.nurse_mimsy.line4': '가운데 밧줄을 탈 수 있게 되면, 복도로 나갈 준비가 된 거예요.',
-  'npc.owen.shelter.line1': '여기 있었구나, {player}야! 나는 Owen이야. 오늘 네 입양 서류에 서명했단다.',
+  'npc.owen.shelter.line1': '여기 있었구나, {player}야! 나는 영이야. 오늘 네 입양 서류에 서명했단다.',
   'npc.owen.shelter.line2': '난 바로 긴 출장을 떠나야 해... 타이밍이 정말 나쁘지, 미안해.',
   'npc.owen.shelter.line3': '그래서 한동안은 내 단짝 친구네 집에서 지내게 될 거야. 넓은 집, 커다란 식탁, 그리고 아주아주 커다란 강아지 한 마리.',
   'npc.owen.shelter.line4': '이동장은 포근하니까 걱정 마, 약속할게. 새로운 세상으로 갈 준비 됐니?',
@@ -352,7 +353,7 @@ export default {
 
   // --- Guide signs ---
   'guide.backyard_gate.1': 'Biggie는 네가 따라올 수 있는지\n궁금할 뿐이야. 보여 줘!',
-  'guide.high_table.1': '이동장 정거장 —\nOwen에게 말을 걸어(SPACE) 출발해요',
+  'guide.high_table.1': '이동장 정거장 —\n영이에게 말을 걸어(SPACE) 출발해요',
   'guide.shelter_hall.1': 'CTRL 공격',
   'guide.shelter_hall.2': '1 키로 쿠키 먹기 (HP 회복)\nI 키로 가방 열기',
   'guide.shelter_hall.3': '마당이 바로 앞이에요 —\n선생님이 할 말이 있대요...',
@@ -361,7 +362,7 @@ export default {
   'guide.shelter_ward.3': '발판 아래에선 점프로 통과해요!\n↓ + ALT 로 다시 내려가요',
   'guide.shelter_ward.4': '포털 위에 서서\n↑ 를 누르면 들어가요',
   'guide.shelter_yard.1': 'Dr. Embrace는 작별 포옹을 좋아해요.\n초록 원이 유일한 안전지대예요!',
-  'guide.shelter_yard.2': 'Owen에게 말을 걸어(SPACE)\n이동장에 타요',
+  'guide.shelter_yard.2': '영이에게 말을 걸어(SPACE)\n이동장에 타요',
 
   // --- Monsters, bosses, items, routes ---
   'monster.bangul.name': '방울',
