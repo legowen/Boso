@@ -9,12 +9,14 @@
     "preview": "vite preview",
     "validate": "node scripts/validate.mjs",
     "test": "node --experimental-vm-modules --test tests/*.test.mjs",
-    "art:build": "node scripts/prepare-art.cjs"
+    "art:build": "node scripts/prepare-art.cjs",
+    "test:browser": "node --test --test-concurrency=1 tests/browser/*.browser-test.mjs"
   },
   "dependencies": {
     "phaser": "^3.80.1"
   },
   "devDependencies": {
+    "playwright-core": "1.56.1",
     "sharp": "^0.35.5",
     "vite": "^5.0.0"
   }

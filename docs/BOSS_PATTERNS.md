@@ -68,17 +68,32 @@ bossPatterns.js (데이터) → BossBrain.js (순수 로직) → PatternExecutor
 - **가동률(0.35 / 0.30)과 의도 레벨은 가정이다.** 실제 플레이로 확인해서 어긋나면 `balance` 값이나
   `hp`를 조정하자. 숙련자는 50% 이상 때릴 수 있어서 더 빨리 끝난다.
 
-## 회피 가능성 검증 (브라우저, 저장소에는 미포함)
+## 회피 가능성 검증 (브라우저 테스트)
 
-반응 속도 250ms를 가정한 봇이 두 고양이의 실제 물리로 각 공격을 피하는지 돌렸다.
-같은 공격을 가만히 서서 맞는 대조군은 반드시 피해를 입는다.
+`npm run test:browser` (처음 한 번 `npx playwright-core install chromium`)가 개발 서버를 띄우고
+헤드리스 Chromium에서 진짜 보스와 싸운다. 렌더 루프를 멈추고 프레임을 직접 넘기며 `Date.now()`도
+그 시계를 따르게 해서 결과가 매번 같고, 전체가 17초쯤 걸린다. `npm test`에는 포함되지 않는다.
 
-- 피한 것: Paw Swipe(물러나기 / 점프), Hug Grab, Group Hug(점프 / 안전지대), Arm Reach(점프),
-  Check-up Slam, Check-up Hug, Dust Balls(3방향 × 3위치), Floor Sweep(거리 150/400/800, 격분 포함),
-  Bag Burst, Full Power Suction(보스 바로 아래·좌우·구석 포함)
-- 이 검증에서 고친 것: Arm Reach가 너무 느려 점프로 못 넘던 문제(속도 150→240), Full Power Suction이
-  Bomi보다 강해서 반대로 걸어도 끌려가던 문제(215→180), 보스가 내려앉는 시점을 예고 후반으로 미룸,
-  조준선이 보스를 따라가도록 수정
+- **회피 봇** (`tests/browser/scenarios.mjs`): 예고가 뜬 뒤 250ms 지나서야 반응하는 봇이 설이와 보미의
+  실제 물리로 각 공격을 피해야 한다(피해 0). 같은 공격을 가만히 서서 맞는 **대조군**은 반드시 피해를
+  입어야 한다. 대조군이 없으면 "피해 0"이 아무것도 증명하지 못하기 때문이다.
+  - Hug Guardian: Paw Swipe(물러나기 / 점프), Hug Grab, Group Hug(점프 / 안전지대)
+  - Dr. Embrace: Arm Reach(양쪽에서 점프), Check-up Slam, Check-up Hug(점프 / 안전지대)
+  - Vacuum King: Dust Balls(3위치), Floor Sweep(거리 150/400/800, 격분 포함), Bag Burst,
+    Full Power Suction(보스 바로 아래·좌우·구석)
+- **전투 흐름** (`boss-lifecycle`): 경계값(정확히 60% / 30%)과 포효 중 피격 흡수, 패턴 취소 후 재개,
+  Cuddle Shield, 둔화·기절과 면역, 소환수 상한 4와 무보상·무리스폰, 모든 패턴이 끝난 뒤 효과·투사체·틴트·
+  스케일·호버 레인을 남기지 않는지, 세 보스의 자동 전투(상한·동시 실행 규칙·페이즈별 겹침), 플레이어 사망 /
+  보스 처치 / 맵 이탈 / 청소기 대왕 엔딩.
+- **DPS 모델** (`boss-balance`): `bossBalance.comboDps`가 실제 게임의 콤보 DPS와 5% 안으로 맞는다.
+- 새 패턴을 만들면 `scenarios.mjs`에 시나리오(와 대조군)를 하나 추가하자. 시나리오 함수는 페이지 안으로
+  직렬화되므로 인자와 `window.BOT` 밖의 것을 쓰면 안 된다.
+
+이 검증으로 실제로 고친 것: Arm Reach가 너무 느려 점프로 못 넘던 문제(속도 150→240), Full Power Suction이
+Bomi보다 강하고 보스가 따라 움직여 반대로 걸어도 닿던 문제(215→180 + 흡입 중 제자리), 보스가 내려앉는
+시점을 예고 후반으로 미룸, 조준선이 보스를 따라가도록 수정. 되살리면 테스트가 실패하는 것도 확인했다
+(Arm Reach 속도, 흡입 중 제자리, 내려앉는 시점, 넓은 Paw Swipe, 소환수 정리, 경계 비교, 가드 해제,
+소환 상한 등을 일부러 망가뜨려 봄).
 
 ## 스프라이트 (새 그림 없이 만든 연출과 필요한 프레임)
 
