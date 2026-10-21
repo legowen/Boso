@@ -222,7 +222,7 @@ export default class GameScene extends Phaser.Scene {
       this.player.charId === 'seoli' &&
       this.keys.x.isDown &&
       this.player.hp > 0 &&
-      !this.player.isClimbing && !this.player.isKnockedBack
+      !this.player.isClimbing && !this.player.isKnockedBack && !this.player.isStunned()
     ) {
       const now = Date.now();
       if (now > this.barkReadyAt && this.player.mp >= BARK.mpCost) {
@@ -1975,76 +1975,126 @@ export default class GameScene extends Phaser.Scene {
     this.monsters = [];
 
     const now = Date.now();
-
-    this.mapData.monsters.forEach((monsterData) => {
-      const type = monsterData.type || 'bangul';
-      const cfg = MONSTER_TYPES[type] || MONSTER_TYPES.bangul;
-      const flying = FLYING_MOVEMENTS.has(cfg.movement);
-
-      const sprite = this.physics.add.sprite(monsterData.x, monsterData.y, `monster_${type}`);
-      sprite.setDepth(DEPTH.MONSTERS);
-      const art = applyEntityArt(sprite, cfg, cfg.width - 6, cfg.height - 2, flying || cfg.movement === 'roller');
-      sprite.setBounce(0);
-      sprite.setCollideWorldBounds(true);
-      // Translucent types (ghosts, dust) carry a per-type base alpha
-      if (cfg.alpha) sprite.setAlpha(cfg.alpha);
-
-      if (flying) {
-        // Flyers ignore gravity and pass through platforms
-        sprite.body.setAllowGravity(false);
-      } else {
-        // Ground walkers collide with platforms
-        this.platforms.forEach((platform) => {
-          this.physics.add.collider(sprite, platform);
-        });
-      }
-
-      const monsterObj = {
-        sprite: sprite,
-        type: type,
-        cfg: cfg,
-        art,
-        hp: cfg.hp,
-        maxHp: cfg.hp,
-        startX: monsterData.x,
-        startY: monsterData.y,
-        monsterHeight: cfg.height,
-        direction: Math.random() < 0.5 ? -1 : 1,
-        isHit: false,
-        // Per-movement AI state
-        moveState: 'walk',
-        stateUntil: now + Phaser.Math.Between(500, 2000),
-        nextJumpAt: now + Phaser.Math.Between(cfg.jumpCooldownMin || 800, cfg.jumpCooldownMax || 2000),
-        wanderTarget: null,
-        pausedUntil: 0,
-        dashingUntil: 0,
-        dashReadyAt: now + (cfg.dashCooldownMs || 0),
-        retargetAt: 0,
-        baseY: monsterData.y,
-        onGroundLast: false,
-        knockedUntil: 0,
-        isDying: false,
-        // Charger (robo) state
-        chargeState: 'patrol',
-        windupUntil: 0,
-        chargeUntil: 0,
-        chargeReadyAt: now + (cfg.cooldownMs || 0),
-        chargeDir: 1,
-        // Multi-hop / roller / lamp-orbit state
-        hopsLeft: 0,
-        rollSpeed: null,
-        orbitAngle: null,
-      };
-
-      this.monsters.push(monsterObj);
-
-      // HP bar (above monster)
-      monsterObj.hpBarBg = this.add.graphics().setDepth(DEPTH.UI - 5);
-      monsterObj.hpBar = this.add.graphics().setDepth(DEPTH.UI - 4);
-    });
+    this.mapData.monsters.forEach((monsterData) => this.createMonster(monsterData, now));
 
     // Restore saved map state (monster HP, dead/alive status)
     this.loadMapState();
+  }
+
+  // Builds one monster (sprite, colliders, AI state, HP bar) and registers it.
+  createMonster(monsterData, now) {
+    const type = monsterData.type || 'bangul';
+    const cfg = MONSTER_TYPES[type] || MONSTER_TYPES.bangul;
+    const flying = FLYING_MOVEMENTS.has(cfg.movement);
+
+    const sprite = this.physics.add.sprite(monsterData.x, monsterData.y, `monster_${type}`);
+    sprite.setDepth(DEPTH.MONSTERS);
+    const art = applyEntityArt(sprite, cfg, cfg.width - 6, cfg.height - 2, flying || cfg.movement === 'roller');
+    sprite.setBounce(0);
+    sprite.setCollideWorldBounds(true);
+    // Translucent types (ghosts, dust) carry a per-type base alpha
+    if (cfg.alpha) sprite.setAlpha(cfg.alpha);
+
+    const colliders = [];
+    if (flying) {
+      // Flyers ignore gravity and pass through platforms
+      sprite.body.setAllowGravity(false);
+    } else {
+      // Ground walkers collide with platforms
+      this.platforms.forEach((platform) => {
+        colliders.push(this.physics.add.collider(sprite, platform));
+      });
+    }
+
+    const monsterObj = {
+      sprite: sprite,
+      colliders,
+      type: type,
+      cfg: cfg,
+      art,
+      hp: cfg.hp,
+      maxHp: cfg.hp,
+      startX: monsterData.x,
+      startY: monsterData.y,
+      monsterHeight: cfg.height,
+      direction: Math.random() < 0.5 ? -1 : 1,
+      isHit: false,
+      // Per-movement AI state
+      moveState: 'walk',
+      stateUntil: now + Phaser.Math.Between(500, 2000),
+      nextJumpAt: now + Phaser.Math.Between(cfg.jumpCooldownMin || 800, cfg.jumpCooldownMax || 2000),
+      wanderTarget: null,
+      pausedUntil: 0,
+      dashingUntil: 0,
+      dashReadyAt: now + (cfg.dashCooldownMs || 0),
+      retargetAt: 0,
+      baseY: monsterData.y,
+      onGroundLast: false,
+      knockedUntil: 0,
+      isDying: false,
+      // Charger (robo) state
+      chargeState: 'patrol',
+      windupUntil: 0,
+      chargeUntil: 0,
+      chargeReadyAt: now + (cfg.cooldownMs || 0),
+      chargeDir: 1,
+      // Multi-hop / roller / lamp-orbit state
+      hopsLeft: 0,
+      rollSpeed: null,
+      orbitAngle: null,
+    };
+
+    this.monsters.push(monsterObj);
+
+    // HP bar (above monster)
+    monsterObj.hpBarBg = this.add.graphics().setDepth(DEPTH.UI - 5);
+    monsterObj.hpBar = this.add.graphics().setDepth(DEPTH.UI - 4);
+    return monsterObj;
+  }
+
+  // Boss summons: ordinary monsters of an existing type. They never respawn,
+  // are not part of the saved map state, and pay no EXP, drops or quest
+  // progress (so a boss cannot be farmed through its helpers).
+  // spawn: { groundY, airY } - flyers appear at airY, walkers at groundY
+  spawnMinion(type, x, spawn, owner) {
+    const cfg = MONSTER_TYPES[type];
+    if (!cfg) return null;
+    const flying = FLYING_MOVEMENTS.has(cfg.movement);
+    const minion = this.createMonster({ x, y: flying ? spawn.airY : spawn.groundY, type }, Date.now());
+    minion.summoned = true;
+    minion.owner = owner;
+
+    const baseAlpha = cfg.alpha || 1;
+    minion.sprite.setAlpha(0);
+    this.tweens.add({ targets: minion.sprite, alpha: baseAlpha, duration: 300 });
+    return minion;
+  }
+
+  // The boss fell or left: its helpers fade away (no rewards)
+  removeMinions(owner) {
+    this.monsters.filter((m) => m.owner === owner && !m.discard).forEach((m) => {
+      m.isDying = true;
+      m.isDead = true;
+      m.hpBar.clear();
+      m.hpBarBg.clear();
+      this.tweens.add({
+        targets: m.sprite,
+        alpha: 0,
+        duration: 400,
+        onComplete: () => this.discardMinion(m),
+      });
+    });
+  }
+
+  // Frees a summoned monster for good; updateMonsters sweeps it out of the list
+  discardMinion(monsterObj) {
+    if (monsterObj.discard) return;
+    monsterObj.discard = true;
+    monsterObj.hpBar.destroy();
+    monsterObj.hpBarBg.destroy();
+    monsterObj.colliders.forEach((collider) => collider.destroy());
+    this.tweens.killTweensOf(monsterObj.sprite);
+    monsterObj.sprite.destroy();
   }
 
   createNPCTextures() {
@@ -2454,7 +2504,7 @@ export default class GameScene extends Phaser.Scene {
     if (!this.boss) return false;
 
     // Ground bosses collide with platforms (the Vacuum King floats)
-    if (bossData.id !== 'vacuumKing') {
+    if (!this.boss.floating) {
       this.platforms.forEach((platform) => {
         this.physics.add.collider(this.boss.sprite, platform);
       });
@@ -2545,6 +2595,15 @@ export default class GameScene extends Phaser.Scene {
     const fill = this.add.graphics();
     container.add(fill);
 
+    // Ticks where the next phase begins (pattern bosses only), above the fill
+    const ticks = this.add.graphics();
+    ticks.lineStyle(2, 0xFFFFFF, 0.55);
+    (this.boss.phases || []).slice(1).forEach((phase) => {
+      const x = -barWidth / 2 + 2 + (barWidth - 4) * phase.hpBelow;
+      ticks.lineBetween(x, 11, x, 27);
+    });
+    container.add(ticks);
+
     this.bossBar = { container, fill, barWidth };
     this.updateBossHpBar();
   }
@@ -2556,7 +2615,9 @@ export default class GameScene extends Phaser.Scene {
     const ratio = Math.max(0, this.boss.hp / this.boss.maxHp);
     const bw = this.bossBar.barWidth;
     this.bossBar.fill.clear();
-    this.bossBar.fill.fillStyle(0xC0392B, 1);
+    // Brighter once the boss is enraged
+    const enraged = this.boss.phase && this.boss.phase.enrage;
+    this.bossBar.fill.fillStyle(enraged ? 0xFF5A36 : 0xC0392B, 1);
     this.bossBar.fill.fillRoundedRect(-bw / 2 + 2, 14, (bw - 4) * ratio, 10, 3);
   }
 
@@ -2720,6 +2781,12 @@ export default class GameScene extends Phaser.Scene {
 
   updateMonsters(delta) {
     const now = Date.now();
+
+    // Summons freed since the last frame leave the list (they always come
+    // after the map's own monsters, so saved-state indices stay valid)
+    if (this.monsters.some((m) => m.discard)) {
+      this.monsters = this.monsters.filter((m) => !m.discard);
+    }
 
     this.monsters.forEach((monsterObj) => {
       if (!monsterObj.sprite.active || monsterObj.isDying) return;
@@ -3449,6 +3516,19 @@ export default class GameScene extends Phaser.Scene {
     monsterObj.hpBar.clear();
     monsterObj.hpBarBg.clear();
 
+    // A boss's helper just vanishes: no rewards, quest progress or respawn
+    if (monsterObj.summoned) {
+      this.tweens.add({
+        targets: monsterObj.sprite,
+        alpha: 0,
+        scaleX: 0,
+        scaleY: 0,
+        duration: 300,
+        onComplete: () => this.discardMinion(monsterObj),
+      });
+      return;
+    }
+
     // Drops & quest progress
     if (this.player.hp > 0) {
       this.spawnDrops(monsterObj);
@@ -3555,7 +3635,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   saveMapState() {
-    MAP_STATE[this.currentMapKey] = this.monsters.map((m) => ({
+    MAP_STATE[this.currentMapKey] = this.monsters.filter((m) => !m.summoned).map((m) => ({
       isDead: !!m.isDead,
       hp: m.hp,
       deathTime: m.deathTime || null,

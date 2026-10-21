@@ -22,7 +22,7 @@ npm run dev       # Start dev server
 npm run build     # Production build to /dist
 npm run preview   # Preview production build
 npm run validate  # Node data validator (maps/portals/ropes/monsters/travel/bgm)
-npm test          # Combat, animation, save migration and asset regression checks
+npm test          # Combat, animation, boss patterns, save migration and asset regression checks
 npm run art:build # Repack the retained generated sources (requires dev dependencies)
 ```
 
@@ -55,6 +55,8 @@ boso-rpg/
 │   │   ├── travel.js         # TRAVEL_ROUTES (cage rides) + AMBUSH_TYPES
 │   │   ├── monsters.js       # MONSTER_TYPES (14) + BOSS_TYPES (4, with respawnSec) + drop tables
 │   │   ├── bossRespawn.js    # isBossAlive(bossDef, bossSave, now) + BOSS_RESPAWN timing constants
+│   │   ├── bossPatterns.js   # Boss attack data: PATTERN_TYPES, FAIRNESS, STATUS_RULES + the phase tables
+│   │   ├── bossBalance.js    # Fight-length model (comboDps / estimateFightSeconds) for tuning boss hp
 │   │   ├── quests.js         # QUESTS (kill objectives, NPC givers, rewards)
 │   │   ├── items.js          # ITEMS (consumables: cookie/milk)
 │   │   ├── worldmap.js       # Region-scoped world map layout + REGION_TITLES
@@ -63,11 +65,12 @@ boso-rpg/
 │   │   └── assets.js         # Optional texture override registry
 │   ├── entities/
 │   │   ├── Player.js         # Player (movement, ropes, combat, knockback; animated Seoli + Bomi)
-│   │   ├── HugBossBase.js    # Shared hug-pattern boss logic (armSweep/slam/fieldHug)
-│   │   ├── HugGuardian.js    # Field boss (Zakum homage) - HugBossBase subclass
-│   │   ├── DrEmbrace.js      # Tutorial boss - scaled-down HugBossBase subclass
-│   │   ├── Biggie.js         # Buddy House boss (bark wave / pounce / zoomies, befriend)
-│   │   └── VacuumKing.js     # Hidden boss (suction + dust projectiles)
+│   │   ├── PatternBoss.js    # Base of the data-driven bosses: phases, pattern loop, roar, guard, minions
+│   │   ├── HugBossBase.js    # PatternBoss + ground patrol (shared by Hug Guardian / Dr. Embrace)
+│   │   ├── HugGuardian.js    # Field boss (Zakum homage) - HugBossBase subclass (3 phases)
+│   │   ├── DrEmbrace.js      # Tutorial boss - HugBossBase subclass (2 gentle phases)
+│   │   ├── Biggie.js         # Buddy House boss (own pattern code: bark wave / pounce / zoomies, befriend)
+│   │   └── VacuumKing.js     # Hidden boss - floating PatternBoss (3 phases)
 │   ├── scenes/
 │   │   ├── PreloadScene.js   # Optional-asset loader (texture/bgm overrides)
 │   │   ├── TitleScene.js     # Title (key: MenuScene): Start | Continue / New Game
@@ -78,6 +81,9 @@ boso-rpg/
 │   │   └── TravelScene.js    # Cage rides (scrolling world, countdown, ambushes)
 │   ├── systems/
 │   │   ├── AudioManager.js   # Key-based BGM, silent when files missing
+│   │   ├── BossBrain.js      # PURE: selectPhase / pickPattern / planBurstSpots (seeded-rng testable)
+│   │   ├── PatternExecutor.js # Phaser: one run class per pattern type (telegraph, hit, effects)
+│   │   ├── StatusEffects.js  # PURE: player slow / stun rules (StatusTracker)
 │   │   └── SaveManager.js    # localStorage save slots (boso.save.slot1-3), autosave, legacy migration
 │   ├── ui/HUD.js             # HP/MP bars + map name
 │   ├── ui/Menu.js            # MenuButton + MenuNav (keyboard/pointer menus)
@@ -173,19 +179,71 @@ HP/touch damage/EXP come from MONSTER_TYPES (map data holds only x, y, type).
 Optional `alpha` renders a type translucent (lonesome, dustmote).
 
 ### Bosses
-- **HugGuardian** (attic) & **DrEmbrace** (shelter_yard): share HugBossBase —
-  patrol + 3 patterns: armSweep (arm crosses the whole map), slam
-  (telegraphed circle), fieldHug (full-map wipe, one green safe zone
-  telegraphed; never twice in a row). Dr. Embrace is the scaled-down
-  tutorial version (lower HP/damage, longer telegraphs); beating him sets
-  `tutorialCompleted` + `drEmbraceDefeated`.
+Hug Guardian, Dr. Embrace and Vacuum King are **data-driven PatternBosses**
+(MapleStory-style: HP phases, telegraphed attacks, enrage). Biggie still runs
+his own pattern code. Details and tuning notes: `docs/BOSS_PATTERNS.md`.
+- **Split**: data `BOSS_TYPES[id].phases` (src/data/bossPatterns.js, Phaser-free)
+  → brain `systems/BossBrain.js` (`selectPhase`, `pickPattern`; pure, tested with
+  a seeded rng) → executor `systems/PatternExecutor.js` (one run class per
+  pattern `type`; draws the telegraph, applies hitboxes/effects) → entity
+  `entities/PatternBoss.js` (the loop). A phase is
+  `{ hpBelow, gapMs, roarKey?, enrage?: { cooldownMult, speedMult }, patterns }`,
+  a pattern `{ id, type, nameKey, weight, cooldownMs, telegraphMs, overlap?, params }`.
+- **Phases**: a phase starts once HP drops STRICTLY below its `hpBelow` (exactly
+  60% is still phase 1). Changing phase cancels the running patterns and plays a
+  ~1s invulnerable roar (shake, flash, `roarKey` banner). The last phase of the
+  two big fights is an enrage: shorter cooldowns, faster movement (never shorter
+  telegraphs). The HP bar shows a tick at every phase boundary.
+- **Pattern types**: `meleeSwipe` (hitbox in front, step back/jump), `areaSlam`
+  (red ground zone(s) on the player or N random spots, move out), `projectile`
+  (aimed spread or an edge-to-edge floor sweep), `dashSweep` (the boss flattens
+  and charges along the floor, jump over), `fieldWide` (hits everyone on the
+  ground; be airborne or stand in the green safe zone), `pull` (sustained pull
+  toward the boss, walk against it), `summon` (existing monster types, capped),
+  `guard` (no damage for a while). `onHit: { status, ms }` adds slow/stun.
+- **Timing**: everything runs on `PatternBoss.clock`, a frame-delta clock, so a
+  paused game or hidden tab never skips a telegraph or cooldown (no Date.now()
+  in boss patterns). `overlap: true` patterns may run together (Vacuum King's
+  suction + dust balls from phase 2); otherwise one pattern at a time with
+  `gapMs` between them. Cooldowns start when a pattern starts.
+- **Fairness (validated + tested)**: damaging attacks `telegraphMs >= 600`,
+  `fieldWide >= 1000`; never the same fieldWide twice in a row; at most 4
+  minions alive per boss; every phase has a pattern that is ready again by the
+  next pick (the boss can never stall); every `pull` is weaker than the slowest
+  cat's move speed (walking against it always works); a stun lasts at most
+  1.5s and leaves 2s of immunity. Telegraph visuals are Phaser Graphics: a red
+  area that fades in and blinks in its last quarter, a name callout above the
+  boss (a banner for fieldWide / full power suction), tint + scale wind-up.
+- **Hug Guardian** (attic, 3 phases at 60% / 30%): Paw Swipe (`meleeSwipe`, gains
+  slow from phase 2), Hug Grab (`areaSlam` on the player, stun), Call Friends
+  (`summon` bangul x2); Group Hug (`fieldWide`, the old field hug with its green
+  safe zone) from 60%; Cuddle Shield (`guard` 3s) + enrage (cooldowns x0.7,
+  speed x1.3) from 30%. **Dr. Embrace** (shelter_yard, 2 phases at 50%): Arm
+  Reach (`projectile` along the floor), Check-up Slam, then Check-up Hug
+  (`fieldWide`); beating him sets `tutorialCompleted` + `drEmbraceDefeated`.
 - **Biggie** (backyard_gate): territorial ground boss — barkWave (expanding
   knockback ring), pounce (telegraphed parabolic leap onto the player),
   zoomies (multi-pass field sprints, extra contact damage). At 0 HP he is
   BEFRIENDED (hearts + banner + trots off), not killed; flag `biggieDefeated`.
-- **VacuumKing** (closet): hover+bob, suction cycle (3s on / 2.5s off) that adds
-  pull velocity to the player AFTER Player.update (see GameScene.update order),
-  dust ball projectiles while off. Boss updates MUST stay after player update.
+- **VacuumKing** (closet, floating, 3 phases at 50% / 25%): Suction (`pull`),
+  Dust Balls (`projectile` spread x3), Floor Sweep (`dashSweep`); suction and
+  dust balls may overlap and Call Flies (`summon` pari x2) joins from 50%;
+  Bag Burst (`areaSlam` x3 random spots) and Full Power Suction (stronger `pull`;
+  the boss drops to the floor and touching it deals heavy damage) + enrage from
+  25%. `pull` adds velocity to the player AFTER Player.update (see
+  GameScene.update order). Boss updates MUST stay after player update.
+- **Minions**: `GameScene.spawnMinion(type, x, {groundY, airY}, owner)` makes an
+  ordinary monster flagged `summoned`: no respawn, no EXP/drops/quest progress,
+  not part of the saved map state; `removeMinions(owner)` fades them out when the
+  boss dies. They are appended after the map's own monsters.
+- **Player status effects** (`systems/StatusEffects.js`, applied by
+  `Player.applyStatus`, timed on `scene.time.now`): `slow` = move speed x0.6;
+  `stun` = no input at all (movement, attacks, rope, potions, gust), max 1.5s,
+  then 2s of immunity. Icons (orbiting stars / chevrons + blue tint) show above
+  the player; death clears them.
+- **Fight length**: boss `hp` is tuned with `data/bossBalance.js`
+  (`BOSS_TYPES[id].balance = { intendedLevel, uptime }`); `npm test` fails when a
+  full fight at the intended level leaves 2-4 minutes for either cat.
 - All: die() → scene.onBossDefeated(id) → SaveManager.recordBossDefeat (sets
   flag `<id>Defeated`, writes `bosses[id]` first/last defeat times, autosaves,
   returns `{ first }`); hidden portals gated on that flag are revealed
@@ -216,6 +274,9 @@ Optional `alpha` renders a type translucent (lonesome, dustmote).
   - Dev only (`import.meta.env.DEV`, stripped from production): **F9** in a map
     or `window.bosoDev.resetBossTimers()` backdates every `lastDefeatedAt` by
     `respawnSec` (story flags and `firstDefeatedAt` are untouched).
+    `window.bosoDev.game` (a promise of the Phaser.Game) and
+    `window.bosoDev.SaveManager` let browser scripts start a map and drive a
+    boss: `game.scene.getScene('GameScene').boss.startPatternById('hugGrab')`.
 
 ### Systems
 - **EXP/Leveling**: MONSTER_TYPES/BOSS_TYPES carry `exp`; Player.gainExp →
@@ -380,7 +441,12 @@ the player above the pad, and MAP/BAG provide map/quest details.
   schema create→serialize→parse round-trip, loader rejects wrong version /
   unknown mapId), boss respawn (numeric respawnSec > 0 per boss, STORY.bossRespawn
   text, isBossAlive: never defeated / just defeated / exactly at timer / after
-  timer), i18n (en/ko have the same keys and placeholders, every key referenced
+  timer), boss patterns (known types, weights > 0, cooldowns >= 0, phases sorted
+  with the first at 1.0 and `roarKey` on the rest, telegraph minimums, summoned
+  monsters exist and respect the cap, per-type params, always-ready filler, a
+  1000-pick simulation with no stall and no consecutive fieldWide, pulls below
+  the slowest cat's speed, exactly 3 phases ending in an enrage for the big
+  fights), i18n (en/ko have the same keys and placeholders, every key referenced
   by data or by a static `t('key')` exists in en, `t()` passes the placeholders
   its string needs, every glyph of both locales exists in all three Galmuri
   fonts = no tofu, the font license ships), and a source scan (no Hangul outside

@@ -1,44 +1,30 @@
 // src/entities/VacuumKing.js
 // Special hidden boss - the primal fear of every pet: the vacuum.
-// Cycles between SUCTION (drags the player in) and firing dust balls.
+// A floating PatternBoss: it hovers and bobs, and its three phases (suction,
+// dust balls, floor sweep, summoned flies, bag burst, full power suction)
+// are data in BOSS_TYPES.vacuumKing.phases.
 // IMPORTANT: update() must run AFTER Player.update each frame so the
 // suction pull stacks on top of the player's input velocity.
 
 import Phaser from 'phaser';
-import { applyBossArt, bossCombatBounds } from '../systems/EntityArt.js';
+import PatternBoss from './PatternBoss.js';
 import { BOSS_TYPES } from '../data/monsters.js';
-import { PLAYER, DEPTH } from '../utils/constants.js';
 
-export default class VacuumKing {
+export default class VacuumKing extends PatternBoss {
   constructor(scene, x, y) {
-    this.scene = scene;
-    this.id = 'vacuumKing';
-    this.cfg = BOSS_TYPES.vacuumKing;
-    this.nameKey = this.cfg.nameKey;
-    this.hp = this.cfg.hp;
-    this.maxHp = this.cfg.hp;
-    this.defeated = false;
-    this.isHit = false;
-    this.contactCooldown = false;
-    this.startX = x;
-    this.baseY = y;
-    this.direction = 1;
-    this.dusts = [];
-    this.streaks = [];
-
-    // Grace period before the first suction
-    this.state = 'idle';
-    this.phaseEndAt = Date.now() + 1800;
-    this.nextDustAt = Date.now() + 900;
-    this.nextStreakAt = 0;
-
-    this.createTextures();
-
-    this.sprite = scene.physics.add.sprite(x, y, 'boss_vacuum_king');
-    this.sprite.setDepth(DEPTH.BOSS);
-    this.sprite.setCollideWorldBounds(true);
-    this.sprite.body.setAllowGravity(false);
-    this.art = applyBossArt(this.sprite, this.cfg, this.cfg.width - 20, this.cfg.height - 10);
+    const cfg = BOSS_TYPES.vacuumKing;
+    super(scene, x, y, {
+      id: 'vacuumKing',
+      cfg,
+      textureKey: 'boss_vacuum_king',
+      floating: true,
+      bodyWidth: cfg.width - 20,
+      bodyHeight: cfg.height - 10,
+      // Grace period before the first attack
+      openingDelayMs: 1800,
+    });
+    // The hover drift goes on while suction / dust balls run
+    this.movesWhileAttacking = true;
   }
 
   createTextures() {
@@ -105,242 +91,36 @@ export default class VacuumKing {
     }
   }
 
-  update() {
-    if (this.defeated || !this.sprite.active) return;
+  // The nozzle is drawn on the left: flipped while drifting right
+  applyFacing() {
+    this.sprite.setFlipX(this.direction > 0);
+  }
 
-    const now = Date.now();
-    const player = this.scene.player;
-
-    this.updateDusts();
-    this.handleTakingDamage();
-    // The killing blow may have landed just now - stop acting immediately
-    if (this.defeated) return;
-    this.handleContactDamage(player);
-
-    // Hover drift + gentle bob (velocity steering, knockback-safe)
+  // Hover drift; after a floor sweep it glides home faster than it drifts
+  patrol() {
+    const outside = Math.abs(this.sprite.x - this.startX) > this.cfg.patrolRange;
     if (this.sprite.x <= this.startX - this.cfg.patrolRange) {
       this.direction = 1;
     } else if (this.sprite.x >= this.startX + this.cfg.patrolRange) {
       this.direction = -1;
     }
-    this.sprite.setVelocityX(this.cfg.hoverSpeed * this.direction);
-    this.sprite.setFlipX(this.direction > 0);
-    const bobY = this.baseY + Math.sin(now / 700) * 24;
-    this.sprite.setVelocityY((bobY - this.sprite.y) * 3);
-
-    if (player.hp <= 0) {
-      this.sprite.clearTint();
-      return;
-    }
-
-    // Phase cycle: suction ON <-> OFF
-    if (now > this.phaseEndAt) {
-      if (this.state === 'suck') {
-        this.state = 'idle';
-        this.phaseEndAt = now + this.cfg.suction.offMs;
-        this.nextDustAt = now + 400;
-        this.sprite.clearTint();
-      } else {
-        this.state = 'suck';
-        this.phaseEndAt = now + this.cfg.suction.onMs;
-        this.sprite.setTint(0x9BD9FF);
-      }
-    }
-
-    if (this.state === 'suck') {
-      // Pull the player toward the vacuum. Runs after Player.update, so this
-      // offsets the input velocity: running away crawls, standing gets dragged.
-      if (!player.isKnockedBack && !player.isClimbing) {
-        const p = player.sprite;
-        const dir = Math.sign(this.sprite.x - p.x);
-        if (dir !== 0) {
-          p.setVelocityX(p.body.velocity.x + this.cfg.suction.pull * dir);
-        }
-      }
-      // Air streak visuals rushing into the nozzle
-      if (now > this.nextStreakAt) {
-        this.spawnStreak();
-        this.nextStreakAt = now + 130;
-      }
-    } else {
-      // Dust barrage while the motor cools down
-      if (now > this.nextDustAt) {
-        this.fireDust(player);
-        if (Math.random() < 0.4) {
-          this.scene.time.delayedCall(180, () => {
-            if (!this.defeated && this.sprite.active && player.hp > 0) {
-              this.fireDust(player);
-            }
-          });
-        }
-        this.nextDustAt = now + this.cfg.dust.intervalMs;
-      }
-    }
+    const speed = this.cfg.hoverSpeed * this.speedMult * (outside ? 3 : 1);
+    this.sprite.setVelocityX(speed * this.direction);
+    this.applyFacing();
   }
 
-  spawnStreak() {
-    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-    const dist = Phaser.Math.Between(180, 320);
-    const sx = this.sprite.x + Math.cos(angle) * dist;
-    const sy = this.sprite.y + Math.sin(angle) * dist * 0.6;
-
-    const streak = this.scene.add.rectangle(sx, sy, 14, 3, 0xFFFFFF, 0.7);
-    streak.setDepth(DEPTH.EFFECTS);
-    streak.setRotation(Phaser.Math.Angle.Between(sx, sy, this.sprite.x, this.sprite.y));
-    this.streaks.push(streak);
-
-    this.scene.tweens.add({
-      targets: streak,
-      x: this.sprite.x,
-      y: this.sprite.y,
-      alpha: 0,
-      duration: 300,
-      onComplete: () => {
-        const i = this.streaks.indexOf(streak);
-        if (i !== -1) this.streaks.splice(i, 1);
-        streak.destroy();
-      },
-    });
+  // Gentle bob, or a pattern's lane (floor sweep, full power suction).
+  // Velocity steering, so it stays knockback-safe.
+  updateHover() {
+    const lane = this.hoverOverrideY;
+    const targetY = lane !== null ? lane : this.baseY + Math.sin(this.clock / 700) * 24;
+    const gain = lane !== null ? 4 : 3;
+    this.sprite.setVelocityY(Phaser.Math.Clamp((targetY - this.sprite.y) * gain, -500, 500));
   }
 
-  fireDust(player) {
-    const cfg = this.cfg.dust;
-    const dust = this.scene.physics.add.sprite(this.sprite.x, this.sprite.y + 20, 'proj_dust');
-    dust.setDepth(DEPTH.EFFECTS);
-    dust.body.setAllowGravity(false);
-    dust.hitPlayer = false;
-    dust.dying = false;
-    this.dusts.push(dust);
-
-    this.scene.physics.moveTo(dust, player.sprite.x, player.sprite.y, cfg.speed);
-
-    // Slow tumble
-    this.scene.tweens.add({
-      targets: dust,
-      angle: 360,
-      duration: 1200,
-      repeat: -1,
-    });
-
-    // Lifespan (dying flag guards double-destroy)
-    this.scene.time.delayedCall(cfg.lifespanMs, () => {
-      this.destroyDust(dust);
-    });
-  }
-
-  destroyDust(dust) {
-    if (!dust.active || dust.dying) return;
-    dust.dying = true;
-    // Kill the infinite tumble tween - tweens don't stop on target destroy
-    this.scene.tweens.killTweensOf(dust);
-    dust.destroy();
-  }
-
-  updateDusts() {
-    const cfg = this.cfg.dust;
-    const player = this.scene.player;
-    const mapW = this.scene.mapData.width;
-    const mapH = this.scene.mapData.height;
-
-    this.dusts = this.dusts.filter((dust) => {
-      if (!dust.active || dust.dying) return false;
-
-      // Out of bounds
-      if (dust.x < -40 || dust.x > mapW + 40 || dust.y < -40 || dust.y > mapH + 40) {
-        this.destroyDust(dust);
-        return false;
-      }
-
-      if (!dust.hitPlayer && player.hp > 0) {
-        const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
-          dust.getBounds(),
-          player.getHurtBounds()
-        );
-        if (overlap) {
-          dust.hitPlayer = true;
-          const dir = player.sprite.x < dust.x ? -1 : 1;
-          player.takeDamage(cfg.damage, dir);
-          this.destroyDust(dust);
-          return false;
-        }
-      }
-      return true;
-    });
-  }
-
-  // Player attack collision (same idiom as regular monsters)
-  handleTakingDamage() {
-    const player = this.scene.player;
-    // A dead player's lingering hitbox must not land the killing blow
-    if (!player.canHit(this)) return;
-
-    const hitbox = player.attackHitbox;
-    const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
-      hitbox.getBounds(),
-      bossCombatBounds(this)
-    );
-    if (!overlap) return;
-
-    this.isHit = true;
-    player.registerHit(this);
-    const damage = player.attackDamage + Phaser.Math.Between(-3, 3);
-    this.applyDamage(damage);
-
-    this.scene.time.delayedCall(PLAYER.ATTACK_DURATION + 50, () => {
-      this.isHit = false;
-    });
-  }
-
-  // Damage from any player source (melee overlap, bark projectile)
-  applyDamage(amount) {
-    if (this.defeated || !this.sprite.active) return;
-    this.hp -= amount;
-
-    this.scene.showDamageNumber(
-      this.sprite.x + Phaser.Math.Between(-20, 20),
-      this.sprite.y - 40,
-      amount,
-      false
-    );
-
-    // Hit flash (preserve suction tint afterwards)
-    this.sprite.setTintFill(0xFFFFFF);
-    this.scene.time.delayedCall(80, () => {
-      if (!this.sprite.active || this.defeated) return;
-      if (this.state === 'suck') this.sprite.setTint(0x9BD9FF);
-      else this.sprite.clearTint();
-    });
-
-    if (this.hp <= 0) this.die();
-  }
-
-  handleContactDamage(player) {
-    if (this.defeated || this.contactCooldown || player.hp <= 0) return;
-    const overlap = Phaser.Geom.Intersects.RectangleToRectangle(
-      player.getHurtBounds(),
-      bossCombatBounds(this)
-    );
-    if (!overlap) return;
-
-    this.contactCooldown = true;
-    const dir = player.sprite.x < this.sprite.x ? -1 : 1;
-    player.takeDamage(this.cfg.touchDamage, dir);
-    this.scene.time.delayedCall(1000, () => {
-      this.contactCooldown = false;
-    });
-  }
-
-  die() {
-    if (this.defeated) return;
-    this.defeated = true;
-
-    this.cleanupEffects();
-    this.sprite.clearTint();
-    this.sprite.setVelocity(0, 0);
-    this.sprite.body.enable = false;
-
+  // Sputter, drop, and pop
+  playDeathEffect() {
     this.scene.cameras.main.shake(500, 0.012);
-    // Sputter, drop, and pop
     this.scene.tweens.add({
       targets: this.sprite,
       y: this.sprite.y + 120,
@@ -357,35 +137,5 @@ export default class VacuumKing {
         }
       },
     });
-
-    // Register the defeat immediately - if the scene shuts down during the
-    // death tween, the kill (and the ending trigger) must still count
-    this.scene.onBossDefeated(this.id);
-  }
-
-  // Shift wall-clock cycle timers after the pause menu closes
-  shiftTimers(ms) {
-    this.phaseEndAt += ms;
-    this.nextDustAt += ms;
-    this.nextStreakAt += ms;
-  }
-
-  cleanupEffects() {
-    this.dusts.forEach((dust) => {
-      this.destroyDust(dust);
-    });
-    this.dusts = [];
-
-    this.streaks.forEach((s) => {
-      if (s && s.destroy) s.destroy();
-    });
-    this.streaks = [];
-  }
-
-  destroy() {
-    this.cleanupEffects();
-    if (this.sprite && this.sprite.active) {
-      this.sprite.destroy();
-    }
   }
 }

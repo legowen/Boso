@@ -1,6 +1,9 @@
 // src/data/monsters.js
 // Pure data — monster & boss type definitions (no Phaser imports).
 // Movement values are consumed by GameScene AI dispatch and boss entities.
+// Boss attacks are data too: `phases` (see data/bossPatterns.js).
+
+import { HUG_GUARDIAN_PHASES, DR_EMBRACE_PHASES, VACUUM_KING_PHASES } from './bossPatterns.js';
 
 export const MONSTER_TYPES = {
   // Lowest tier — soap-bubble experiment. Moves like a MapleStory snail:
@@ -289,11 +292,14 @@ export const MONSTER_TYPES = {
 
 // respawnSec: wall-clock seconds after a defeat before the boss is back in
 // its map (see data/bossRespawn.js). Tunable per boss.
+// phases: HP-driven attack patterns (data/bossPatterns.js).
+// balance: { intendedLevel, uptime } feeds the fight-length model in
+// data/bossBalance.js (target: a full fight lasts about 2-4 minutes).
 export const BOSS_TYPES = {
   // Field boss (Zakum homage) — a giant toy golem built to hug.
   hugGuardian: {
     nameKey: 'boss.hugGuardian.name',
-    hp: 1500,
+    hp: 7000,
     touchDamage: 20,
     exp: 300,
     respawnSec: 300,
@@ -303,16 +309,13 @@ export const BOSS_TYPES = {
     color: 0xB08840,
     walkSpeed: 25,
     patrolRange: 120,
-    attackIntervalMin: 4500,
-    attackIntervalMax: 6500,
-    armSweep: { damage: 20, speed: 220, width: 120, height: 50 },
-    slam: { damage: 25, telegraphMs: 800, radius: 180 },
-    fieldHug: { damage: 40, telegraphMs: 1700, safeRadius: 140 },
+    balance: { intendedLevel: 10, uptime: 0.35 },
+    phases: HUG_GUARDIAN_PHASES,
   },
 
   // Tutorial boss (Shelter Isle) — the clinic's kindly doctor, whose
-  // check-ups always end in an inescapable hug. Shares the hug pattern
-  // set with the Hug Guardian via HugBossBase, scaled way down.
+  // check-ups always end in an inescapable hug. Shares the hug boss base
+  // with the Hug Guardian, with a gentler two-phase pattern set.
   drEmbrace: {
     nameKey: 'boss.drEmbrace.name',
     hp: 320,
@@ -325,11 +328,7 @@ export const BOSS_TYPES = {
     color: 0xFDFEFE,
     walkSpeed: 20,
     patrolRange: 100,
-    attackIntervalMin: 6000,
-    attackIntervalMax: 8500,
-    armSweep: { damage: 8, speed: 150, width: 110, height: 44 },
-    slam: { damage: 10, telegraphMs: 1100, radius: 130 },
-    fieldHug: { damage: 15, telegraphMs: 2300, safeRadius: 190 },
+    phases: DR_EMBRACE_PHASES,
   },
 
   // Buddy House boss — the big dog who has always lived there.
@@ -356,7 +355,7 @@ export const BOSS_TYPES = {
   // Special hidden boss — the primal fear of every pet: the vacuum.
   vacuumKing: {
     nameKey: 'boss.vacuumKing.name',
-    hp: 2200,
+    hp: 8000,
     touchDamage: 25,
     exp: 500,
     respawnSec: 600,
@@ -366,7 +365,7 @@ export const BOSS_TYPES = {
     color: 0x5D6D7E,
     hoverSpeed: 40,
     patrolRange: 300,
-    suction: { onMs: 3000, offMs: 2500, pull: 150 },
-    dust: { damage: 15, speed: 200, intervalMs: 1200, lifespanMs: 4000, size: 20 },
+    balance: { intendedLevel: 14, uptime: 0.3 },
+    phases: VACUUM_KING_PHASES,
   },
 };

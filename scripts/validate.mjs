@@ -26,6 +26,8 @@ import ko from '../src/i18n/ko.js';
 import { FONT_FACES } from '../src/i18n/fonts.js';
 import { readWoff2CodePoints } from './fontCoverage.mjs';
 import { BOSS_RESPAWN, isBossAlive } from '../src/data/bossRespawn.js';
+import { PATTERN_TYPES, NON_DAMAGING_TYPES, FAIRNESS, STATUS_RULES } from '../src/data/bossPatterns.js';
+import { pickPattern, readyAtFor, cooldownMultFor } from '../src/systems/BossBrain.js';
 import { DEFAULT_SPAWN_ID, portalSpawnId, resolveSpawn } from '../src/data/spawns.js';
 import { createSlotData, serializeSlot, parseSlot, SLOT_SCHEMA_VERSION } from '../src/systems/SaveManager.js';
 
@@ -729,6 +731,158 @@ check(
   'fonts',
   'the font license (public/assets/fonts/Galmuri-OFL.txt) must ship with the font files'
 );
+
+// ===== Check 18: boss patterns — types, numbers, fairness rules =====
+// Boss attacks are data (BOSS_TYPES[id].phases). Numbers are tuning knobs, but
+// these rules keep every fight fair and the brain from stalling.
+{
+  const positive = (v) => typeof v === 'number' && Number.isFinite(v) && v > 0;
+  const nonNegative = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0;
+
+  // Small seeded rng so the simulation below is reproducible
+  const seeded = (seed) => () => {
+    seed = (seed + 0x6D2B79F5) >>> 0;
+    let t = seed;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  const checkOnHit = (scope, onHit) => {
+    if (!onHit) return;
+    check(!!STATUS_RULES[onHit.status], scope, `onHit.status '${onHit.status}' is not a known status`);
+    if (STATUS_RULES[onHit.status]) {
+      check(
+        positive(onHit.ms) && onHit.ms <= STATUS_RULES[onHit.status].maxMs,
+        scope,
+        `onHit.ms must be 1..${STATUS_RULES[onHit.status].maxMs} for ${onHit.status} (got ${onHit.ms})`
+      );
+    }
+  };
+
+  const PARAM_RULES = {
+    meleeSwipe: (p, c) => { c(positive(p.range) && positive(p.height) && positive(p.damage), 'needs range, height, damage > 0'); },
+    areaSlam: (p, c) => {
+      c(positive(p.width) && positive(p.hitHeight) && positive(p.damage), 'needs width, hitHeight, damage > 0');
+      c(p.count === undefined || (Number.isInteger(p.count) && p.count >= 1 && p.count <= 6), 'count must be an integer 1..6');
+      c(p.target === 'player' || p.target === 'random', "target must be 'player' or 'random'");
+    },
+    projectile: (p, c) => {
+      c(positive(p.speed) && positive(p.damage), 'needs speed and damage > 0');
+      c(typeof p.texture === 'string' && p.texture.length > 0, 'needs a texture key');
+      c(p.origin === undefined || p.origin === 'boss' || p.origin === 'edge', "origin must be 'boss' or 'edge'");
+      c(p.count === undefined || (Number.isInteger(p.count) && p.count >= 1 && p.count <= 9), 'count must be an integer 1..9');
+    },
+    dashSweep: (p, c) => {
+      c(positive(p.speed) && positive(p.damage), 'needs speed and damage > 0');
+      c(p.lowProfile === undefined || (p.lowProfile > 0 && p.lowProfile <= 1), 'lowProfile must be in (0, 1]');
+    },
+    fieldWide: (p, c) => {
+      c(positive(p.damage), 'needs damage > 0');
+      c(p.airborne === true || positive(p.safeRadius), 'must be dodgeable: airborne: true and/or a safeRadius');
+    },
+    pull: (p, c) => {
+      c(positive(p.durationMs) && positive(p.pull), 'needs durationMs and pull > 0');
+      // "Walk against it": the pull must never outrun the slowest cat
+      c(p.pull < Math.min(...CHARACTERS.map((ch) => ch.stats.spd)), `pull must stay below every cat's move speed (${Math.min(...CHARACTERS.map((ch) => ch.stats.spd))})`);
+      c(p.touchDamage === undefined || nonNegative(p.touchDamage), 'touchDamage must be >= 0');
+    },
+    summon: (p, c) => {
+      c(!!MONSTER_TYPES[p.monster], `summons unknown monster '${p.monster}'`);
+      c(Number.isInteger(p.count) && p.count >= 1 && p.count <= FAIRNESS.maxMinionsPerBoss, `count must be 1..${FAIRNESS.maxMinionsPerBoss}`);
+      c(p.max === undefined || (Number.isInteger(p.max) && p.max >= p.count && p.max <= FAIRNESS.maxMinionsPerBoss), `max must be count..${FAIRNESS.maxMinionsPerBoss}`);
+    },
+    guard: (p, c) => { c(positive(p.durationMs), 'needs durationMs > 0'); },
+  };
+  check(
+    PATTERN_TYPES.every((type) => typeof PARAM_RULES[type] === 'function'),
+    'boss patterns',
+    'every pattern type needs a parameter rule in the validator'
+  );
+
+  for (const [bossId, boss] of Object.entries(BOSS_TYPES)) {
+    if (boss.phases === undefined) continue; // Biggie still runs his own pattern code
+    const where = `boss:${bossId}`;
+    const phases = boss.phases;
+    check(Array.isArray(phases) && phases.length >= 1, where, 'phases must be a non-empty array');
+    if (!Array.isArray(phases) || phases.length === 0) continue;
+
+    check(phases[0].hpBelow === 1.0, where, `the first phase must start at hpBelow 1.0 (got ${phases[0].hpBelow})`);
+    phases.forEach((phase, i) => {
+      const at = `${where} phase ${i + 1}`;
+      if (i > 0) {
+        check(phase.hpBelow > 0 && phase.hpBelow < phases[i - 1].hpBelow, at, `phases must be sorted by hpBelow descending (got ${phase.hpBelow} after ${phases[i - 1].hpBelow})`);
+        check(typeof phase.roarKey === 'string' && phase.roarKey.length > 0, at, 'every phase after the first needs a roarKey (the phase-change callout)');
+      }
+      check(positive(phase.gapMs), at, `gapMs must be > 0 (got ${phase.gapMs})`);
+      if (phase.enrage) {
+        check(phase.enrage.cooldownMult > 0 && phase.enrage.cooldownMult <= 1, at, 'enrage.cooldownMult must be in (0, 1]');
+        check(phase.enrage.speedMult >= 1, at, 'enrage.speedMult must be >= 1');
+      }
+      check(Array.isArray(phase.patterns) && phase.patterns.length > 0, at, 'a phase needs at least one pattern');
+      if (!Array.isArray(phase.patterns)) return;
+
+      const ids = new Set();
+      phase.patterns.forEach((pattern) => {
+        const pat = `${at} pattern ${pattern.id}`;
+        check(typeof pattern.id === 'string' && pattern.id.length > 0 && !ids.has(pattern.id), pat, 'pattern ids must be unique within a phase');
+        ids.add(pattern.id);
+        check(PATTERN_TYPES.includes(pattern.type), pat, `unknown type '${pattern.type}'`);
+        check(typeof pattern.nameKey === 'string' && pattern.nameKey.length > 0, pat, 'missing nameKey');
+        check(positive(pattern.weight), pat, `weight must be > 0 (got ${pattern.weight})`);
+        check(nonNegative(pattern.cooldownMs), pat, `cooldownMs must be >= 0 (got ${pattern.cooldownMs})`);
+        check(nonNegative(pattern.telegraphMs), pat, `telegraphMs must be >= 0 (got ${pattern.telegraphMs})`);
+        if (!NON_DAMAGING_TYPES.includes(pattern.type)) {
+          check(pattern.telegraphMs >= FAIRNESS.minTelegraphMs, pat, `damaging attacks need telegraphMs >= ${FAIRNESS.minTelegraphMs} (got ${pattern.telegraphMs})`);
+        }
+        if (pattern.type === 'fieldWide') {
+          check(pattern.telegraphMs >= FAIRNESS.minFieldWideTelegraphMs, pat, `fieldWide needs telegraphMs >= ${FAIRNESS.minFieldWideTelegraphMs} (got ${pattern.telegraphMs})`);
+        }
+        const params = pattern.params || {};
+        if (PARAM_RULES[pattern.type]) PARAM_RULES[pattern.type](params, (ok, msg) => check(ok, pat, msg));
+        checkOnHit(pat, params.onHit);
+      });
+
+      // A boss must never be locked out: some pattern that is neither a
+      // fieldWide nor a capped summon is ready again by the next pick
+      // (cooldowns start when a pattern starts; the next pick comes at the
+      // earliest telegraph + gap later).
+      const filler = phase.patterns.filter((p) => p.type !== 'fieldWide' && p.type !== 'summon'
+        && Math.round(p.cooldownMs * cooldownMultFor(phase)) <= p.telegraphMs + phase.gapMs);
+      check(filler.length > 0, at, 'needs a pattern that is always ready again by the next pick (not fieldWide/summon, cooldown <= telegraph + gap)');
+
+      // Simulate 1000 picks: never the same fieldWide twice in a row, never stalled
+      const rng = seeded(1234);
+      const cooldowns = {};
+      const history = [];
+      let now = 0;
+      let stalled = false;
+      let consecutiveWipes = false;
+      for (let n = 0; n < 1000; n += 1) {
+        const pick = pickPattern(phase, cooldowns, history, now, rng);
+        if (!pick) { stalled = true; break; }
+        if (pick.type === 'fieldWide' && history.length && history[history.length - 1].type === 'fieldWide') consecutiveWipes = true;
+        history.push(pick);
+        cooldowns[pick.id] = readyAtFor(pick, phase, now);
+        now += pick.telegraphMs + phase.gapMs;
+      }
+      check(!stalled, at, 'the brain stalled with every pattern on cooldown');
+      check(!consecutiveWipes, at, 'the same fieldWide was picked twice in a row');
+    });
+
+    // The two big fights show three distinct phases, the last one an enrage
+    if (bossId === 'hugGuardian' || bossId === 'vacuumKing') {
+      check(phases.length === 3, where, `needs exactly 3 phases (got ${phases.length})`);
+      check(!!phases[phases.length - 1].enrage, where, 'the last phase must be the enrage phase');
+      check(phases.slice(0, -1).every((phase) => !phase.enrage), where, 'only the last phase enrages');
+    }
+
+    if (boss.balance !== undefined) {
+      check(Number.isInteger(boss.balance.intendedLevel) && boss.balance.intendedLevel >= 1, where, 'balance.intendedLevel must be an integer >= 1');
+      check(boss.balance.uptime > 0 && boss.balance.uptime <= 1, where, 'balance.uptime must be in (0, 1]');
+    }
+  }
+}
 
 // ===== Check 9: source scan =====
 // - Hangul only in src/i18n/ko.* (the ranges are built from char codes so this
