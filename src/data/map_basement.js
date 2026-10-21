@@ -3,7 +3,7 @@
 // Open-world branch: shortcut loop between the kitchen and the hallway.
 
 const MAP_BASEMENT = {
-  name: 'Basement Workshop',
+  nameKey: 'map.basement.name',
   region: 'house',
   width: 2800,
   height: 800,
@@ -43,8 +43,8 @@ const MAP_BASEMENT = {
     { x: 2350, y: 615, w: 240, h: 16, isGround: false },
   ],
   portals: [
-    { x: 60, y: 690, label: '↑ Kitchen', targetMap: 'kitchen', spawnX: 1700, spawnY: 680 },
-    { x: 2740, y: 690, label: '→ Hallway', targetMap: 'hallway', spawnX: 340, spawnY: 1280 },
+    { x: 60, y: 690, labelKey: 'portal.basement.kitchen', targetMap: 'kitchen', spawnX: 1700, spawnY: 680 },
+    { x: 2740, y: 690, labelKey: 'portal.basement.hallway', targetMap: 'hallway', spawnX: 340, spawnY: 1280 },
   ],
   ropes: [
     // Ground to layer 1
@@ -70,11 +70,12 @@ const MAP_BASEMENT = {
     {
       x: 1000,
       y: 714,
-      name: 'Apprentice Bolt',
-      dialogue: [
-        'Welcome to the real workshop! Mind the prototypes.',
-        "Don't stand in front of a wound-up robot. When it rattles, it CHARGES.",
-        'This tunnel runs from the kitchen straight to the hallway. Handy, right?',
+      id: 'apprentice_bolt',
+      nameKey: 'npc.apprentice_bolt.name',
+      dialogueKeys: [
+        'npc.apprentice_bolt.line1',
+        'npc.apprentice_bolt.line2',
+        'npc.apprentice_bolt.line3',
       ],
     },
   ],

@@ -3,7 +3,7 @@
 // Open-world branch: connects the yard AND the kitchen back door.
 
 const MAP_GARDEN = {
-  name: 'Secret Garden',
+  nameKey: 'map.garden.name',
   region: 'house',
   width: 2400,
   height: 800,
@@ -36,8 +36,8 @@ const MAP_GARDEN = {
     { x: 1650, y: 325, w: 220, h: 16, isGround: false },
   ],
   portals: [
-    { x: 60, y: 690, label: '→ Kitchen Back Door', targetMap: 'kitchen', spawnX: 340, spawnY: 680 },
-    { x: 2340, y: 690, label: '→ Backyard', targetMap: 'yard', spawnX: 2260, spawnY: 680 },
+    { x: 60, y: 690, labelKey: 'portal.garden.kitchen', targetMap: 'kitchen', spawnX: 340, spawnY: 680 },
+    { x: 2340, y: 690, labelKey: 'portal.garden.yard', targetMap: 'yard', spawnX: 2260, spawnY: 680 },
   ],
   ropes: [
     // Ground to layer 1
@@ -62,10 +62,11 @@ const MAP_GARDEN = {
     {
       x: 500,
       y: 714,
-      name: 'Haku the Hedgehog',
-      dialogue: [
-        'Psst... this garden connects straight to the kitchen back door.',
-        'The bugs here sting harder than the house bubbles. Watch yourself, little whisker.',
+      id: 'haku',
+      nameKey: 'npc.haku.name',
+      dialogueKeys: [
+        'npc.haku.line1',
+        'npc.haku.line2',
       ],
     },
   ],

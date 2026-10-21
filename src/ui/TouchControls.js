@@ -1,4 +1,5 @@
 import ControlState from '../systems/ControlState.js';
+import { t, onLanguageChanged } from '../i18n/index.js';
 import './touch-controls.css';
 
 export function usesTouchControls() {
@@ -25,28 +26,30 @@ export default class TouchControls {
 
     this.root = document.createElement('div');
     this.root.className = 'touch-controls';
-    this.root.setAttribute('aria-label', 'Game touch controls');
+    this.root.setAttribute('aria-label', t('touch.aria.controls'));
     this.buttons = new Map();
+    this.labels = new Map();
     const pad = this.group('touch-pad');
-    for (const [action, label] of [['up', '↑'], ['left', '←'], ['down', '↓'], ['right', '→']]) {
-      this.button(pad, action, label, `Move ${action}`);
+    for (const [action, symbol] of [['up', '↑'], ['left', '←'], ['down', '↓'], ['right', '→']]) {
+      this.button(pad, action, { symbol }, `touch.aria.${action}`);
     }
     const actions = this.group('touch-actions');
-    this.button(actions, 'space', 'TALK', 'Talk or continue');
-    if (scene.player.charId === 'seoli') this.button(actions, 'x', 'WIND', 'Wind gust');
-    this.button(actions, 'ctrl', 'HIT', 'Attack');
-    this.button(actions, 'alt', 'JUMP', 'Jump');
+    this.button(actions, 'space', { key: 'touch.talk' }, 'touch.aria.talk');
+    if (scene.player.charId === 'seoli') this.button(actions, 'x', { key: 'touch.wind' }, 'touch.aria.wind');
+    this.button(actions, 'ctrl', { key: 'touch.hit' }, 'touch.aria.hit');
+    this.button(actions, 'alt', { key: 'touch.jump' }, 'touch.aria.jump');
     this.tools = this.group('touch-tools');
     this.tools.hidden = true;
-    this.button(this.tools, 'one', 'HP', 'Use cookie');
-    this.button(this.tools, 'two', 'MP', 'Use milk');
+    this.button(this.tools, 'one', { key: 'touch.cookie' }, 'touch.aria.cookie');
+    this.button(this.tools, 'two', { key: 'touch.milk' }, 'touch.aria.milk');
     if (!travel) {
-      this.button(this.tools, 'i', 'BAG', 'Open or close bag');
-      this.button(this.tools, 'm', 'MAP', 'Open or close map');
-      this.button(this.tools, 'pause', 'MENU', 'Pause or resume');
+      this.button(this.tools, 'i', { key: 'touch.bag' }, 'touch.aria.bag');
+      this.button(this.tools, 'm', { key: 'touch.map' }, 'touch.aria.map');
+      this.button(this.tools, 'pause', { key: 'touch.menu' }, 'touch.aria.menu');
     }
-    this.button(this.root, 'more', '•••', 'More controls').classList.add('touch-more');
+    this.button(this.root, 'more', { symbol: '•••' }, 'touch.aria.more').classList.add('touch-more');
     document.body.append(this.root);
+    this.offLanguage = onLanguageChanged(() => this.relabel());
 
     const reset = () => this.reset();
     this.listen(window, 'blur', reset);
@@ -68,13 +71,15 @@ export default class TouchControls {
     target.addEventListener(event, handler, { signal: this.abort.signal });
   }
 
-  button(parent, action, label, description) {
+  // label: { key } (locale key) or { symbol } (glyph shown as-is);
+  // ariaKey: locale key of the screen-reader name.
+  button(parent, action, label, ariaKey) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.textContent = label;
     button.dataset.action = action;
-    button.setAttribute('aria-label', description);
     this.buttons.set(action, button);
+    this.labels.set(action, { label, ariaKey });
+    this.applyLabel(action);
     parent.append(button);
     this.listen(button, 'contextmenu', event => event.preventDefault());
     this.listen(button, 'pointerdown', event => {
@@ -112,7 +117,23 @@ export default class TouchControls {
         !(!hardBlocked && ['i', 'm'].includes(action)) && !(action === 'space' && this.continueAction);
       if (blocked) button.classList.remove('pressed');
     }
-    this.buttons.get('space').textContent = this.continueAction ? 'CONTINUE' : scene.dialogue ? 'NEXT' : 'TALK';
+    this.buttons.get('space').textContent = this.continueAction
+      ? t('touch.continue')
+      : scene.dialogue ? t('touch.next') : t('touch.talk');
+  }
+
+  applyLabel(action) {
+    const button = this.buttons.get(action);
+    const { label, ariaKey } = this.labels.get(action);
+    button.textContent = label.symbol !== undefined ? label.symbol : t(label.key);
+    button.setAttribute('aria-label', t(ariaKey));
+  }
+
+  // Language switched: rewrite every label (the SPACE button follows update()).
+  relabel() {
+    for (const action of this.buttons.keys()) this.applyLabel(action);
+    this.root.setAttribute('aria-label', t('touch.aria.controls'));
+    this.update();
   }
 
   reset() {
@@ -139,6 +160,7 @@ export default class TouchControls {
 
   destroy() {
     this.reset();
+    if (this.offLanguage) this.offLanguage();
     this.abort.abort();
     if (this.afterFrame) this.scene.events.off('postupdate', this.afterFrame);
     if (this.keyboardContinue) this.scene.input.keyboard.off('keydown-SPACE', this.keyboardContinue);

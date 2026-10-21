@@ -10,7 +10,7 @@
 export const TRAVEL_ROUTES = {
   // Route A - the tutorial voyage. Short and safe.
   shelter_to_buddy: {
-    name: 'To Buddy House',
+    nameKey: 'travel.shelter_to_buddy.name',
     from: 'shelter_yard',
     to: 'high_table',
     durationSec: 15,
@@ -20,7 +20,7 @@ export const TRAVEL_ROUTES = {
 
   // Route B - the main line home. Long, and the road is not friendly.
   buddy_to_home: {
-    name: 'Ride Home',
+    nameKey: 'travel.buddy_to_home.name',
     from: 'high_table',
     to: 'yard',
     durationSec: 60,
@@ -37,7 +37,7 @@ export const TRAVEL_ROUTES = {
 
   // Route B return leg - back to Buddy House.
   home_to_buddy: {
-    name: 'To Buddy House',
+    nameKey: 'travel.home_to_buddy.name',
     from: 'yard',
     to: 'high_table',
     durationSec: 60,
@@ -62,7 +62,7 @@ export const TRAVEL_ROUTE_KEYS = Object.keys(TRAVEL_ROUTES);
 //   expanding shockwave rings; can be fought and killed.
 export const AMBUSH_TYPES = {
   vroom: {
-    name: 'Vroom',
+    nameKey: 'ambush.vroom.name',
     kind: 'dasher',
     damage: 14,
     speed: 540,
@@ -72,7 +72,7 @@ export const AMBUSH_TYPES = {
     color: 0xE74C3C,
   },
   rumble: {
-    name: 'Rumble',
+    nameKey: 'ambush.rumble.name',
     kind: 'tanker',
     hp: 150,
     touchDamage: 10,

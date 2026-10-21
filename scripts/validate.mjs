@@ -17,9 +17,14 @@ import { BGM_KEYS } from '../src/data/audio.js';
 import { QUESTS } from '../src/data/quests.js';
 import { ITEMS } from '../src/data/items.js';
 import { TRAVEL_ROUTES, AMBUSH_TYPES } from '../src/data/travel.js';
-import { WORLD_MAP_LAYOUT, REGION_TITLES } from '../src/data/worldmap.js';
+import { WORLD_MAP_LAYOUT, REGION_TITLE_KEYS } from '../src/data/worldmap.js';
 import { OPTIONAL_TEXTURES } from '../src/data/assets.js';
 import { STORY } from '../src/data/story.js';
+import { CHARACTERS } from '../src/data/characters.js';
+import en from '../src/i18n/en.js';
+import ko from '../src/i18n/ko.js';
+import { FONT_FACES } from '../src/i18n/fonts.js';
+import { readWoff2CodePoints } from './fontCoverage.mjs';
 import { BOSS_RESPAWN, isBossAlive } from '../src/data/bossRespawn.js';
 import { DEFAULT_SPAWN_ID, portalSpawnId, resolveSpawn } from '../src/data/spawns.js';
 import { createSlotData, serializeSlot, parseSlot, SLOT_SCHEMA_VERSION } from '../src/systems/SaveManager.js';
@@ -60,7 +65,7 @@ function inBounds(map, x, y) {
 
 // ===== Check 1: required fields + exactly one full-width ground platform =====
 for (const [key, map] of Object.entries(MAPS_DATA)) {
-  for (const field of ['name', 'width', 'height', 'spawnX', 'spawnY']) {
+  for (const field of ['nameKey', 'width', 'height', 'spawnX', 'spawnY']) {
     check(
       map[field] !== undefined && map[field] !== null,
       key,
@@ -94,7 +99,7 @@ for (const [key, map] of Object.entries(MAPS_DATA)) {
     check(
       hasSupport(map, portal.x, portal.y),
       key,
-      `portal[${i}] '${portal.label}' at (${portal.x},${portal.y}) has no supporting platform`
+      `portal[${i}] '${portal.labelKey}' at (${portal.x},${portal.y}) has no supporting platform`
     );
     const target = MAPS_DATA[portal.targetMap];
     if (target) {
@@ -109,7 +114,7 @@ for (const [key, map] of Object.entries(MAPS_DATA)) {
     check(
       hasSupport(map, npc.x, npc.y),
       key,
-      `npc[${i}] '${npc.name}' at (${npc.x},${npc.y}) has no supporting platform`
+      `npc[${i}] '${npc.id}' at (${npc.x},${npc.y}) has no supporting platform`
     );
   });
   (map.monsters || []).forEach((m, i) => {
@@ -131,7 +136,7 @@ for (const [key, map] of Object.entries(MAPS_DATA)) {
     check(
       !!target,
       key,
-      `portal[${i}] '${portal.label}' targets unknown map '${portal.targetMap}'`
+      `portal[${i}] '${portal.labelKey}' targets unknown map '${portal.targetMap}'`
     );
     if (target) {
       check(
@@ -144,7 +149,7 @@ for (const [key, map] of Object.entries(MAPS_DATA)) {
       check(
         typeof portal.requiresFlag === 'string' && portal.requiresFlag.length > 0,
         key,
-        `hidden portal[${i}] '${portal.label}' must have a requiresFlag string`
+        `hidden portal[${i}] '${portal.labelKey}' must have a requiresFlag string`
       );
     }
   });
@@ -294,7 +299,7 @@ for (const [key, map] of Object.entries(MAPS_DATA)) {
   const questIds = new Set();
   const allNpcNames = new Set();
   for (const map of Object.values(MAPS_DATA)) {
-    (map.npcs || []).forEach((npc) => allNpcNames.add(npc.name));
+    (map.npcs || []).forEach((npc) => allNpcNames.add(npc.id));
   }
   for (const quest of QUESTS) {
     check(!questIds.has(quest.id), `quest:${quest.id}`, 'duplicate quest id');
@@ -315,7 +320,7 @@ for (const [key, map] of Object.entries(MAPS_DATA)) {
       `quest:${quest.id}`,
       'objective count must be >= 1'
     );
-    for (const arr of ['offer', 'complete']) {
+    for (const arr of ['offerKeys', 'completeKeys']) {
       check(
         Array.isArray(quest[arr]) && quest[arr].length > 0,
         `quest:${quest.id}`,
@@ -408,9 +413,9 @@ for (const [region, home] of Object.entries(REGION_HOME)) {
     `REGION_HOME target '${home}' is not in MAPS_DATA`
   );
   check(
-    !!REGION_TITLES[region],
+    !!REGION_TITLE_KEYS[region],
     `region:${region}`,
-    'missing REGION_TITLES entry (world map panel title)'
+    'missing REGION_TITLE_KEYS entry (world map panel title)'
   );
 }
 
@@ -474,33 +479,46 @@ for (const [key, map] of Object.entries(MAPS_DATA)) {
       check(
         !!route,
         key,
-        `npc[${i}] '${npc.name}' travelRoute '${npc.travelRoute}' is not in TRAVEL_ROUTES`
+        `npc[${i}] '${npc.id}' travelRoute '${npc.travelRoute}' is not in TRAVEL_ROUTES`
       );
       if (route) {
         check(
           route.from === key,
           key,
-          `npc[${i}] '${npc.name}' travelRoute '${npc.travelRoute}' departs from '${route.from}', not this map`
+          `npc[${i}] '${npc.id}' travelRoute '${npc.travelRoute}' departs from '${route.from}', not this map`
         );
       }
       check(
         !!map.cage,
         key,
-        `npc[${i}] '${npc.name}' offers travel but the map has no cage prop`
+        `npc[${i}] '${npc.id}' offers travel but the map has no cage prop`
       );
     }
     if (npc.travelRequiresFlag !== undefined) {
       check(
         typeof npc.travelRequiresFlag === 'string' && npc.travelRequiresFlag.length > 0,
         key,
-        `npc[${i}] '${npc.name}' travelRequiresFlag must be a non-empty string`
+        `npc[${i}] '${npc.id}' travelRequiresFlag must be a non-empty string`
       );
       check(
-        Array.isArray(npc.travelLockedLines) && npc.travelLockedLines.length > 0,
+        Array.isArray(npc.travelLockedKeys) && npc.travelLockedKeys.length > 0,
         key,
-        `npc[${i}] '${npc.name}' gated travel needs travelLockedLines`
+        `npc[${i}] '${npc.id}' gated travel needs travelLockedKeys`
       );
     }
+  });
+  (map.npcs || []).forEach((npc, i) => {
+    check(typeof npc.id === 'string' && npc.id.length > 0, key, `npc[${i}] needs a string id`);
+    check(
+      npc.nameKey === `npc.${npc.id}.name`,
+      key,
+      `npc[${i}] nameKey must be 'npc.${npc.id}.name' (got '${npc.nameKey}')`
+    );
+    check(
+      Array.isArray(npc.dialogueKeys) && npc.dialogueKeys.length > 0,
+      key,
+      `npc[${i}] '${npc.id}' needs dialogueKeys`
+    );
   });
   (map.guides || []).forEach((guide, i) => {
     check(
@@ -509,9 +527,9 @@ for (const [key, map] of Object.entries(MAPS_DATA)) {
       `guide[${i}] at (${guide.x},${guide.y}) is outside map bounds`
     );
     check(
-      typeof guide.text === 'string' && guide.text.length > 0,
+      typeof guide.textKey === 'string' && guide.textKey.length > 0,
       key,
-      `guide[${i}] has no text`
+      `guide[${i}] has no textKey`
     );
   });
   if (map.cage) {
@@ -609,29 +627,225 @@ check(
   check(parseSlot('{not json', 2).ok === false, 'save slots', 'loader accepted invalid JSON');
 }
 
-// ===== Check 9: source scan — no Korean characters, no console.log in src/ =====
-// Korean ranges via unicode escapes (this file must not contain literal Korean):
-// Hangul Jamo U+1100-U+11FF, Compatibility Jamo U+3130-U+318F,
-// Hangul Syllables U+AC00-U+D7AF.
-const koreanRegex = /[ᄀ-ᇿ㄰-㆏가-힯]/;
+// ===== Check 17: i18n — locale parity, referenced keys, no tofu =====
+// Display text lives only in src/i18n/{en,ko}.js. Data stores keys.
+const localeKeys = (locale) => new Set(Object.keys(locale));
+const enKeys = localeKeys(en);
+const koKeys = localeKeys(ko);
+
+for (const key of enKeys) check(koKeys.has(key), 'i18n', `ko is missing key '${key}'`);
+for (const key of koKeys) check(enKeys.has(key), 'i18n', `ko has key '${key}' that en does not`);
+
+const placeholders = (text) => (String(text).match(/\{\w+\}/g) || []).sort().join(',');
+for (const key of enKeys) {
+  check(typeof en[key] === 'string' && en[key].trim().length > 0, 'i18n', `en '${key}' must be a non-empty string`);
+  if (!koKeys.has(key)) continue;
+  check(typeof ko[key] === 'string' && ko[key].trim().length > 0, 'i18n', `ko '${key}' must be a non-empty string`);
+  check(
+    placeholders(en[key]) === placeholders(ko[key]),
+    'i18n',
+    `'${key}' placeholders differ between en (${placeholders(en[key])}) and ko (${placeholders(ko[key])})`
+  );
+}
+
+// Every *Key / *Keys field in the data layer must name an English key.
+function collectKeyRefs(value, where, out) {
+  if (Array.isArray(value)) {
+    value.forEach((item, i) => collectKeyRefs(item, `${where}[${i}]`, out));
+  } else if (value && typeof value === 'object') {
+    for (const [name, child] of Object.entries(value)) {
+      const here = `${where}.${name}`;
+      if (/Key$/.test(name) && typeof child === 'string') out.push([here, child]);
+      else if (/Keys$/.test(name) && Array.isArray(child)) child.forEach((k, i) => out.push([`${here}[${i}]`, k]));
+      else collectKeyRefs(child, here, out);
+    }
+  }
+}
+{
+  const refs = [];
+  collectKeyRefs(MAPS_DATA, 'MAPS_DATA', refs);
+  collectKeyRefs(MONSTER_TYPES, 'MONSTER_TYPES', refs);
+  collectKeyRefs(BOSS_TYPES, 'BOSS_TYPES', refs);
+  collectKeyRefs(QUESTS, 'QUESTS', refs);
+  collectKeyRefs(ITEMS, 'ITEMS', refs);
+  collectKeyRefs(TRAVEL_ROUTES, 'TRAVEL_ROUTES', refs);
+  collectKeyRefs(AMBUSH_TYPES, 'AMBUSH_TYPES', refs);
+  collectKeyRefs(CHARACTERS, 'CHARACTERS', refs);
+  Object.values(REGION_TITLE_KEYS).forEach((k, i) => refs.push([`REGION_TITLE_KEYS[${i}]`, k]));
+  // STORY holds nothing but keys (strings, arrays of strings, nested objects)
+  (function walkStory(value, where) {
+    if (typeof value === 'string') refs.push([where, value]);
+    else if (Array.isArray(value)) value.forEach((v, i) => walkStory(v, `${where}[${i}]`));
+    else if (value && typeof value === 'object') Object.entries(value).forEach(([k, v]) => walkStory(v, `${where}.${k}`));
+  }(STORY, 'STORY'));
+  // Keys derived from ids at runtime
+  for (const quest of QUESTS) refs.push([`QUESTS.${quest.id} giver name`, `npc.${quest.giver}.name`]);
+  for (const key of Object.keys(BOSS_TYPES)) {
+    refs.push([`BOSS_TYPES.${key} respawn warning`, `story.bossRespawn.${key}`]);
+  }
+  for (const [where, key] of refs) {
+    check(enKeys.has(key), where, `locale key '${key}' is not defined in src/i18n/en.js`);
+  }
+}
+
+// Every static t('key') / addLocalizedText(..., 'key') / translate(lang, 'key')
+// in source must resolve too.
+const KEY_CALLS = [
+  /\bt\(\s*'([\w.]+)'/g,
+  /\bt\(\s*"([\w.]+)"/g,
+  /\btranslate\([^,()]+,\s*'([\w.]+)'/g,
+  /addLocalizedText\([^,]+,[^,]+,[^,]+,\s*'([\w.]+)'/g,
+];
+
+// Data fields that held display text before the i18n change; code reading
+// them would silently get `undefined`.
+const LEGACY_FIELDS = [
+  /\.data\.dialogue\b/, /\btravelLockedLines\b/, /\bwarnText\b/, /\bREGION_TITLES\b/,
+  /\b(?:portal|portalData)\.label\b/, /\.cfg\.name\b/, /\bnpc(?:Data|Obj\.data)?\.name\b/,
+];
+
+// No tofu: every character of every string must exist in each pixel font.
+for (const face of FONT_FACES) {
+  const file = path.join(REPO_ROOT, 'public', 'assets', 'fonts', face.file);
+  let covered;
+  try {
+    covered = readWoff2CodePoints(file);
+  } catch (e) {
+    check(false, `font:${face.family}`, `cannot read ${path.relative(REPO_ROOT, file)}: ${e.message}`);
+    continue;
+  }
+  for (const [lang, locale] of [['en', en], ['ko', ko]]) {
+    const missing = new Set();
+    for (const text of Object.values(locale)) {
+      for (const ch of String(text)) {
+        if (ch !== '\n' && !covered.has(ch.codePointAt(0))) missing.add(ch);
+      }
+    }
+    check(missing.size === 0, `font:${face.family}`, `${lang} uses glyphs the font lacks: ${[...missing].join(' ')}`);
+  }
+}
+check(
+  fs.existsSync(path.join(REPO_ROOT, 'public', 'assets', 'fonts', 'Galmuri-OFL.txt')),
+  'fonts',
+  'the font license (public/assets/fonts/Galmuri-OFL.txt) must ship with the font files'
+);
+
+// ===== Check 9: source scan =====
+// - Hangul only in src/i18n/ko.* (the ranges are built from char codes so this
+//   file stays Hangul-free):
+//   Jamo U+1100-U+11FF, Compatibility Jamo U+3130-U+318F, Syllables U+AC00-U+D7AF.
+// - no console.log
+// - every static i18n key used in src exists in en
+// - best effort: no string literal handed straight to add.text( / setText(
+const hangulRange = (from, to) => `${String.fromCharCode(from)}-${String.fromCharCode(to)}`;
+const hangulRegex = new RegExp(`[${hangulRange(0x1100, 0x11FF)}${hangulRange(0x3130, 0x318F)}${hangulRange(0xAC00, 0xD7AF)}]`);
+const LOCALE_FILE = /^ko\.[\w.]+$/;
 
 function walk(dir, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       walk(full, out);
-    } else if (entry.isFile() && /\.(js|mjs)$/.test(entry.name)) {
+    } else if (entry.isFile() && /\.(js|mjs|cjs|css|html)$/.test(entry.name)) {
       out.push(full);
     }
   }
   return out;
 }
 
-for (const file of walk(SRC_DIR)) {
+// Split call arguments at depth 0, honouring strings and nesting.
+function splitArgs(source, openIndex) {
+  const args = [];
+  let depth = 0;
+  let quote = null;
+  let current = '';
+  for (let i = openIndex + 1; i < source.length; i += 1) {
+    const ch = source[i];
+    if (quote) {
+      current += ch;
+      if (ch === '\\') { current += source[i + 1]; i += 1; } else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === "'" || ch === '"' || ch === '`') { quote = ch; current += ch; continue; }
+    if ('([{'.includes(ch)) depth += 1;
+    if (')]}'.includes(ch)) {
+      if (depth === 0) { args.push(current.trim()); return args; }
+      depth -= 1;
+    }
+    if (ch === ',' && depth === 0) { args.push(current.trim()); current = ''; continue; }
+    current += ch;
+  }
+  return args;
+}
+
+// A literal counts as user-facing text when it has a Latin letter outside
+// ${...} interpolations (symbols like the heart or arrows are fine).
+function hasLiteralText(arg) {
+  if (!arg || !/^['"`]/.test(arg)) return false;
+  return /[A-Za-z]/.test(arg.replace(/\$\{[^}]*\}/g, ''));
+}
+
+const SCAN_ROOTS = [SRC_DIR, path.join(REPO_ROOT, 'scripts'), path.join(REPO_ROOT, 'tests')];
+const scanFiles = [...SCAN_ROOTS.filter((dir) => fs.existsSync(dir)).flatMap((dir) => walk(dir)), path.join(REPO_ROOT, 'index.html')];
+
+for (const file of scanFiles) {
   const rel = path.relative(REPO_ROOT, file);
   const content = fs.readFileSync(file, 'utf8');
-  check(!koreanRegex.test(content), rel, 'contains Korean characters');
+  const isLocale = path.dirname(file) === path.join(SRC_DIR, 'i18n') && LOCALE_FILE.test(path.basename(file));
+  check(isLocale || !hangulRegex.test(content), rel, 'contains Hangul outside src/i18n/ko.*');
+  if (!file.startsWith(SRC_DIR)) continue;
   check(!content.includes('console.log'), rel, `contains 'console.log'`);
+  if (path.dirname(file) === path.join(SRC_DIR, 'i18n')) continue;
+  if (!/\.js$/.test(file)) continue;
+
+  for (const pattern of LEGACY_FIELDS) {
+    check(!pattern.test(content), rel, `uses removed text field ${pattern} (data now stores locale keys)`);
+  }
+  for (const pattern of KEY_CALLS) {
+    for (const match of content.matchAll(pattern)) {
+      check(enKeys.has(match[1]), rel, `uses locale key '${match[1]}' that is not in en.js`);
+    }
+  }
+  // t('key', { ... }) must pass exactly the placeholders the English string uses
+  for (const match of content.matchAll(/\bt\(\s*'([\w.]+)'\s*(?:\)|,\s*\{)/g)) {
+    if (!enKeys.has(match[1])) continue;
+    const needed = (en[match[1]].match(/\{(\w+)\}/g) || []).map((p) => p.slice(1, -1)).sort();
+    let given = [];
+    if (!match[0].endsWith(')')) {
+      const open = match.index + match[0].length - 1;
+      let depth = 0;
+      let current = '';
+      const parts = [];
+      for (let i = open + 1; i < content.length; i += 1) {
+        const ch = content[i];
+        if ('([{'.includes(ch)) depth += 1;
+        if (')]}'.includes(ch)) {
+          if (depth === 0) break;
+          depth -= 1;
+        }
+        if (ch === ',' && depth === 0) { parts.push(current); current = ''; } else current += ch;
+      }
+      parts.push(current);
+      given = parts.map((part) => part.trim().split(':')[0].trim()).filter(Boolean).sort();
+    }
+    check(
+      JSON.stringify(given) === JSON.stringify(needed),
+      rel,
+      `t('${match[1]}') passes {${given.join(', ')}} but the string needs {${needed.join(', ')}}`
+    );
+  }
+  for (const call of ['.add.text(', '.setText(']) {
+    let from = 0;
+    for (;;) {
+      const at = content.indexOf(call, from);
+      if (at === -1) break;
+      from = at + call.length;
+      const args = splitArgs(content, at + call.length - 1);
+      const textArg = call === '.add.text(' ? args[2] : args[0];
+      const line = content.slice(0, at).split('\n').length;
+      check(!hasLiteralText(textArg), `${rel}:${line}`, `hardcoded string passed to ${call.slice(1)}) - use t('key')`);
+    }
+  }
 }
 
 // ===== Report =====

@@ -89,3 +89,21 @@ a custom path, or just drop files at the default path above.
 
 Prefer `.mp3`: browsers pick the first playable format from the candidate list
 (mp3 first), so an `.ogg`-only drop may stay silent in Chrome/Safari.
+
+
+## Fonts
+
+All text (Hangul and Latin) is drawn with the Galmuri pixel fonts in
+`public/assets/fonts/` — `Galmuri9`, `Galmuri11`, `Galmuri14`, v2.40.3 by Lee
+Minseo, SIL Open Font License 1.1 (`Galmuri-OFL.txt` ships beside them). The
+`.woff2` files are the unmodified upstream release files from the `galmuri` npm
+package: the license reserves the name "Galmuri" for unmodified versions, so do
+not subset or edit them.
+
+- Never set `fontFamily` / `fontSize` by hand in Phaser text. Spread
+  `pixelFont(px)` from `src/i18n/fonts.js`; it snaps to an integer multiple of
+  a font's design grid (9 / 11 / 14 px) so pixels stay crisp.
+- `index.html` declares the `@font-face` rules; `loadFonts()` waits for them
+  before the first scene is created.
+- `npm run validate` fails if any character in `en.js` / `ko.js` is missing from
+  one of the three fonts (that would render as tofu).

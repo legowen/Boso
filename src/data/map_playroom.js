@@ -2,7 +2,7 @@
 // Toy Workshop - Gearist & Plushist territory, flying bugs in the air
 
 const MAP_PLAYROOM = {
-  name: 'Toy Workshop',
+  nameKey: 'map.playroom.name',
   region: 'house',
   width: 3200,
   height: 800,
@@ -47,8 +47,8 @@ const MAP_PLAYROOM = {
     { x: 2860, y: 620, w: 200, h: 16, isGround: false },
   ],
   portals: [
-    { x: 60, y: 690, label: '← Hallway', targetMap: 'hallway', spawnX: 1540, spawnY: 200 },
-    { x: 3140, y: 690, label: '→ Attic Laboratory', targetMap: 'attic', spawnX: 120, spawnY: 680 },
+    { x: 60, y: 690, labelKey: 'portal.playroom.hallway', targetMap: 'hallway', spawnX: 1540, spawnY: 200 },
+    { x: 3140, y: 690, labelKey: 'portal.playroom.attic', targetMap: 'attic', spawnX: 120, spawnY: 680 },
   ],
   ropes: [
     // Ground to layer 1
@@ -77,21 +77,23 @@ const MAP_PLAYROOM = {
     {
       x: 1000,
       y: 714,
-      name: 'Gearist Tinkerer',
-      dialogue: [
-        'Our gears gave those toys life! ...Too much life, perhaps.',
-        "The Plushists' softness is a lie. COGS are truth!",
-        'Our wind-up prototypes went feral in the basement. Sorry about that.',
+      id: 'gearist_tinkerer',
+      nameKey: 'npc.gearist_tinkerer.name',
+      dialogueKeys: [
+        'npc.gearist_tinkerer.line1',
+        'npc.gearist_tinkerer.line2',
+        'npc.gearist_tinkerer.line3',
       ],
     },
     {
       x: 1300,
       y: 714,
-      name: 'Plushist Sewmaster',
-      dialogue: [
-        'Every stitch is love. The Gearists understand nothing.',
-        'The Hug Guardian... we made it to love. It just loves too hard now.',
-        'When it hugs the whole room, run to the green safe spot!',
+      id: 'plushist_sewmaster',
+      nameKey: 'npc.plushist_sewmaster.name',
+      dialogueKeys: [
+        'npc.plushist_sewmaster.line1',
+        'npc.plushist_sewmaster.line2',
+        'npc.plushist_sewmaster.line3',
       ],
     },
   ],

@@ -2,6 +2,10 @@
 // Small keyboard + pointer menu toolkit shared by the title and save-slot
 // scenes. MenuButton draws one entry; MenuNav moves focus between entries
 // with the arrow keys and activates with ENTER / SPACE (ESC = back).
+// Button text is passed in already translated; scenes that offer a language
+// switch rebuild themselves on `language-changed`.
+
+import { pixelFont } from '../i18n/fonts.js';
 
 const PALETTE = {
   fill: 0x202B2C,
@@ -28,11 +32,11 @@ export class MenuButton {
     const hasSub = lines.length > 1 && lines[1];
     const wrap = { width: width - 32 };
     this.title = scene.add.text(textX, hasSub ? y - height * 0.17 : y, lines[0], {
-      fontFamily: 'Arial Black, Arial', fontSize: `${fontSize}px`, color: this.colors.text, wordWrap: wrap,
+      ...pixelFont(fontSize), color: this.colors.text, wordWrap: wrap,
     }).setOrigin(origin, 0.5);
     this.sub = hasSub
       ? scene.add.text(textX, y + height * 0.2, lines[1], {
-        fontFamily: 'Arial', fontSize: `${subFontSize}px`, color: this.colors.subText, wordWrap: wrap, align: left ? 'left' : 'center',
+        ...pixelFont(subFontSize), color: this.colors.subText, wordWrap: wrap, align: left ? 'left' : 'center',
       }).setOrigin(origin, 0.5)
       : null;
     this.parts = [this.bg, this.title, this.sub].filter(Boolean);

@@ -7,10 +7,18 @@ import AudioManager from '../systems/AudioManager.js';
 import SaveManager from '../systems/SaveManager.js';
 import { usesTouchControls } from '../ui/TouchControls.js';
 import { MenuButton, MenuNav } from '../ui/Menu.js';
+import { pixelFont } from '../i18n/fonts.js';
+import { t, translate, getLang, setLang, onLanguageChanged, LANGS } from '../i18n/index.js';
 
 export default class TitleScene extends Phaser.Scene {
   constructor() {
     super(SCENES.MENU);
+  }
+
+  // focusLang: set when the scene restarts after a language switch so the
+  // keyboard focus stays on the language buttons.
+  init(data) {
+    this.focusLang = data && data.focusLang ? data.focusLang : null;
   }
 
   create() {
@@ -45,17 +53,22 @@ export default class TitleScene extends Phaser.Scene {
     overlay.fillStyle(0x000000, 0.4);
     overlay.fillRect(0, 0, w * 2, h * 2);
 
+    // Switching language rebuilds this scene (no page reload).
+    const offLanguage = onLanguageChanged(() => {
+      if (!this.isStarting) this.scene.restart({ focusLang: getLang() });
+    });
+    this.events.once('shutdown', offLanguage);
+
     // === Title text ===
-    // "BOSO" main title with glow effect
-    const titleShadow = this.add.text(w / 2 + 3, h * (compact ? 0.17 : 0.28) + 3, 'BOSO', {
-      fontSize: compact ? '48px' : '72px',
-      fontFamily: 'Arial Black, Arial',
+    // Game title with glow effect (smaller on narrow screens so the Korean title still fits)
+    const titleSize = compact ? 48 : (w < 420 ? 54 : 72);
+    const titleShadow = this.add.text(w / 2 + 3, h * (compact ? 0.17 : 0.28) + 3, t('title.name'), {
+      ...pixelFont(titleSize),
       color: '#000000',
     }).setOrigin(0.5).setAlpha(0.4);
 
-    const title = this.add.text(w / 2, h * (compact ? 0.17 : 0.28), 'BOSO', {
-      fontSize: compact ? '48px' : '72px',
-      fontFamily: 'Arial Black, Arial',
+    const title = this.add.text(w / 2, h * (compact ? 0.17 : 0.28), t('title.name'), {
+      ...pixelFont(titleSize),
       color: '#F39C12',
       stroke: '#E67E22',
       strokeThickness: 4,
@@ -72,16 +85,13 @@ export default class TitleScene extends Phaser.Scene {
     });
 
     // Subtitle
-    this.add.text(w / 2, h * (compact ? 0.29 : 0.38), '"Look at me!"', {
-      fontSize: '20px',
-      fontFamily: 'Arial',
+    this.add.text(w / 2, h * (compact ? 0.29 : 0.38), t('title.tagline'), {
+      ...pixelFont(20),
       color: '#F7DC6F',
-      fontStyle: 'italic',
     }).setOrigin(0.5);
 
-    this.add.text(w / 2, h * (compact ? 0.36 : 0.43), "Two little cats. One big adventure.", {
-      fontSize: '13px',
-      fontFamily: 'Arial',
+    this.add.text(w / 2, h * (compact ? 0.36 : 0.43), t('title.subtitle'), {
+      ...pixelFont(13),
       color: '#95A5A6',
     }).setOrigin(0.5);
 
@@ -92,10 +102,10 @@ export default class TitleScene extends Phaser.Scene {
     const hasSave = SaveManager.hasAnySave();
     const entries = hasSave
       ? [
-        { label: 'CONTINUE', onSelect: () => this.go(SCENES.SAVE_SLOTS, { mode: 'continue' }) },
-        { label: 'NEW GAME', onSelect: () => this.go(SCENES.SAVE_SLOTS, { mode: 'new' }) },
+        { label: t('title.continue'), onSelect: () => this.go(SCENES.SAVE_SLOTS, { mode: 'continue' }) },
+        { label: t('title.newGame'), onSelect: () => this.go(SCENES.SAVE_SLOTS, { mode: 'new' }) },
       ]
-      : [{ label: 'START', onSelect: () => this.go(SCENES.CHARACTER_SELECT, { slot: 1 }) }];
+      : [{ label: t('title.start'), onSelect: () => this.go(SCENES.CHARACTER_SELECT, { slot: 1 }) }];
 
     const btnW = compact ? 200 : 220;
     const btnH = compact ? 38 : 50;
@@ -112,17 +122,19 @@ export default class TitleScene extends Phaser.Scene {
       palette: orange,
       onSelect: entry.onSelect,
     }));
+    // Language selector (top right): each option is written in its own language.
+    const langButtons = this.createLanguageButtons(w, compact);
     this.nav = new MenuNav(this);
-    this.nav.setButtons(buttons, 0);
+    this.nav.setButtons([...buttons, ...langButtons], 0);
+    if (this.focusLang) this.nav.focus(buttons.length + LANGS.indexOf(this.focusLang));
 
     const menuBottom = btnTop + entries.length * btnH + (entries.length - 1) * btnGap;
     const hintY = menuBottom + (compact ? 14 : 22);
     const hint = usesTouchControls()
-      ? 'Tap an option'
-      : (entries.length > 1 ? 'UP / DOWN to choose, ENTER to select' : 'Press ENTER or SPACE');
+      ? t('title.hintTouch')
+      : (entries.length > 1 ? t('title.hintNav') : t('title.hintStart'));
     this.add.text(w / 2, hintY, hint, {
-      fontSize: '13px',
-      fontFamily: 'Arial',
+      ...pixelFont(13),
       color: '#D0D0D0',
       stroke: '#000000',
       strokeThickness: 3,
@@ -130,9 +142,8 @@ export default class TitleScene extends Phaser.Scene {
 
     // Demo-clear badge (any readable slot that cleared the demo)
     if (SaveManager.anySlotHasFlag('demoCleared')) {
-      const badge = this.add.text(w / 2, compact ? 14 : hintY + 26, '* DEMO CLEARED *', {
-        fontSize: '14px',
-        fontFamily: 'Arial Black, Arial',
+      const badge = this.add.text(w / 2, compact ? 14 : hintY + 26, t('title.demoCleared'), {
+        ...pixelFont(14),
         color: '#F1C40F',
         stroke: '#000000',
         strokeThickness: 3,
@@ -147,21 +158,45 @@ export default class TitleScene extends Phaser.Scene {
     }
 
     // Version text
-    this.add.text(w / 2, Math.max(h * 0.92, hintY + 18), 'Seoli & Bomi - Pixel Adventure', {
-      fontSize: '11px',
-      fontFamily: 'Arial',
+    this.add.text(w / 2, Math.max(h * 0.92, hintY + 18), t('title.footer'), {
+      ...pixelFont(11),
       color: '#444444',
     }).setOrigin(0.5);
 
     // Storage blocked (private mode, site data disabled): the game still
     // runs, but nothing survives closing the tab.
     if (!SaveManager.isStorageAvailable()) {
-      this.add.text(w / 2, h - 8, "Progress can't be saved in this browser", {
-        fontSize: '12px',
-        fontFamily: 'Arial',
+      this.add.text(w / 2, h - 8, t('title.storageBlocked'), {
+        ...pixelFont(12),
         color: '#E8B04A',
       }).setOrigin(0.5, 1);
     }
+  }
+
+  // One button per language, each written in its own language - the active language is highlighted. Returned in LANGS order
+  // so the caller can append them to the keyboard focus list.
+  createLanguageButtons(w, compact) {
+    const btnH = compact ? 26 : 30;
+    const gap = 6;
+    const widths = { en: 52, ko: 84 };
+    const active = { fill: 0xF39C12, fillFocus: 0xE67E22, stroke: 0xE67E22, strokeFocus: 0xFFFFFF, text: '#FFFFFF' };
+    let right = w - 14;
+    const built = {};
+    [...LANGS].reverse().forEach((code) => {
+      const width = widths[code];
+      built[code] = new MenuButton(this, {
+        x: right - width / 2,
+        y: 14 + btnH / 2,
+        width,
+        height: btnH,
+        lines: [translate(code, 'lang.self')],
+        fontSize: 14,
+        palette: code === getLang() ? active : {},
+        onSelect: () => setLang(code),
+      });
+      right -= width + gap;
+    });
+    return LANGS.map((code) => built[code]);
   }
 
   coverBackground(screenW, screenH) {

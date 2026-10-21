@@ -2,7 +2,7 @@
 // Hallway & Stairs - vertical climb to the upper floor
 
 const MAP_HALLWAY = {
-  name: 'Hallway & Stairs',
+  nameKey: 'map.hallway.name',
   region: 'house',
   width: 1800,
   height: 1400,
@@ -37,10 +37,10 @@ const MAP_HALLWAY = {
     { x: 400, y: 620, w: 220, h: 16, isGround: false },
   ],
   portals: [
-    { x: 60, y: 1290, label: '← Kitchen', targetMap: 'kitchen', spawnX: 3040, spawnY: 680 },
-    { x: 240, y: 1290, label: '↓ Basement', targetMap: 'basement', spawnX: 2640, spawnY: 680 },
-    { x: 1250, y: 570, label: '→ Bedroom', targetMap: 'bedroom', spawnX: 160, spawnY: 680 },
-    { x: 1620, y: 210, label: '↑ Toy Workshop', targetMap: 'playroom', spawnX: 120, spawnY: 680 },
+    { x: 60, y: 1290, labelKey: 'portal.hallway.kitchen', targetMap: 'kitchen', spawnX: 3040, spawnY: 680 },
+    { x: 240, y: 1290, labelKey: 'portal.hallway.basement', targetMap: 'basement', spawnX: 2640, spawnY: 680 },
+    { x: 1250, y: 570, labelKey: 'portal.hallway.bedroom', targetMap: 'bedroom', spawnX: 160, spawnY: 680 },
+    { x: 1620, y: 210, labelKey: 'portal.hallway.playroom', targetMap: 'playroom', spawnX: 120, spawnY: 680 },
   ],
   ropes: [
     // Ground to stairs

@@ -4,6 +4,8 @@ import { SCENES } from '../utils/constants.js';
 import { CHARACTERS } from '../data/characters.js';
 import SaveManager from '../systems/SaveManager.js';
 import { usesTouchControls } from '../ui/TouchControls.js';
+import { pixelFont } from '../i18n/fonts.js';
+import { t } from '../i18n/index.js';
 
 export default class CharacterSelectScene extends Phaser.Scene {
   constructor() { super(SCENES.CHARACTER_SELECT); }
@@ -24,13 +26,12 @@ export default class CharacterSelectScene extends Phaser.Scene {
     const background = this.add.image(w / 2, h / 2, 'bg_garden');
     background.setScale(Math.max(w / background.width, h / background.height));
     this.add.rectangle(0, 0, w, h, 0x141D20, 0.65).setOrigin(0);
-    const font = 'Georgia, serif';
-    this.add.text(w / 2, h * 0.09, 'CHOOSE YOUR COMPANION', {
-      fontFamily: font, fontSize: `${Math.min(30, w / 18)}px`, color: '#FFF4D9',
+    this.add.text(w / 2, h * 0.09, t('select.title'), {
+      ...pixelFont(Math.min(30, w / 18)), color: '#FFF4D9',
       stroke: '#2C2728', strokeThickness: 3,
     }).setOrigin(0.5);
-    this.add.text(w / 2, h * 0.15, 'Two little cats. One way home.', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#C8D9CE',
+    this.add.text(w / 2, h * 0.15, t('select.subtitle'), {
+      ...pixelFont(13), color: '#C8D9CE',
     }).setOrigin(0.5);
 
     const cardW = Math.min(300, w * 0.4), cardH = Math.min(420, h * 0.59);
@@ -42,27 +43,29 @@ export default class CharacterSelectScene extends Phaser.Scene {
         .setStrokeStyle(2, 0x566966).setInteractive({ useHandCursor: true });
       panel.on('pointerdown', () => { this.selectedIndex = index; this.updateSelection(); });
       const accent = index === 0 ? '#A2E6CF' : '#F8CD8B';
-      const name = this.add.text(0, -cardH / 2 + 24, character.name, {
-        fontFamily: font, fontSize: '28px', color: '#FFF6DF',
+      const name = this.add.text(0, -cardH / 2 + 24, t(character.nameKey), {
+        ...pixelFont(28), color: '#FFF6DF',
       }).setOrigin(0.5);
-      const className = this.add.text(0, -cardH / 2 + 53, character.className.toUpperCase(), {
-        fontFamily: 'monospace', fontSize: '11px', color: accent,
+      const className = this.add.text(0, -cardH / 2 + 53, t(character.classKey).toUpperCase(), {
+        ...pixelFont(11), color: accent,
       }).setOrigin(0.5);
       const portraitSize = Math.min(142, cardW - 20, cardH * 0.30);
       const portrait = this.add.image(0, -cardH * (cardH < 310 ? 0.06 : 0.13), `portrait_${character.id}`)
         .setDisplaySize(portraitSize, portraitSize);
       // A new run starts every cat at Lv.1; only a swap shows saved progress.
       const progress = this.switching ? SaveManager.getCharacter(character.id) : null;
-      const desc = this.add.text(0, cardH * 0.12, character.desc, {
-        fontFamily: 'monospace', fontSize: `${Math.max(9, Math.min(12, cardW / 24))}px`,
+      const desc = this.add.text(0, cardH * 0.12, t(character.descKey), {
+        ...pixelFont(Math.max(9, Math.min(12, cardW / 24))),
         color: '#DAE2D9', align: 'center', lineSpacing: 4, wordWrap: { width: cardW - 14 },
       }).setOrigin(0.5);
       const stats = this.add.text(0, cardH * 0.28,
-        `HP ${character.stats.hp}   ATK ${character.stats.atk}\nSPD ${character.stats.spd}   Lv.${progress?.level || 1}`, {
-          fontFamily: 'monospace', fontSize: '13px', color: accent, align: 'center', lineSpacing: 10,
+        t('select.stats', {
+          hp: character.stats.hp, atk: character.stats.atk, spd: character.stats.spd, level: progress?.level || 1,
+        }), {
+          ...pixelFont(13), color: accent, align: 'center', lineSpacing: 10,
         }).setOrigin(0.5);
-      const tag = this.add.text(0, cardH / 2 - 22, index === 0 ? 'SPEED / WIND CLAWS' : 'POWER / CLOSE COMBAT', {
-        fontFamily: 'monospace', fontSize: '10px', color: '#AABCB1',
+      const tag = this.add.text(0, cardH / 2 - 22, t(character.tagKey), {
+        ...pixelFont(10), color: '#AABCB1',
       }).setOrigin(0.5);
       if (cardH < 310) { desc.setVisible(false); tag.setVisible(false); }
       card.add([panel, name, className, portrait, desc, stats, tag]);
@@ -73,13 +76,13 @@ export default class CharacterSelectScene extends Phaser.Scene {
     const button = this.add.rectangle(w / 2, buttonY, 240, 45, 0xB88849)
       .setStrokeStyle(2, 0xF7D99A).setInteractive({ useHandCursor: true });
     this.startLabel = this.add.text(w / 2, buttonY, '', {
-      fontFamily: 'monospace', fontSize: '17px', fontStyle: 'bold', color: '#FFF6DF',
+      ...pixelFont(17), color: '#FFF6DF',
     }).setOrigin(0.5);
     button.on('pointerdown', () => this.launchGame());
     button.on('pointerover', () => button.setFillStyle(0xCA9B58));
     button.on('pointerout', () => button.setFillStyle(0xB88849));
-    this.add.text(w / 2, h * 0.94, usesTouchControls() ? 'Tap a cat, then PLAY. Landscape recommended.' : 'ARROWS select  /  ENTER start  /  CTRL attack  /  ALT jump', {
-      fontFamily: 'monospace', fontSize: `${Math.min(12, w / 58)}px`, color: '#DDD9CA',
+    this.add.text(w / 2, h * 0.94, usesTouchControls() ? t('select.hintTouch') : t('select.hintKeys'), {
+      ...pixelFont(Math.min(12, w / 58)), color: '#DDD9CA', align: 'center', wordWrap: { width: w - 24 },
     }).setOrigin(0.5);
     this.input.keyboard.on('keydown-LEFT', () => { this.selectedIndex = 0; this.updateSelection(); });
     this.input.keyboard.on('keydown-RIGHT', () => { this.selectedIndex = 1; this.updateSelection(); });
@@ -98,7 +101,9 @@ export default class CharacterSelectScene extends Phaser.Scene {
       panel.setFillStyle(index === this.selectedIndex ? 0x31413C : 0x202B2C, 0.94);
       portrait.setAlpha(index === this.selectedIndex ? 1 : 0.75);
     });
-    this.startLabel.setText(`PLAY AS ${CHARACTERS[this.selectedIndex].name.toUpperCase()}`);
+    this.startLabel.setText(t('select.playAs', {
+      name: t(CHARACTERS[this.selectedIndex].nameKey).toUpperCase(),
+    }));
   }
 
   launchGame() {

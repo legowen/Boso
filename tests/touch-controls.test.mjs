@@ -64,12 +64,17 @@ async function fixture(touch = true) {
   window.matchMedia = () => ({ matches: touch });
   document.createElement = () => new Element(); document.body = new Element();
   const context = vm.createContext({ window, document, navigator: { maxTouchPoints: touch ? 5 : 0 }, AbortController });
+  // Cache the in-flight promise: modules shared by several importers (a diamond
+  // in the import graph, e.g. SaveManager via the i18n module) must not be handed
+  // out before they finish linking.
   const modules = new Map();
-  async function load(url) {
-    if (modules.has(url.href)) return modules.get(url.href);
+  function load(url) {
+    if (!modules.has(url.href)) modules.set(url.href, loadModule(url));
+    return modules.get(url.href);
+  }
+  async function loadModule(url) {
     const source = url.pathname.endsWith('.css') ? '' : await fs.readFile(url, 'utf8');
     const module = new vm.SourceTextModule(source, { context, identifier: url.href });
-    modules.set(url.href, module);
     await module.link((specifier, parent) => load(new URL(specifier, parent.identifier)));
     return module;
   }

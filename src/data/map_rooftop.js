@@ -3,7 +3,7 @@
 // Open-world branch: bedroom window on one side, attic skylight on the other.
 
 const MAP_ROOFTOP = {
-  name: 'Rooftop',
+  nameKey: 'map.rooftop.name',
   region: 'house',
   width: 2800,
   height: 800,
@@ -42,8 +42,8 @@ const MAP_ROOFTOP = {
     { x: 2450, y: 615, w: 220, h: 16, isGround: false },
   ],
   portals: [
-    { x: 60, y: 690, label: '↓ Bedroom Window', targetMap: 'bedroom', spawnX: 2240, spawnY: 680 },
-    { x: 2740, y: 690, label: '↓ Attic Skylight', targetMap: 'attic', spawnX: 1900, spawnY: 500 },
+    { x: 60, y: 690, labelKey: 'portal.rooftop.bedroom', targetMap: 'bedroom', spawnX: 2240, spawnY: 680 },
+    { x: 2740, y: 690, labelKey: 'portal.rooftop.attic', targetMap: 'attic', spawnX: 1900, spawnY: 500 },
   ],
   ropes: [
     // Ridge to layer 1

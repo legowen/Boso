@@ -4,7 +4,7 @@
 // top leads out to the backyard gate.
 
 const MAP_BOOKSHELF_CLIFFS = {
-  name: 'Bookshelf Cliffs',
+  nameKey: 'map.bookshelf_cliffs.name',
   region: 'buddy',
   width: 1600,
   height: 1500,
@@ -35,8 +35,8 @@ const MAP_BOOKSHELF_CLIFFS = {
     { x: 1100, y: 460, w: 340, h: 16, isGround: false },
   ],
   portals: [
-    { x: 60, y: 1390, label: '← Hallway Runway', targetMap: 'hallway_run', spawnX: 1400, spawnY: 640 },
-    { x: 1380, y: 410, label: '↑ Backyard Window', targetMap: 'backyard_gate', spawnX: 160, spawnY: 680 },
+    { x: 60, y: 1390, labelKey: 'portal.bookshelf_cliffs.hallway_run', targetMap: 'hallway_run', spawnX: 1400, spawnY: 640 },
+    { x: 1380, y: 410, labelKey: 'portal.bookshelf_cliffs.backyard_gate', targetMap: 'backyard_gate', spawnX: 160, spawnY: 680 },
   ],
   ropes: [
     // Each rope hangs from a shelf down past the one below it.

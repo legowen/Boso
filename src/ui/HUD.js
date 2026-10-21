@@ -2,6 +2,9 @@
 // Bottom-center HUD (HP, MP display) - responsive to screen resize
 
 import { UI, DEPTH } from '../utils/constants.js';
+import { pixelFont } from '../i18n/fonts.js';
+import { t, onLanguageChanged } from '../i18n/index.js';
+import { addLocalizedText } from '../i18n/text.js';
 
 const HUD_WIDTH = 380;
 const HUD_HEIGHT = 78;
@@ -33,8 +36,10 @@ export default class HUD {
     // or restarted scenes would stack dead listeners)
     this.resizeHandler = () => this.repositionHUD();
     this.scene.scale.on('resize', this.resizeHandler);
+    const offLanguage = onLanguageChanged(() => this.refreshLanguage());
     this.scene.events.once('shutdown', () => {
       this.scene.scale.off('resize', this.resizeHandler);
+      offLanguage();
     });
   }
 
@@ -82,11 +87,9 @@ export default class HUD {
     const barY = 12;
 
     // HP label
-    this.hpLabel = this.scene.add.text(labelX, barY, 'HP', {
-      fontSize: '13px',
-      fontFamily: UI.FONT_FAMILY,
+    this.hpLabel = addLocalizedText(this.scene, labelX, barY, 'hud.hp', {
+      ...pixelFont(13),
       color: '#E74C3C',
-      fontStyle: 'bold',
     });
     this.container.add(this.hpLabel);
 
@@ -102,8 +105,7 @@ export default class HUD {
 
     // HP value text
     this.hpText = this.scene.add.text(barX + BAR_WIDTH + 8, barY + 1, '', {
-      fontSize: '12px',
-      fontFamily: UI.FONT_FAMILY,
+      ...pixelFont(12),
       color: UI.FONT_COLOR,
     });
     this.container.add(this.hpText);
@@ -119,11 +121,9 @@ export default class HUD {
     const barY = 34;
 
     // MP label
-    this.mpLabel = this.scene.add.text(labelX, barY, 'MP', {
-      fontSize: '13px',
-      fontFamily: UI.FONT_FAMILY,
+    this.mpLabel = addLocalizedText(this.scene, labelX, barY, 'hud.mp', {
+      ...pixelFont(13),
       color: '#3498DB',
-      fontStyle: 'bold',
     });
     this.container.add(this.mpLabel);
 
@@ -139,8 +139,7 @@ export default class HUD {
 
     // MP value text
     this.mpText = this.scene.add.text(barX + BAR_WIDTH + 8, barY, '', {
-      fontSize: '11px',
-      fontFamily: UI.FONT_FAMILY,
+      ...pixelFont(11),
       color: UI.FONT_COLOR,
     });
     this.container.add(this.mpText);
@@ -155,11 +154,9 @@ export default class HUD {
     const barX = HUD_PADDING + 30;
     const barY = 56;
 
-    this.expLabel = this.scene.add.text(labelX, barY - 2, 'EXP', {
-      fontSize: '10px',
-      fontFamily: UI.FONT_FAMILY,
+    this.expLabel = addLocalizedText(this.scene, labelX, barY - 2, 'hud.exp', {
+      ...pixelFont(10),
       color: '#F1C40F',
-      fontStyle: 'bold',
     });
     this.container.add(this.expLabel);
 
@@ -172,8 +169,7 @@ export default class HUD {
     this.container.add(this.expBar);
 
     this.expText = this.scene.add.text(barX + BAR_WIDTH + 8, barY - 2, '', {
-      fontSize: '10px',
-      fontFamily: UI.FONT_FAMILY,
+      ...pixelFont(10),
       color: UI.FONT_COLOR,
     });
     this.container.add(this.expText);
@@ -184,8 +180,7 @@ export default class HUD {
 
   createLevelText() {
     this.levelText = this.scene.add.text(HUD_WIDTH - HUD_PADDING, 8, '', {
-      fontSize: '14px',
-      fontFamily: 'Arial Black, Arial',
+      ...pixelFont(14),
       color: '#F1C40F',
       stroke: '#000000',
       strokeThickness: 2,
@@ -195,10 +190,8 @@ export default class HUD {
 
   createMapName() {
     this.mapNameText = this.scene.add.text(0, 0, '', {
-      fontSize: '16px',
-      fontFamily: UI.FONT_FAMILY,
+      ...pixelFont(16),
       color: '#FFFFFF',
-      fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 3,
     }).setOrigin(1, 0);
@@ -206,10 +199,8 @@ export default class HUD {
 
     // Treats (currency) under the map name
     this.treatsText = this.scene.add.text(0, 0, '', {
-      fontSize: '13px',
-      fontFamily: UI.FONT_FAMILY,
+      ...pixelFont(13),
       color: '#F1C40F',
-      fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 2,
     }).setOrigin(1, 0);
@@ -217,7 +208,9 @@ export default class HUD {
   }
 
   update(player) {
+    this.refreshMapName();
     if (!player) return;
+    this.lastPlayer = player;
 
     // HP bar update
     const hpRatio = player.hp / player.maxHp;
@@ -256,16 +249,28 @@ export default class HUD {
         this.expBar.fillRoundedRect(this.expBarX, this.expBarY, fillWidth, 8, 3);
       }
       this.expText.setText(`${player.exp}/${need}`);
-      this.levelText.setText(`Lv.${player.level}`);
+      this.levelText.setText(t('hud.level', { level: player.level }));
     }
 
     // Treats counter
     if (this.treatsText && typeof player.treats === 'number') {
-      this.treatsText.setText(`Treats: ${player.treats}`);
+      this.treatsText.setText(t('hud.treats', { count: player.treats }));
     }
   }
 
-  setMapName(name) {
-    this.mapNameText.setText(name);
+  // nameKey: locale key of the map / route name shown top right.
+  setMapName(nameKey) {
+    this.mapNameKey = nameKey;
+    this.refreshMapName();
+  }
+
+  refreshMapName() {
+    if (this.mapNameKey) this.mapNameText.setText(t(this.mapNameKey));
+  }
+
+  // Language switched (possibly while paused, when update() is not running).
+  refreshLanguage() {
+    this.refreshMapName();
+    if (this.lastPlayer) this.update(this.lastPlayer);
   }
 }

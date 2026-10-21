@@ -12,6 +12,8 @@ cage voyages) with a Magatia-homage story: two rival toy-alchemist guilds
 - **Engine**: Phaser 3 (via npm)
 - **Build**: Vite
 - **Language**: Vanilla JavaScript (ES modules)
+- **Localization**: English + Korean through `src/i18n` (`t(key)`), Galmuri pixel
+  fonts (SIL OFL, `public/assets/fonts/`)
 - **Deploy target**: Vercel (free)
 
 ## Commands
@@ -29,17 +31,24 @@ npm run art:build # Repack the retained generated sources (requires dev dependen
 boso-rpg/
 ├── public/assets/
 │   ├── images/               # cats/ animation sheets + tex/ sprites + world/ scenery
+│   ├── fonts/                # Galmuri9/11/14 .woff2 + Galmuri-OFL.txt (unmodified upstream files)
 │   └── bgm/                  # optional BGM files (see docs/ASSETS.md)
 ├── docs/
 │   ├── STORY.md              # Story bible (Korean, design doc)
 │   ├── ASSETS.md             # Texture/BGM key registry for drop-in assets
 │   └── VERIFICATION.md       # Scenario checklist + adversarial review log
 ├── scripts/
-│   └── validate.mjs          # Pure-Node world data validator
+│   ├── validate.mjs          # Pure-Node world data + i18n validator
+│   └── fontCoverage.mjs      # Node-only .woff2 cmap reader (no-tofu check)
 ├── src/
 │   ├── main.js               # Entry point, registers scenes
 │   ├── config.js             # Phaser config (RESIZE mode, pixelArt: true)
-│   ├── data/                 # PURE DATA (no Phaser imports, Node-validatable)
+│   ├── i18n/                 # Localization (the ONLY place user-facing text lives)
+│   │   ├── index.js          # t(key, params), getLang/setLang, `language-changed` event
+│   │   ├── en.js / ko.js     # Flat dotted-key locale files (ko.* is the only file with Hangul)
+│   │   ├── fonts.js          # pixelFont(px) size snapping + loadFonts() before the first scene
+│   │   └── text.js           # addLocalizedText(): Text that rewrites itself on language change
+│   ├── data/                 # PURE DATA (no Phaser imports, Node-validatable); text = locale keys
 │   │   ├── maps.js           # MAPS_DATA registry + START_MAP + REGION_HOME/respawnMapFor
 │   │   ├── map_*.js          # 20 maps across 3 regions (shelter/buddy/house)
 │   │   ├── spawns.js         # Named entry spawns ('default', 'from:<map>') for save slots
@@ -50,7 +59,7 @@ boso-rpg/
 │   │   ├── items.js          # ITEMS (consumables: cookie/milk)
 │   │   ├── worldmap.js       # Region-scoped world map layout + REGION_TITLES
 │   │   ├── audio.js          # BGM registry (8 keys, url:null placeholders, graceful fallback)
-│   │   ├── story.js          # Intro/ending/warning/befriend text ({player} placeholders)
+│   │   ├── story.js          # Intro/ending/warning/befriend text KEYS ({player} placeholder in the text)
 │   │   └── assets.js         # Optional texture override registry
 │   ├── entities/
 │   │   ├── Player.js         # Player (movement, ropes, combat, knockback; animated Seoli + Bomi)
@@ -74,7 +83,7 @@ boso-rpg/
 │   ├── ui/Menu.js            # MenuButton + MenuNav (keyboard/pointer menus)
 │   └── utils/
 │       ├── constants.js      # Global constants (PLAYER, SCENES, DEPTH...)
-│       └── format.js         # Pure play-time / saved-at formatters
+│       └── format.js         # Play-time / saved-at formatters (worded by the active locale)
 ├── index.html
 └── package.json
 ```
@@ -118,16 +127,17 @@ PreloadScene → TitleScene (MENU) → [SaveSlotScene] → CharacterSelectScene 
   (Vacuum King); backyard_gate boss sets `biggieDefeated` → opens hidden
   shortcut portal to high_table AND unlocks Owen's route home
 - World map UI: M key overlays the CURRENT REGION's node/edge graph
-  (src/data/worldmap.js + REGION_TITLES; closet node hidden until its flag)
-- Map data includes: region, platforms, ropes, portals (optional
-  hidden/requiresFlag), npcs ({x, y, name, dialogue[], optional texture,
-  travelRoute, travelRequiresFlag, travelLockedLines}), monsters
+  (src/data/worldmap.js + REGION_TITLE_KEYS; closet node hidden until its flag)
+- Map data includes: `nameKey`, region, platforms, ropes, portals ({x, y,
+  `labelKey`, targetMap, spawnX/Y, optional hidden/requiresFlag}), npcs ({x, y,
+  `id`, `nameKey` = `npc.<id>.name`, `dialogueKeys[]`, optional texture,
+  travelRoute, travelRequiresFlag, `travelLockedKeys[]`}), monsters
   ({x, y, type}), optional boss ({id, x, y}), optional guides
-  ({x, y, text} tutorial signs), optional cage ({x, y} travel prop),
-  bgm key, bgColors
+  ({x, y, `textKey`} tutorial signs), optional cage ({x, y} travel prop),
+  bgm key, bgColors. Data holds locale KEYS only, never display text.
 
 ### Cage Travel (src/data/travel.js + TravelScene)
-- TRAVEL_ROUTES: `{ name, from, to, durationSec, bgm, ambush }`
+- TRAVEL_ROUTES: `{ nameKey, from, to, durationSec, bgm, ambush }`
   - `shelter_to_buddy` (15s, no ambush) — tutorial voyage
   - `buddy_to_home` / `home_to_buddy` (60s, ambush windows)
 - Boarding: Owen NPCs carry `travelRoute`; dialogue ends on a boarding page
@@ -238,19 +248,38 @@ Optional `alpha` renders a type translucent (lonesome, dustmote).
   bag overlay on I. MP regenerates +2/2s naturally. Both work mid-ride.
 - **Wind Gust (Seoli)**: X key fires 'proj_bark' (retained internal key; 4 MP, 350ms cd, 280px range,
   0.8x ATK); hits monsters, bosses, and Rumble ambushers.
-- **Quests**: src/data/quests.js kill-count quests; NPC markers (! available,
+- **Quests**: src/data/quests.js kill-count quests (`giver` is an NPC `id`;
+  text via `titleKey`/`offerKeys`/`reminderKey`/`completeKeys`); NPC markers (! available,
   ? ready); accept/turn-in on dialogue open; per-NPC quests chain in order.
   Boss quests auto-complete if the boss flag is already set.
 - **NPC dialogue**: SPACE near an NPC opens a dialogue box; SPACE advances,
   auto-closes when walking away. `{player}` in lines is replaced with the
-  character name. Owen NPCs append a travel boarding page.
+  character name. Owen NPCs append a travel boarding page. Lines are kept as
+  thunks so a language switch re-renders the open page.
+- **Localization (English / Korean)**: `src/i18n` (see Code Conventions).
+  `t(key, params)` falls back current language → English → the key itself (a
+  dev-only `console.warn` names the miss). The language lives in
+  `boso.settings.lang` (global, shared by every save slot); with nothing stored
+  a browser whose `navigator.language` starts with `ko` gets Korean, anything
+  else English. The title screen has one button per language (each written in
+  its own language); the pause menu has the same pair. `setLang()` persists and
+  emits `language-changed` — no reload: Title restarts itself, GameScene redraws
+  (HUD, labels made with `addLocalizedText`, open dialogue/bag/map, pause menu),
+  TouchControls relabels. Text created once and kept (`add.text`) must either go
+  through `addLocalizedText` or be rebuilt in a `language-changed` handler.
+  All text uses Galmuri (Hangul + Latin): `pixelFont(px)` snaps to a size on the
+  font's own grid (9/11/14 px × integer) so pixels stay crisp; never set
+  `fontFamily`/`fontSize`/bold by hand. `loadFonts()` runs before `new Phaser.Game`.
+  Character names (Seoli, Bomi, Owen, Biggie, Dr. Embrace, NPC given names) stay
+  romanized in Korean until their Hangul spelling is decided; Korean text that
+  follows `{player}` may only use particles that fit vowel-final names.
 - **SaveManager (save slots)**: up to 3 slots, one JSON object each in
   localStorage `boso.save.slot1` … `boso.save.slot3` (schema v1):
   `{ version: 1, slot, createdAt, updatedAt, playTimeSec, mapId, spawnId, hp,
   storyFlags, bosses: { <id>: { firstDefeatedAt, lastDefeatedAt } },
   characterId, characters: { <charId>: { level, exp, treats, items, quests } } }`.
-  Global settings (not per slot) live in `boso.settings`
-  (`getSettings()/updateSettings()`). `getFlag/setFlag/getCharacter/
+  Global settings (not per slot) live in `boso.settings` (currently `lang`;
+  `getSettings()/updateSettings()`). `getFlag/setFlag/getCharacter/
   setCharacter` read and write the ACTIVE slot (set by `startNewGame(slot, cat)`
   or `continueSlot(slot)`). Node-safe; every storage access is try/catch with
   an in-memory fallback, and the title shows a notice when storage is blocked.
@@ -325,9 +354,14 @@ the player above the pad, and MAP/BAG provide map/quest details.
 - Monsters: velocity push; flyers re-steer via their AI instead of vy pop
 
 ## Code Conventions
-- **All code comments in English**
-- **All in-game text in English** (docs/ may be Korean)
-- No console.log in src/ (validator enforces both rules)
+- Code, identifiers, comments and commit messages are in English
+- **User-facing text only through locale files and `t(key)`** — no hardcoded UI
+  strings in scenes, entities, UI or data. Data stores keys (`nameKey`,
+  `labelKey`, `textKey`, `dialogueKeys`...), scenes call `t()`. Symbols/glyphs
+  with no words (arrows, the heart) may stay literal.
+- **Hangul is allowed ONLY in `src/i18n/ko.*`** (docs/ may be Korean). Add every
+  new key to BOTH `en.js` and `ko.js` with the same `{placeholders}`
+- No console.log in src/ (validator enforces these rules)
 - Constants in UPPER_CASE in constants.js; scene keys in SCENES; DEPTH ordering
 - Map/monster/travel/audio/story data is PURE (no Phaser imports) so
   scripts/validate.mjs can import it under Node
@@ -344,11 +378,18 @@ the player above the pad, and MAP/BAG provide map/quest details.
   schema create→serialize→parse round-trip, loader rejects wrong version /
   unknown mapId), boss respawn (numeric respawnSec > 0 per boss, STORY.bossRespawn
   text, isBossAlive: never defeated / just defeated / exactly at timer / after
-  timer), src/ convention scan
+  timer), i18n (en/ko have the same keys and placeholders, every key referenced
+  by data or by a static `t('key')` exists in en, `t()` passes the placeholders
+  its string needs, every glyph of both locales exists in all three Galmuri
+  fonts = no tofu, the font license ships), and a source scan (no Hangul outside
+  `src/i18n/ko.*`, no console.log, no string literal handed to `add.text(` /
+  `setText(`, no reads of the removed text fields)
 - `npm run build` — must pass with zero errors
 
 ### Adding New Maps
-1. Create `src/data/map_newmap.js` (copy an existing map's shape, set region)
+1. Create `src/data/map_newmap.js` (copy an existing map's shape, set region);
+   add `map.<id>.name`, `portal.<id>.<target>` and any `npc.*` / `guide.*` keys
+   to en.js AND ko.js
 2. Register in `src/data/maps.js` MAPS_DATA
 3. Add a portal in an existing map pointing to the new key (or a travel route)
 4. Add a WORLD_MAP_LAYOUT entry for the region's overlay
@@ -362,9 +403,11 @@ the player above the pad, and MAP/BAG provide map/quest details.
    GameScene)
 4. Add the texture key `monster_<type>` to `src/data/assets.js` (validator
    enforces this)
+5. Add `monster.<type>.name` to en.js and ko.js and point `nameKey` at it
 
 ### Adding New Travel Routes
 1. Add entry to TRAVEL_ROUTES in `src/data/travel.js` (from/to/duration/ambush)
+   (`nameKey` → `travel.<route>.name` in both locales)
 2. Give the departure map an Owen-style NPC with `travelRoute` + a `cage` prop
 3. Run `npm run validate` (route integrity + NPC reference checks)
 

@@ -14,7 +14,7 @@ export default class VacuumKing {
     this.scene = scene;
     this.id = 'vacuumKing';
     this.cfg = BOSS_TYPES.vacuumKing;
-    this.name = this.cfg.name;
+    this.nameKey = this.cfg.nameKey;
     this.hp = this.cfg.hp;
     this.maxHp = this.cfg.hp;
     this.defeated = false;

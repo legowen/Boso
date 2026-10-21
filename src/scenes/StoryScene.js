@@ -9,6 +9,9 @@ import { STORY } from '../data/story.js';
 import { usesTouchControls } from '../ui/TouchControls.js';
 import { START_MAP } from '../data/maps.js';
 import SaveManager from '../systems/SaveManager.js';
+import { pixelFont } from '../i18n/fonts.js';
+import { t } from '../i18n/index.js';
+import { CHARACTERS } from '../data/characters.js';
 
 export default class StoryScene extends Phaser.Scene {
   constructor() {
@@ -36,8 +39,7 @@ export default class StoryScene extends Phaser.Scene {
 
     // === Story text (centered, wrapped) ===
     this.storyText = this.add.text(w / 2, h / 2, '', {
-      fontSize: '24px',
-      fontFamily: UI.FONT_FAMILY,
+      ...pixelFont(24),
       color: UI.FONT_COLOR,
       align: 'center',
       lineSpacing: 10,
@@ -45,9 +47,8 @@ export default class StoryScene extends Phaser.Scene {
     }).setOrigin(0.5).setAlpha(0);
 
     // === Controls hint ===
-    this.hintText = this.add.text(w / 2, h - 50, usesTouchControls() ? 'Tap anywhere to continue' : 'SPACE / click — next      ESC — skip', {
-      fontSize: '14px',
-      fontFamily: UI.FONT_FAMILY,
+    this.hintText = this.add.text(w / 2, h - 50, usesTouchControls() ? t('story.hintTouch') : t('story.hintKeys'), {
+      ...pixelFont(14),
       color: '#7F8C8D',
     }).setOrigin(0.5);
 
@@ -112,9 +113,9 @@ export default class StoryScene extends Phaser.Scene {
       this.fadeTween.stop();
       this.fadeTween = null;
     }
-    const playerName =
-      this.characterData && this.characterData.name ? this.characterData.name : 'little one';
-    this.storyText.setText(STORY.intro[index].replace(/\{player\}/g, playerName));
+    const character = this.characterData && CHARACTERS.find((c) => c.id === this.characterData.id);
+    const playerName = character ? t(character.nameKey) : t('story.fallbackName');
+    this.storyText.setText(t(STORY.intro[index], { player: playerName }));
     this.storyText.setAlpha(0);
     this.fadeTween = this.tweens.add({
       targets: this.storyText,

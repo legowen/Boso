@@ -11,13 +11,15 @@ import { applyBossArt, bossCombatBounds } from '../systems/EntityArt.js';
 import { BOSS_TYPES } from '../data/monsters.js';
 import { STORY } from '../data/story.js';
 import { PLAYER, DEPTH } from '../utils/constants.js';
+import { pixelFont } from '../i18n/fonts.js';
+import { t } from '../i18n/index.js';
 
 export default class Biggie {
   constructor(scene, x, y) {
     this.scene = scene;
     this.id = 'biggie';
     this.cfg = BOSS_TYPES.biggie;
-    this.name = this.cfg.name;
+    this.nameKey = this.cfg.nameKey;
     this.hp = this.cfg.hp;
     this.maxHp = this.cfg.hp;
     this.defeated = false;
@@ -198,9 +200,8 @@ export default class Biggie {
       duration: cfg.telegraphMs * 0.5,
       yoyo: true,
     });
-    const woof = this.scene.add.text(this.sprite.x, this.sprite.y + this.art.top - 24, 'WOOF!', {
-      fontSize: '24px',
-      fontFamily: 'Arial Black, Arial',
+    const woof = this.scene.add.text(this.sprite.x, this.sprite.y + this.art.top - 24, t('boss.biggie.woof'), {
+      ...pixelFont(24),
       color: '#F5B041',
       stroke: '#000000',
       strokeThickness: 4,
@@ -369,10 +370,9 @@ export default class Biggie {
     const warn = this.scene.add.text(
       this.scene.scale.width / 2,
       this.scene.scale.height * 0.25,
-      'ZOOMIES!',
+      t('boss.biggie.zoomies'),
       {
-        fontSize: '26px',
-        fontFamily: 'Arial Black, Arial',
+        ...pixelFont(26),
         color: '#F5B041',
         stroke: '#000000',
         strokeThickness: 5,
@@ -547,8 +547,7 @@ export default class Biggie {
         this.sprite.y + Phaser.Math.Between(-40, 30),
         '♥',
         {
-          fontSize: `${Phaser.Math.Between(14, 26)}px`,
-          fontFamily: 'Arial',
+          ...pixelFont(Phaser.Math.Between(14, 26)),
           color: '#FF7EB9',
           stroke: '#FFFFFF',
           strokeThickness: 2,
@@ -570,10 +569,9 @@ export default class Biggie {
       const text = this.scene.add.text(
         this.scene.scale.width / 2,
         this.scene.scale.height * 0.3 + i * 34,
-        line,
+        t(line),
         {
-          fontSize: i === 0 ? '22px' : '18px',
-          fontFamily: 'Arial Black, Arial',
+          ...pixelFont(i === 0 ? 22 : 18),
           color: '#FF7EB9',
           stroke: '#000000',
           strokeThickness: 4,

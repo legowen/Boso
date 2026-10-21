@@ -31,9 +31,9 @@ export const WORLD_MAP_LAYOUT = {
   closet: { x: 0.93, y: 0.66 },
 };
 
-// Panel title per region.
-export const REGION_TITLES = {
-  shelter: 'SHELTER ISLE',
-  buddy: 'BUDDY HOUSE',
-  house: 'HOUSE MAP',
+// Panel title locale key per region.
+export const REGION_TITLE_KEYS = {
+  shelter: 'region.shelter.title',
+  buddy: 'region.buddy.title',
+  house: 'region.house.title',
 };

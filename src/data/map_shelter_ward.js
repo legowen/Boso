@@ -3,7 +3,7 @@
 // Movement/jump/rope tutorial room (Maple Island homage).
 
 const MAP_SHELTER_WARD = {
-  name: 'Recovery Ward',
+  nameKey: 'map.shelter_ward.name',
   region: 'shelter',
   width: 1200,
   height: 760,
@@ -25,7 +25,7 @@ const MAP_SHELTER_WARD = {
     { x: 880, y: 580, w: 180, h: 16, isGround: false },
   ],
   portals: [
-    { x: 1140, y: 650, label: '→ Clinic Hallway', targetMap: 'shelter_hall', spawnX: 170, spawnY: 640 },
+    { x: 1140, y: 650, labelKey: 'portal.shelter_ward.shelter_hall', targetMap: 'shelter_hall', spawnX: 170, spawnY: 640 },
   ],
   ropes: [
     { x: 600, topY: 560, bottomY: 660 },
@@ -34,21 +34,22 @@ const MAP_SHELTER_WARD = {
     {
       x: 320,
       y: 674,
-      name: 'Nurse Mimsy',
-      dialogue: [
-        'Good morning, little {player}! You slept three whole days.',
-        'This is the Paw Shelter Clinic. You are safe here.',
-        'Stretch those paws: walk with the ARROW KEYS, hop with ALT.',
-        'When you can climb the rope in the middle, you are ready for the hallway.',
+      id: 'nurse_mimsy',
+      nameKey: 'npc.nurse_mimsy.name',
+      dialogueKeys: [
+        'npc.nurse_mimsy.line1',
+        'npc.nurse_mimsy.line2',
+        'npc.nurse_mimsy.line3',
+        'npc.nurse_mimsy.line4',
       ],
     },
   ],
   monsters: [],
   guides: [
-    { x: 180, y: 560, text: '← → Move   ALT Jump   ↓ Crouch'  },
-    { x: 600, y: 480, text: '↑ near a rope to grab it,\n↑ / ↓ to climb, ALT to hop off' },
-    { x: 620, y: 640, text: 'Jump up through platforms!\n↓ + ALT drops back down' },
-    { x: 1080, y: 560, text: 'Stand on a portal\nand press ↑ to enter' },
+    { x: 180, y: 560, textKey: 'guide.shelter_ward.1' },
+    { x: 600, y: 480, textKey: 'guide.shelter_ward.2' },
+    { x: 620, y: 640, textKey: 'guide.shelter_ward.3' },
+    { x: 1080, y: 560, textKey: 'guide.shelter_ward.4' },
   ],
 };
 

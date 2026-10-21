@@ -6,7 +6,7 @@ export const MONSTER_TYPES = {
   // Lowest tier — soap-bubble experiment. Moves like a MapleStory snail:
   // slow ground patrol, random pauses, turns at walls and ledges.
   bangul: {
-    name: 'Bangul',
+    nameKey: 'monster.bangul.name',
     hp: 30,
     touchDamage: 5,
     exp: 8,
@@ -26,7 +26,7 @@ export const MONSTER_TYPES = {
   // Bouncing-ball experiment. Moves like a MapleStory slime/mushroom:
   // hops around ignoring terrain edges, sometimes toward the player.
   gong: {
-    name: 'Gong',
+    nameKey: 'monster.gong.name',
     hp: 50,
     touchDamage: 8,
     exp: 12,
@@ -45,7 +45,7 @@ export const MONSTER_TYPES = {
   // Laser-pointer dot. Moves like Stitch: free flight, waypoint wander,
   // dashes at the player when close.
   laser: {
-    name: 'Laser',
+    nameKey: 'monster.laser.name',
     hp: 80,
     touchDamage: 12,
     exp: 18,
@@ -66,7 +66,7 @@ export const MONSTER_TYPES = {
 
   // Mid tier — butterfly. Sine-wave gliding flight.
   nabi: {
-    name: 'Nabi',
+    nameKey: 'monster.nabi.name',
     hp: 120,
     touchDamage: 15,
     exp: 25,
@@ -83,7 +83,7 @@ export const MONSTER_TYPES = {
 
   // Mid tier — fly. Fast erratic jitter, biased toward the player.
   pari: {
-    name: 'Pari',
+    nameKey: 'monster.pari.name',
     hp: 140,
     touchDamage: 18,
     exp: 30,
@@ -105,7 +105,7 @@ export const MONSTER_TYPES = {
   // Drifting dust speck in the clinic air. Floats in place, slowly
   // rising and sinking with a gentle horizontal drift.
   dustmote: {
-    name: 'Dust Mote',
+    nameKey: 'monster.dustmote.name',
     hp: 15,
     touchDamage: 3,
     exp: 4,
@@ -125,7 +125,7 @@ export const MONSTER_TYPES = {
   // A translucent little ghost of loneliness. Slowly follows the player,
   // but flinches and backs away whenever anyone gets too close.
   lonesome: {
-    name: 'Lonesome',
+    nameKey: 'monster.lonesome.name',
     hp: 25,
     touchDamage: 4,
     exp: 6,
@@ -146,7 +146,7 @@ export const MONSTER_TYPES = {
   // Another shelter kitten with too much energy. Short, fast chained
   // hops - and every so often a full pounce at the player.
   straykitten: {
-    name: 'Stray Kitten',
+    nameKey: 'monster.straykitten.name',
     hp: 35,
     touchDamage: 6,
     exp: 8,
@@ -170,7 +170,7 @@ export const MONSTER_TYPES = {
   // A runaway sock moving like an inchworm: it scrunches up, then
   // stretches out and slides forward in bursts.
   sockslinker: {
-    name: 'Sock Slinker',
+    nameKey: 'monster.sockslinker.name',
     hp: 70,
     touchDamage: 10,
     exp: 16,
@@ -188,7 +188,7 @@ export const MONSTER_TYPES = {
   // A loose ball of yarn that never stops rolling. Builds up speed and
   // bounces off walls with an extra burst.
   yarnroller: {
-    name: 'Yarn Roller',
+    nameKey: 'monster.yarnroller.name',
     hp: 85,
     touchDamage: 12,
     exp: 18,
@@ -207,7 +207,7 @@ export const MONSTER_TYPES = {
   // A skittering crumb from under the table. Chains 2-3 quick low hops,
   // then stops to catch its breath.
   crumbhopper: {
-    name: 'Crumb Hopper',
+    nameKey: 'monster.crumbhopper.name',
     hp: 45,
     touchDamage: 8,
     exp: 12,
@@ -229,7 +229,7 @@ export const MONSTER_TYPES = {
   // A moth circling the lamp light. Orbits its lamp point; when the
   // player comes close it breaks off, dashes once, and returns.
   mothcircler: {
-    name: 'Moth Circler',
+    nameKey: 'monster.mothcircler.name',
     hp: 100,
     touchDamage: 13,
     exp: 20,
@@ -250,7 +250,7 @@ export const MONSTER_TYPES = {
   // A toy RC car stuck on full throttle. Races back and forth at high
   // speed, with a drifting skid telegraph right before every turn.
   rcracer: {
-    name: 'RC Racer',
+    nameKey: 'monster.rcracer.name',
     hp: 110,
     touchDamage: 16,
     exp: 26,
@@ -268,7 +268,7 @@ export const MONSTER_TYPES = {
   // Patrols slowly; when the player lines up it winds up, then charges
   // like a MapleStory wild boar (charges straight, even off ledges).
   robo: {
-    name: 'Robo',
+    nameKey: 'monster.robo.name',
     hp: 90,
     touchDamage: 14,
     exp: 22,
@@ -292,7 +292,7 @@ export const MONSTER_TYPES = {
 export const BOSS_TYPES = {
   // Field boss (Zakum homage) — a giant toy golem built to hug.
   hugGuardian: {
-    name: 'Hug Guardian',
+    nameKey: 'boss.hugGuardian.name',
     hp: 1500,
     touchDamage: 20,
     exp: 300,
@@ -314,7 +314,7 @@ export const BOSS_TYPES = {
   // check-ups always end in an inescapable hug. Shares the hug pattern
   // set with the Hug Guardian via HugBossBase, scaled way down.
   drEmbrace: {
-    name: 'Dr. Embrace',
+    nameKey: 'boss.drEmbrace.name',
     hp: 320,
     touchDamage: 8,
     exp: 80,
@@ -335,7 +335,7 @@ export const BOSS_TYPES = {
   // Buddy House boss — the big dog who has always lived there.
   // Territorial patterns; "defeating" him means becoming friends.
   biggie: {
-    name: 'Biggie',
+    nameKey: 'boss.biggie.name',
     hp: 900,
     touchDamage: 16,
     exp: 220,
@@ -355,7 +355,7 @@ export const BOSS_TYPES = {
 
   // Special hidden boss — the primal fear of every pet: the vacuum.
   vacuumKing: {
-    name: 'Vacuum King',
+    nameKey: 'boss.vacuumKing.name',
     hp: 2200,
     touchDamage: 25,
     exp: 500,
