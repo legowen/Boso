@@ -2411,12 +2411,14 @@ export default class GameScene extends Phaser.Scene {
   createPortalTextures() {
     if (!this.textures.exists('portal')) {
       const graphics = this.add.graphics();
-      // Portal body
-      graphics.fillStyle(PORTAL.COLOR, 0.7);
-      graphics.fillEllipse(PORTAL.WIDTH / 2, PORTAL.HEIGHT / 2, PORTAL.WIDTH, PORTAL.HEIGHT);
-      // Inner glow
-      graphics.fillStyle(PORTAL.GLOW_COLOR, 0.5);
-      graphics.fillEllipse(PORTAL.WIDTH / 2, PORTAL.HEIGHT / 2, PORTAL.WIDTH - 16, PORTAL.HEIGHT - 16);
+      // Match the normal portal's vertical light pillar if its PNG is missing.
+      for (let x = 12; x < PORTAL.WIDTH - 12; x += 4) {
+        const top = 4 + Math.abs(x - PORTAL.WIDTH / 2);
+        graphics.fillStyle(PORTAL.GLOW_COLOR, 0.45);
+        graphics.fillRect(x, top, 2, PORTAL.HEIGHT - top);
+      }
+      graphics.fillStyle(0xFFFFFF, 0.9);
+      graphics.fillRect(6, PORTAL.HEIGHT - 3, PORTAL.WIDTH - 12, 3);
       graphics.generateTexture('portal', PORTAL.WIDTH, PORTAL.HEIGHT);
       graphics.destroy();
     }
@@ -2447,7 +2449,7 @@ export default class GameScene extends Phaser.Scene {
     sprite.interactionY = layout.centerY;
     sprite.hintY = layout.hintY;
 
-    // Breathe the glow without stretching the stone frame or lifting its base.
+    // Breathe the glow without stretching the energy rim or lifting its base.
     this.tweens.add({
       targets: sprite,
       alpha: 0.84,
@@ -2460,7 +2462,7 @@ export default class GameScene extends Phaser.Scene {
     // Portal label
     addLocalizedText(this, portalData.x, layout.labelY, portalData.labelKey, {
       ...pixelFont(12),
-      color: portalData.hidden ? '#F1C40F' : '#BB8FCE',
+      color: portalData.hidden ? '#F1C40F' : '#A8D8FF',
       stroke: '#000000',
       strokeThickness: 2,
     }).setOrigin(0.5).setDepth(DEPTH.PORTALS);

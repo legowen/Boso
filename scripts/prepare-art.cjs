@@ -49,7 +49,7 @@ async function fitSprite(cell, width, height, dest, scale) {
   const sw = Math.max(1, Math.round(cell.w * s)), sh = Math.max(1, Math.round(cell.h * s));
   const small = await sharp(cell.pixels, { raw: { width: cell.w, height: cell.h, channels: 4 } })
     .resize(sw, sh, { kernel: 'nearest' }).png().toBuffer();
-  const groundAligned = dest && /tex\/(npc|boss_|monster_|player_|cage)/.test(dest);
+  const groundAligned = dest && /tex\/(npc|boss_|monster_|player_|cage|portal)/.test(dest);
   const buffer = await sharp({ create: { width, height, channels: 4, background: transparent } })
     .composite([{ input: small, left: Math.floor((width - sw) / 2), top: scale ? 88 - sh : groundAligned ? height - sh - 1 : Math.floor((height - sh) / 2) }]).png().toBuffer();
   if (dest) await fs.writeFile(path.join(output, dest), buffer);
@@ -98,6 +98,8 @@ async function main() {
     }
   }
   await sharp(path.join(source,'ship.png')).resize(1200,800,{kernel:'nearest'}).png().toFile(path.join(output,'world','travel_ship.png'));
+  // Individual replacements take precedence over the original prop atlas.
+  await (await import('./prepare-asset-refresh.mjs')).prepareAssetRefresh();
   await sharp(path.join(source,'voyage.png')).resize(1536,512,{kernel:'nearest'}).png().toFile(path.join(output,'world','bg_voyage.png'));
   await (await import('./measure-entity-art.mjs')).measureEntityArt();
   console.log('Prepared cat animation sheets, portraits, world art, and all entity textures.');
