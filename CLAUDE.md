@@ -23,6 +23,7 @@ npm run build     # Production build to /dist
 npm run preview   # Preview production build
 npm run validate  # Node data validator (maps/portals/ropes/monsters/travel/bgm)
 npm test          # Combat, animation, boss patterns, save migration and asset regression checks
+npm run test:browser # Boss fights in headless Chromium (dodge bots, phases, cleanup); needs `npx playwright-core install chromium`
 npm run art:build # Repack the retained generated sources (requires dev dependencies)
 ```
 
@@ -90,6 +91,13 @@ boso-rpg/
 │   └── utils/
 │       ├── constants.js      # Global constants (PLAYER, SCENES, DEPTH...)
 │       └── format.js         # Play-time / saved-at formatters (worded by the active locale)
+├── tests/
+│   ├── *.test.mjs            # `npm test`: pure Node (combat, boss brain, save, i18n, assets...)
+│   └── browser/              # `npm run test:browser`: the real game in headless Chromium
+│       ├── harness.mjs       #   Vite dev server + Playwright page, time stepped by hand
+│       ├── bot.mjs           #   in-page reaction-delay dodge bot (window.BOT)
+│       ├── scenarios.mjs     #   dodge scenarios per boss (+ negative controls)
+│       └── *.browser-test.mjs  # avoidance, lifecycle (phases/roar/guard/minions/endings), DPS model
 ├── index.html
 └── package.json
 ```
@@ -452,6 +460,19 @@ the player above the pad, and MAP/BAG provide map/quest details.
   fonts = no tofu, the font license ships), and a source scan (no Hangul outside
   `src/i18n/ko.*`, no console.log, no string literal handed to `add.text(` /
   `setText(`, no reads of the removed text fields)
+- `npm run test:browser` — slower, optional, not part of `npm test`: boots the
+  dev server and drives the real bosses in headless Chromium (`playwright-core`;
+  install a browser once with `npx playwright-core install chromium`, or set
+  `PLAYWRIGHT_BROWSERS_PATH`). The render loop is stopped and frames are stepped
+  by hand, with `Date.now()` following the stepped clock, so runs are
+  deterministic and about 17s long. It checks that every damaging boss attack
+  can be dodged by a bot that reacts 250ms after the telegraph (both cats, real
+  physics) while a player who stands still gets hurt (negative controls), that
+  phase changes / roar / guard / slow / stun / minion cap / every way a fight can
+  end behave and clean up, and that the fight-length model's combo DPS matches
+  the game. New boss patterns should get a scenario in
+  `tests/browser/scenarios.mjs`. Specs are serialized into the page, so they may
+  not close over anything outside their arguments and `window.BOT`.
 - `npm run build` — must pass with zero errors
 
 ### Adding New Maps

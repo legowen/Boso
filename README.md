@@ -39,6 +39,7 @@ npm run build     # Production build to /dist
 npm run preview   # Preview production build
 npm run validate  # Node data validator (maps/portals/ropes/monsters/travel/bgm)
 npm test          # Combat, animation, save migration and asset regression checks
+npm run test:browser # Boss fights in headless Chromium (dodge bots, phases, cleanup); needs `npx playwright-core install chromium`
 npm run art:build # Repack the retained generated sources (requires dev dependencies)
 ```
 
