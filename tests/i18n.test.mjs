@@ -167,7 +167,7 @@ test('pixelFont only emits sizes on a Galmuri design grid', () => {
 test('the shipped fonts draw every character of both locales (no tofu) and carry their license', () => {
   const root = new URL('../public/assets/fonts/', import.meta.url);
   for (const face of FONT_FACES) {
-    const covered = readWoff2CodePoints(new URL(face.file, root).pathname);
+    const covered = readWoff2CodePoints(new URL(face.file, root));
     for (const [lang, locale] of [['en', en], ['ko', ko]]) {
       const missing = new Set();
       for (const text of Object.values(locale)) {

@@ -81,11 +81,11 @@ export const ENTITY_ART_BOUNDS = {
     "bottom": 33
   },
   "npc": {
-    "top": 16,
+    "top": 11,
     "bottom": 51
   },
   "npc_gear": {
-    "top": 15,
+    "top": 13,
     "bottom": 51
   },
   "npc_hedgehog": {
@@ -97,7 +97,7 @@ export const ENTITY_ART_BOUNDS = {
     "bottom": 51
   },
   "npc_nurse": {
-    "top": 16,
+    "top": 1,
     "bottom": 51
   },
   "npc_owen": {

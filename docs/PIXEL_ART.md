@@ -1,7 +1,10 @@
 # Seoli & Bomi pixel-art integration
 
 Boso is the game name. Its playable characters are the two cats Seoli and
-Bomi. All art is original generated game art; no MapleStory assets are bundled.
+Bomi. Artwork is generated; the refreshed guide depicts Remy by user request.
+Boots is an original orange feline fencer with a black feathered hat hiding
+both ears, black cape, belt and boots, bare fur torso and silver rapier.
+No MapleStory assets are bundled.
 
 ## Character identity and tuning
 
@@ -50,12 +53,16 @@ surfaces from decorative background objects.
 Portals are displayed at 72×96, with their base anchored to the nearest
 supporting platform below the map's portal point. Labels and interaction hints
 follow the displayed height. Alpha pulsing replaces the old squash/stretch,
-so stone frames stay planted on the ground.
+so the white/icy-blue light pillar and yellow hidden vortex stay on the ground.
+The normal portal has vertical light streaks and a base flare, without a ring.
 
-Travel keeps the three existing routes and timings. An open-deck airship
-replaces the cage interior, with scrolling voyage scenery and the original
-ambush rules. NPC art includes Owen, cats, nurse, gear/plush artisans, Old Bell
-the dog, and Haku the hedgehog. Several NPCs share an appropriate art family.
+Travel keeps the three existing routes and timings. A right-facing navy/yellow
+flying submarine has one capsule body, observation cabin, tail propeller and
+top grab handle. Navy/gold platforms align with its cabin. Actors
+stay in front of the cabin with scrolling scenery and the original ambush
+rules. NPC art includes Owen, Remy, a human Vet Assistant, Boots, the plush
+artisan, Old Bell and Haku. Shared generic NPCs display Remy; shared gear NPCs
+display Boots in both languages. Internal IDs remain stable for saves/quests.
 All fourteen monster types, four bosses, two travel ambushers, drops, portals
 and attack/projectile textures are included at their configured sizes.
 
@@ -118,8 +125,14 @@ or duplicate controls after map changes and ship travel.
 
 Runtime files are committed, so deploying/building does not generate art or
 require an image-generation account. `art/prompts.json` records the prompts.
-Replacing a specific `public/assets/images/tex/<key>.png` also works, but the
-next art rebuild overwrites that derived file; retain edits in the source too.
+The seven carrier/NPC/portal replacements live in `art/source/refresh/` and
+override the original atlas during `art:build`. Their final built-in imagegen
+prompts are in `art/asset-refresh-prompts.json`. To repack just these seven,
+run `node scripts/prepare-asset-refresh.mjs`; it also refreshes visible NPC
+bounds. Packing preserves aspect ratio and alpha, uses nearest-neighbor
+sampling, and places portal bottoms on the final row to meet the ground.
+The palette emphasizes blue and yellow with luminance contrast; it is a
+design direction, not a simulation or validation of feline vision.
 
 ## Saves and verification
 

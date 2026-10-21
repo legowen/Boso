@@ -13,7 +13,6 @@ import { PLAYER, DEPTH, UI, SCENES } from '../utils/constants.js';
 import Player from '../entities/Player.js';
 import { getCharacter } from '../data/characters.js';
 import { applyEntityArt, entityCombatBounds } from '../systems/EntityArt.js';
-import { decoratePlatform } from '../systems/WorldArt.js';
 import HUD from '../ui/HUD.js';
 import TouchControls, { usesTouchControls } from '../ui/TouchControls.js';
 import { MAPS_DATA } from '../data/maps.js';
@@ -161,11 +160,11 @@ export default class TravelScene extends Phaser.Scene {
   }
 
   createCageFrame() {
-    // The travel-carrier becomes an open-deck airship; actors stay in front.
-    // Source deck baseline is at roughly 72% of its height.
+    // Fit the submarine observation cabin to the existing playable area.
+    // The packed cabin floor is at y=500; scale it with the ship to meet deckY.
     const deckY = CAGE.y + CAGE.h - 60;
-    this.add.image(CAGE.x + CAGE.w / 2, deckY - 570, 'travel_ship')
-      .setOrigin(0.5, 0).setDepth(DEPTH.PLATFORMS - 1);
+    this.add.image(CAGE.x + CAGE.w / 2 - 60, deckY - 625, 'travel_ship')
+      .setOrigin(0.5, 0).setScale(1.25).setDepth(DEPTH.PLATFORMS - 1);
   }
 
   createPlatforms() {
@@ -175,14 +174,15 @@ export default class TravelScene extends Phaser.Scene {
       if (!this.textures.exists(key)) {
         const graphics = this.add.graphics();
         if (platData.isGround) {
-          graphics.fillStyle(0x8B6914, 1);
-          graphics.fillRect(0, 0, platData.w, platData.h);
-          graphics.fillStyle(0xC4A265, 1);
+          graphics.fillStyle(0x193047, 1);
+          // Draw only the deck lip; keep the full invisible collision body.
+          graphics.fillRect(0, 0, platData.w, 10);
+          graphics.fillStyle(0xE6BE58, 1);
           graphics.fillRect(0, 0, platData.w, 4);
         } else {
-          graphics.fillStyle(0x6E4A1F, 1);
+          graphics.fillStyle(0x243E58, 1);
           graphics.fillRect(0, 0, platData.w, platData.h);
-          graphics.fillStyle(0xC4A265, 1);
+          graphics.fillStyle(0xE6BE58, 1);
           graphics.fillRect(0, 0, platData.w, 3);
         }
         graphics.generateTexture(key, platData.w, platData.h);
@@ -200,7 +200,6 @@ export default class TravelScene extends Phaser.Scene {
         platform.body.checkCollision.left = false;
         platform.body.checkCollision.right = false;
       }
-      decoratePlatform(this, platData, 'tile_wood');
       this.platforms.push(platform);
     });
   }

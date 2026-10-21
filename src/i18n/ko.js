@@ -316,15 +316,15 @@ export default {
 
   // --- NPCs ---
   'npc.owen.name': '영이',
-  'npc.granny_tabby.name': '할머니 Tabby',
-  'npc.nurse_mimsy.name': '간호사 Mimsy',
-  'npc.keeper_tobi.name': '관리인 Tobi',
-  'npc.miyo.name': '고양이 Miyo',
+  'npc.granny_tabby.name': '레미',
+  'npc.nurse_mimsy.name': '수의보조사',
+  'npc.keeper_tobi.name': '레미',
+  'npc.miyo.name': '레미',
   'npc.old_bell.name': '노견 Bell',
-  'npc.apprentice_bolt.name': '견습생 Bolt',
-  'npc.dozy.name': '아기 고양이 Dozy',
+  'npc.apprentice_bolt.name': '부츠',
+  'npc.dozy.name': '레미',
   'npc.haku.name': '고슴도치 Haku',
-  'npc.gearist_tinkerer.name': '톱니바퀴파 땜장이',
+  'npc.gearist_tinkerer.name': '부츠',
   'npc.plushist_sewmaster.name': '봉제인형파 재봉장인',
 
   'npc.apprentice_bolt.line1': '진짜 작업실에 오신 걸 환영해요! 시제품들 조심하세요.',
@@ -368,7 +368,7 @@ export default {
   'npc.old_bell.line1': '멍. 내 젊은 시절엔 이 마당이 참 조용했는데...',
   'npc.old_bell.line2': '서쪽엔 이상한 정원이 있다네. 거기 벌레들은 따끔하니, 먼저 레벨을 좀 올리게!',
   'npc.old_bell.line3': '길을 잃었나? M을 눌러 집 지도를 펼쳐 보게.',
-  'npc.miyo.line1': '야옹... {player}야? 주인님이 며칠째 내려오지 않으셔.',
+  'npc.miyo.line1': '저기... {player}야? 주인님이 며칠째 내려오지 않으셔.',
   'npc.miyo.line2': '장난감 친구들이 다락방 연구실에서 도망쳐 나왔어. 밖에선 조심해야 해!',
 
   // --- Guide signs ---
