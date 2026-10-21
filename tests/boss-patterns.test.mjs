@@ -8,6 +8,10 @@ import {
   selectPhase, pickPattern, planBurstSpots, readyAtFor, cooldownMultFor, speedMultFor,
 } from '../src/systems/BossBrain.js';
 import StatusTracker from '../src/systems/StatusEffects.js';
+import { BOSS_TYPES, MONSTER_TYPES } from '../src/data/monsters.js';
+import { CHARACTERS } from '../src/data/characters.js';
+import { GRAVITY, PLAYER } from '../src/utils/constants.js';
+import { estimateFightSeconds, comboDps, jumpClearSeconds, FIGHT_TARGET_SEC } from '../src/data/bossBalance.js';
 
 // Deterministic rng so every run draws the same sequence
 function mulberry32(seed) {
@@ -260,4 +264,76 @@ test('StatusTracker: clear() lifts everything (death / respawn)', () => {
   assert.equal(s.isStunned(10), false);
   assert.equal(s.isSlowed(10), false);
   assert.equal(s.apply('stun', 1000, 10), true, 'no leftover immunity');
+});
+
+// ===== The real boss data =====
+
+const patternBosses = Object.entries(BOSS_TYPES).filter(([, boss]) => boss.phases);
+
+test('every boss with phases has valid, sorted phases and only summons real monsters', () => {
+  assert.ok(patternBosses.length >= 2);
+  for (const [id, boss] of patternBosses) {
+    assert.equal(boss.phases[0].hpBelow, 1.0, `${id}: first phase starts at 1.0`);
+    boss.phases.forEach((phase, i) => {
+      if (i > 0) assert.ok(phase.hpBelow < boss.phases[i - 1].hpBelow, `${id}: phases sorted descending`);
+      for (const p of phase.patterns) {
+        assert.ok(PATTERN_TYPES.includes(p.type), `${id}/${p.id}: type`);
+        if (p.type === 'summon') {
+          assert.ok(MONSTER_TYPES[p.params.monster], `${id}/${p.id}: summoned monster exists`);
+          assert.ok(p.params.count <= FAIRNESS.maxMinionsPerBoss);
+        }
+      }
+    });
+  }
+});
+
+test('Hug Guardian: 3 phases at 60% / 30% with the specified patterns', () => {
+  const phases = BOSS_TYPES.hugGuardian.phases;
+  assert.deepEqual(phases.map((p) => p.hpBelow), [1.0, 0.6, 0.3]);
+  const ids = (phase) => phase.patterns.map((p) => p.id);
+  assert.deepEqual(ids(phases[0]), ['pawSwipe', 'hugGrab', 'callFriends']);
+  assert.deepEqual(ids(phases[1]), ['pawSwipe', 'hugGrab', 'callFriends', 'groupHug']);
+  assert.deepEqual(ids(phases[2]), ['pawSwipe', 'hugGrab', 'callFriends', 'groupHug', 'cuddleShield']);
+  const byId = (phase, id) => phase.patterns.find((p) => p.id === id);
+  assert.equal(byId(phases[0], 'pawSwipe').params.onHit, undefined, 'no slow in phase 1');
+  assert.deepEqual(byId(phases[1], 'pawSwipe').params.onHit, { status: 'slow', ms: 2000 });
+  assert.deepEqual(byId(phases[0], 'hugGrab').params.onHit, { status: 'stun', ms: 1200 });
+  assert.deepEqual(byId(phases[0], 'callFriends').params, { monster: 'bangul', count: 2, max: 4 });
+  assert.equal(byId(phases[2], 'cuddleShield').params.durationMs, 3000);
+  assert.deepEqual(phases[2].enrage, { cooldownMult: 0.7, speedMult: 1.3 });
+  assert.equal(phases[0].enrage, undefined);
+  assert.equal(phases[1].enrage, undefined);
+});
+
+test('a full fight lasts about 2-4 minutes at the intended level, for both cats', () => {
+  for (const [id, boss] of patternBosses) {
+    if (!boss.balance) continue; // the tutorial boss is meant to be short
+    for (const character of CHARACTERS) {
+      const seconds = estimateFightSeconds(boss, character.id);
+      assert.ok(
+        seconds >= FIGHT_TARGET_SEC.min && seconds <= FIGHT_TARGET_SEC.max,
+        `${id} vs ${character.id} at level ${boss.balance.intendedLevel}: ${Math.round(seconds)}s is outside ${FIGHT_TARGET_SEC.min}-${FIGHT_TARGET_SEC.max}s - tune the boss hp`
+      );
+    }
+  }
+});
+
+test('the fight-length model reacts to hp and level the way it should', () => {
+  const boss = BOSS_TYPES.hugGuardian;
+  const base = estimateFightSeconds(boss, 'seoli');
+  assert.ok(estimateFightSeconds({ ...boss, hp: boss.hp * 2 }, 'seoli') > base * 1.8, 'twice the hp, about twice as long');
+  assert.ok(estimateFightSeconds({ ...boss, balance: { ...boss.balance, intendedLevel: boss.balance.intendedLevel + 5 } }, 'seoli') < base, 'a higher level kills faster');
+  assert.ok(comboDps('seoli', 10) > comboDps('seoli', 1));
+});
+
+test('Arm Reach can be jumped by both cats with room to spare', () => {
+  const arm = BOSS_TYPES.drEmbrace.phases[0].patterns.find((p) => p.id === 'armReach');
+  const armWidth = 110; // proj_arm_dr.png
+  const playerWidth = PLAYER.WIDTH - 8;
+  const passSeconds = (armWidth + playerWidth) / arm.params.speed;
+  for (const character of CHARACTERS) {
+    const clear = jumpClearSeconds(-character.stats.jumpPower, GRAVITY, arm.params.laneHeight);
+    assert.ok(clear - passSeconds >= 0.25, `${character.id}: ${clear.toFixed(2)}s above the arm vs ${passSeconds.toFixed(2)}s to pass`);
+  }
+  assert.equal(jumpClearSeconds(100, 900, 500), 0, 'a jump that never gets high enough clears nothing');
 });

@@ -1,7 +1,8 @@
 // src/entities/HugGuardian.js
 // Field boss (Zakum homage) - a giant toy golem built to hug.
-// All pattern logic lives in HugBossBase (shared with Dr. Embrace);
-// this subclass only provides the plush-golem textures.
+// Its three phases are data (BOSS_TYPES.hugGuardian.phases) run by
+// HugBossBase (shared with Dr. Embrace); this subclass only provides the
+// plush-golem textures.
 
 import HugBossBase from './HugBossBase.js';
 import { BOSS_TYPES } from '../data/monsters.js';
@@ -13,7 +14,6 @@ export default class HugGuardian extends HugBossBase {
       cfg: BOSS_TYPES.hugGuardian,
       textureKey: 'boss_hug_guardian',
       armTextureKey: 'proj_arm',
-      warnKey: 'boss.hugGuardian.hugWarning',
     });
   }
 

@@ -47,8 +47,8 @@ export const PHASE_TRANSITION = {
 export const TELEGRAPH_STYLE = {
   color: 0xE74C3C,
   safeColor: 0x2ECC71,
-  minFillAlpha: 0.10,
-  maxFillAlpha: 0.55,
+  minFillAlpha: 0.16,
+  maxFillAlpha: 0.6,
 };
 
 // ===== Hug Guardian (Zakum homage, "too much love") =====
@@ -60,7 +60,7 @@ const PAW_SWIPE = {
   weight: 4,
   cooldownMs: 1800,
   telegraphMs: 800,
-  params: { range: 140, height: 90, damage: 18 },
+  params: { range: 130, height: 90, damage: 18 },
 };
 
 const HUG_GRAB = {
@@ -135,7 +135,7 @@ const ARM_REACH = {
   weight: 3,
   cooldownMs: 4500,
   telegraphMs: 1100,
-  params: { origin: 'edge', count: 1, speed: 150, damage: 8, texture: 'proj_arm_dr', laneHeight: 60 },
+  params: { origin: 'edge', count: 1, speed: 240, damage: 8, texture: 'proj_arm_dr', laneHeight: 44 },
 };
 
 const CHECKUP_SLAM = {

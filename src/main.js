@@ -28,11 +28,17 @@ SaveManager.migrateLegacy();
 initLanguage();
 const game = loadFonts().then(() => new Phaser.Game(config));
 
-// Dev only: window.bosoDev.resetBossTimers() makes every defeated boss due to
-// respawn (same as F9 in a map). Stripped from production builds.
+// Dev only. Stripped from production builds.
+//   window.bosoDev.resetBossTimers()  makes every defeated boss due to respawn
+//                                     (same as F9 in a map)
+//   window.bosoDev.game               promise of the Phaser.Game, for browser
+//                                     scripts (e.g. game.scene.getScene('GameScene').boss)
+//   window.bosoDev.SaveManager        the app's own SaveManager instance
 if (import.meta.env.DEV) {
   window.bosoDev = {
     resetBossTimers: () => SaveManager.resetBossTimers(),
+    game,
+    SaveManager,
   };
 }
 

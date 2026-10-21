@@ -1,8 +1,8 @@
 // src/entities/DrEmbrace.js
 // Tutorial boss (Shelter Isle) - the clinic's kindly doctor whose
-// check-ups always end in an inescapable hug. All pattern logic is the
-// shared HugBossBase set (arm sweep / slam / field hug), scaled down via
-// BOSS_TYPES.drEmbrace; this subclass only provides the doctor textures.
+// check-ups always end in an inescapable hug. All pattern logic is data
+// (BOSS_TYPES.drEmbrace.phases: a gentle two-phase set) run by the shared
+// HugBossBase; this subclass only provides the doctor textures.
 
 import HugBossBase from './HugBossBase.js';
 import { BOSS_TYPES } from '../data/monsters.js';
@@ -14,7 +14,6 @@ export default class DrEmbrace extends HugBossBase {
       cfg: BOSS_TYPES.drEmbrace,
       textureKey: 'boss_dr_embrace',
       armTextureKey: 'proj_arm_dr',
-      warnKey: 'boss.drEmbrace.hugWarning',
     });
   }
 

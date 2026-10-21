@@ -153,8 +153,6 @@ export default {
   'travel.arrived': '{route}  -  arrived!',
   'travel.vroomWarning': 'VROOM INCOMING!',
   'travel.rumbleWarning': 'SOMETHING RUMBLES BELOW...',
-  'boss.hugGuardian.hugWarning': 'HUG INCOMING!',
-  'boss.drEmbrace.hugWarning': 'CHECK-UP HUG INCOMING!',
   'boss.hugGuardian.pawSwipe': 'PAW SWIPE!',
   'boss.hugGuardian.hugGrab': 'HUG GRAB!',
   'boss.hugGuardian.callFriends': 'CALL FRIENDS!',

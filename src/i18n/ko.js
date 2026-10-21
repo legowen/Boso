@@ -160,8 +160,6 @@ export default {
   'travel.arrived': '{route}  -  도착!',
   'travel.vroomWarning': '부릉이 달려온다!',
   'travel.rumbleWarning': '아래에서 뭔가 우르릉거려...',
-  'boss.hugGuardian.hugWarning': '포옹이 몰려온다!',
-  'boss.drEmbrace.hugWarning': '검진 포옹이 몰려온다!',
   'boss.hugGuardian.pawSwipe': '발바닥 휘두르기!',
   'boss.hugGuardian.hugGrab': '꽉 안아주기!',
   'boss.hugGuardian.callFriends': '친구 부르기!',
