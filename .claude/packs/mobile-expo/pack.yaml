@@ -1,0 +1,19 @@
+# Pack manifest. Same simple YAML format as studio.yaml.
+pack:
+  name: mobile-expo
+  description: iOS and Android apps with React Native and Expo (TypeScript), built with EAS
+  type: app
+  detect: package.json:"expo"
+
+checks:
+  validate: ""
+  test: ""              # e.g. npx jest (jest-expo preset)
+  build: npx tsc --noEmit
+  lint: ""              # e.g. npx expo lint (sets up ESLint on first run: ask first)
+  run: npx expo start
+
+paths:
+  code: app
+  data: ""
+  assets: assets
+  i18n: ""

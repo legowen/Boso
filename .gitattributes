@@ -1,0 +1,6 @@
+# Studio scripts must keep LF line endings or bash fails on Windows checkouts.
+.claude/**/*.sh   text eol=lf
+.claude/**/*.mjs  text eol=lf
+
+# The decisions log is append-only: keep both sides when two branches append.
+docs/DECISIONS.md merge=union

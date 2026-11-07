@@ -1,0 +1,19 @@
+# Pack manifest. Same simple YAML format as studio.yaml.
+pack:
+  name: godot
+  description: Godot 4 games in GDScript for desktop, web and mobile
+  type: game
+  detect: project.godot
+
+checks:
+  validate: ""
+  test: ""              # e.g. godot --headless -s addons/gut/gut_cmdln.gd -gexit  (with GUT installed)
+  build: ""             # e.g. godot --headless --export-release "Windows Desktop" build/game.exe
+  lint: ""              # e.g. gdlint scripts (gdtoolkit)
+  run: godot --path .
+
+paths:
+  code: scripts
+  data: data
+  assets: assets
+  i18n: ""

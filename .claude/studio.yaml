@@ -1,0 +1,58 @@
+# studio.yaml — the single source of truth for how the studio runs on this project.
+# Read:  bash .claude/scripts/config.sh get <section.key>
+# Write: bash .claude/scripts/config.sh set <section.key> <value>
+# Format rules (the scripts parse this without a YAML library):
+#   - two levels only: "section:" then two-space-indented "key: value"
+#   - lists are inline: [a, b]
+#   - no multi-line values
+
+studio:
+  version: 1.0.0
+
+project:
+  name: Boso            # set by /start or /adopt
+  type: game            # game | app
+  stage: production     # concept | prototype | production | polish | released
+
+packs: [web-phaser]     # active platform packs, e.g. [web-phaser]. Change with: bash .claude/scripts/pack.sh
+
+mode:
+  rigor: minimal        # minimal | standard   (how many docs and review gates; see .claude/studio/workflow.md)
+  automation: autonomous   # autonomous | guided | ask-first   (see .claude/studio/STUDIO.md)
+
+language:
+  conversation: ko      # what agents say to you
+  docs: ko              # design docs under design/
+  code: en              # comments, identifiers, commit messages
+  ingame: en            # Boso ships en + ko: every key in src/i18n/en.js AND ko.js; Hangul only in ko.js (paths.i18n)
+
+git:
+  main_branch: main
+  branch_prefix: feat/
+  block_commit_on_main: true
+  validate_on_commit: true   # run checks.validate before every commit (skipped when empty)
+  auto_push: false           # push / open PRs only when asked
+
+docs:
+  brief: docs/BRIEF.md
+  backlog: docs/BACKLOG.md
+  decisions: docs/DECISIONS.md
+  specs: docs/specs
+  references: [docs/BOSS_PATTERNS.md, docs/PIXEL_ART.md, docs/ASSETS.md, docs/VERIFICATION.md] # extra docs agents should read for context, e.g. [SCENES.md]
+
+checks:                 # filled from the active pack; edit freely. Empty = NOT CONFIGURED (never treated as a pass)
+  validate: "npm run validate"
+  test: "npm test"
+  build: "npm run build"
+  lint: ""
+  run: "npm run dev"
+
+paths:
+  code: src
+  data: src/data
+  assets: public/assets
+  i18n: src/i18n/ko.js  # comma-separated; excluded from the code-language check
+
+art:
+  style: "Generated pixel art, nearest-neighbor, transparent background; cat sheets are 4x4 grids of 96x96 cells (feet at y=88, display scale 1.125); sprites face right, left via setFlipX" # e.g. MapleStory-like pixel art, 64x64 frames, no anti-aliasing
+  pipeline: "image generation with prompts in art/prompts.json -> art/source -> npm run art:build (scripts/prepare-art.cjs, sharp) -> public/assets/images; overrides per docs/ASSETS.md" # e.g. Nano Banana -> Ezgif -> GIMP -> TexturePacker

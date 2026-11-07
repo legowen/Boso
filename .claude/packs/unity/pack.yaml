@@ -1,0 +1,19 @@
+# Pack manifest. Same simple YAML format as studio.yaml.
+pack:
+  name: unity
+  description: Unity 6 games in C# for PC, mobile and consoles
+  type: game
+  detect: ProjectSettings/ProjectVersion.txt
+
+checks:
+  validate: ""
+  test: ""              # see STACK.md for the batch-mode test command (needs UNITY_EDITOR)
+  build: ""
+  lint: ""
+  run: ""
+
+paths:
+  code: Assets/Scripts
+  data: Assets/Data
+  assets: Assets/Art
+  i18n: ""

@@ -1,0 +1,19 @@
+# Pack manifest. Same simple YAML format as studio.yaml.
+pack:
+  name: web-phaser
+  description: Phaser browser games with Vite (JavaScript/TypeScript), static hosting such as Vercel
+  type: game
+  detect: package.json:"phaser"
+
+checks:                 # copied into studio.yaml on activation when the project's value is empty
+  validate: ""          # e.g. node scripts/validate.mjs (/adopt fills it when the project has one)
+  test: ""              # e.g. npx vitest run
+  build: npm run build
+  lint: ""              # e.g. npx eslint src
+  run: npm run dev
+
+paths:
+  code: src
+  data: src/data
+  assets: public/assets
+  i18n: ""
