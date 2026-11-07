@@ -1,3 +1,4 @@
+<!-- studio:project:start -->
 # CLAUDE.md - Boso RPG Project Guide
 
 ## Project Overview
@@ -506,3 +507,41 @@ the player above the pad, and MAP/BAG provide map/quest details.
 - Real BGM files (keys ready — see docs/ASSETS.md)
 - More in-between animation frames and individual NPC variants
 - Tutorial skip for players with `tutorialCompleted`
+
+## Studio Notes (added at adoption, 2026-11)
+- The Claude Code studio runs this repo: settings in `.claude/studio.yaml`, rules in
+  `.claude/studio/STUDIO.md` (imported below). Commands: `/next`, `/spec`,
+  `/plan-stories`, `/build`, `/qa`, `/playtest`, `/done` (guide: `.claude/studio/GUIDE.md`).
+- Design docs: `docs/BRIEF.md` (one page), `docs/BACKLOG.md`, `docs/DECISIONS.md`;
+  working specs in `docs/specs/` (gitignored). This file stays the source of truth
+  for how systems work; update it in the same story that changes a system.
+- `GAME_DESIGN.md` and `docs/STORY.md` (v0.4) predate the Seoli/Bomi rewrite and the
+  Korean localization. They are historical: do not design or build from them.
+- Player-facing text: every new key goes into BOTH `src/i18n/en.js` and `ko.js`
+  (`studio.yaml` `language.ingame: en` only means "no Hangul outside ko.js").
+- Checks: `npm run validate` (also runs before every commit), `npm test`,
+  `npm run build`. `npm run test:browser` is slow and optional: run it for stories
+  that touch bosses or combat feel (needs `npx playwright-core install chromium`).
+- Playtest: `npm run dev`, then capture with `.claude/scripts/capture-web.mjs`
+  (uses the existing `playwright-core`). Jump into maps and bosses through the dev-only
+  `window.bosoDev` hooks (see Bosses › Respawn) instead of playing through menus.
+- Release verification notes keep going into `docs/VERIFICATION.md` (Korean).
+<!-- studio:project:end -->
+
+## Stack
+
+<!-- studio:stack:start -->
+### Web game — Phaser + Vite (pack: web-phaser)
+- Engine: Phaser (major version from `package.json`), bundled by Vite; JS or TS as the project uses.
+- Run `npm run dev` · build `npm run build` → `dist/` · deploy as a static site (e.g. Vercel).
+- Specialist: **phaser-specialist**. Path rules: `.claude/rules/web-phaser.*.md`.
+- Data layer: plain JSON/JS modules under `paths.data` with **no Phaser imports**, so `checks.validate` can load them in Node.
+- Assets under `paths.assets` are served as-is; sprites are texture atlases or fixed-grid spritesheets. Pixel art: `pixelArt: true`, integer zoom.
+- Maps: Tiled JSON (embedded tilesets, object layers for spawns/portals) or plain data modules, whichever the project uses; validate portals and spawns either way.
+- Playtest: dev server + `node .claude/scripts/capture-web.mjs` (Playwright). Jump to scenes with a dev-only URL param or `window` debug hook.
+
+<!-- studio:stack:end -->
+
+## Studio
+
+@.claude/studio/STUDIO.md

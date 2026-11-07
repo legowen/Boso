@@ -1,0 +1,19 @@
+# Pack manifest. Same simple YAML format as studio.yaml. Fill every line.
+pack:
+  name: __PACK__
+  description: ""       # one line: engine/framework, language, targets
+  type: game            # game | app | both
+  detect: ""            # file that identifies a project of this stack, optionally file:"text"
+
+checks:                 # terminal commands; leave "" when the stack has none
+  validate: ""
+  test: ""
+  build: ""
+  lint: ""
+  run: ""
+
+paths:
+  code: ""
+  data: ""
+  assets: ""
+  i18n: ""

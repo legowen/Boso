@@ -1,3 +1,11 @@
 node_modules/
 dist/
 .vite/
+
+# --- Claude Code studio (local working state) ---
+.claude/state/*
+!.claude/state/.gitkeep
+.claude/settings.local.json
+CLAUDE.local.md
+# Working specs (see .claude/studio/workflow.md). Delete this line to track them.
+docs/specs/
